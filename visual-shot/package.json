@@ -1,0 +1,36 @@
+{
+  "name": "visual-shot",
+  "version": "0.1.0",
+  "description": "Reproducible headless-Chromium screenshots for PR review, with no-root provisioning.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faetschi-bot/faetschi-bot-utils.git",
+    "directory": "visual-shot"
+  },
+  "author": "faetschi-bot",
+  "type": "module",
+  "bin": {
+    "visual-shot": "bin/visual-shot.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "scripts",
+    "README.md"
+  ],
+  "scripts": {
+    "setup": "bash scripts/provision.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "screenshot",
+    "playwright",
+    "chromium",
+    "headless",
+    "pull-request",
+    "visual-testing"
+  ],
+  "license": "MIT"
+}
