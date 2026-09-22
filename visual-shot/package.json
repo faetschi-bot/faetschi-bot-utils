@@ -38,6 +38,7 @@
   },
   "scripts": {
     "setup": "bash scripts/provision.sh",
-    "prepublishOnly": "node --check bin/visual-shot.mjs && node --check lib/config.mjs && bash -n scripts/provision.sh && bash -n scripts/provision-sysroot.sh"
+    "lint:sh": "bash -n scripts/provision.sh && bash -n scripts/provision-sysroot.sh",
+    "prepublishOnly": "node --check bin/visual-shot.mjs && node --check lib/config.mjs"
   }
 }

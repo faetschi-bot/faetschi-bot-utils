@@ -1,0 +1,13 @@
+# Normalize text to LF so the shell scripts run on every platform.
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+*.png binary
+*.jpg binary
+*.zip binary
+*.tgz binary
