@@ -140,6 +140,32 @@ MCP changes who drives the browser, not where it lives. Recommended: keep
 `visual-shot` as the deterministic, CI-reusable source of truth, and optionally
 register the MCP with the same cache paths for ad-hoc exploration.
 
+## Releasing
+
+Releases are GitHub Release tarballs — no npm registry account or 2FA involved.
+To publish a new version:
+
+```bash
+# 1. bump "version" in visual-shot/package.json, then commit
+git add visual-shot/package.json
+git commit -m "visual-shot: v0.1.1"
+
+# 2. tag and push — the tag must match the version
+git tag visual-shot-v0.1.1
+git push origin visual-shot-v0.1.1
+```
+
+The `Release visual-shot` workflow
+(`.github/workflows/release-visual-shot.yml`) runs `npm pack` and attaches
+`visual-shot-0.1.1.tgz` to the release at
+`https://github.com/faetschi-bot/faetschi-bot-utils/releases/tag/visual-shot-v0.1.1`.
+Consumers then install it by URL:
+
+```bash
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.1.1/visual-shot-0.1.1.tgz
+npx visual-shot setup
+```
+
 ## Troubleshooting
 
 - **`playwright not found`** — run `visual-shot setup`, or `npm i -D playwright`.
