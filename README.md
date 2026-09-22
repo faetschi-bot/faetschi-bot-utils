@@ -11,10 +11,18 @@ submodule. See the utility's own README for installation and usage.
 
 ## Releasing
 
-Each utility is published independently. For `visual-shot`:
+Utilities are distributed as GitHub Release tarballs, so no npm registry account
+is needed. For `visual-shot`, bump the version in `visual-shot/package.json`,
+commit, then push a matching tag:
 
 ```bash
-cd visual-shot
-npm login      # once per machine
-npm publish    # prepublishOnly runs syntax checks first
+git tag visual-shot-v0.1.1
+git push origin visual-shot-v0.1.1
+```
+
+The `Release visual-shot` workflow packs the tarball and attaches it to the
+release. Consumers install it by URL:
+
+```bash
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.1.1/visual-shot-0.1.1.tgz
 ```

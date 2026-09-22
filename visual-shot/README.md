@@ -19,10 +19,10 @@ in a **machine-global cache**, so several projects share one provision.
 
 ## Install
 
-From npm:
+Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D visual-shot
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.1.0/visual-shot-0.1.0.tgz
 npx visual-shot setup
 ```
 
