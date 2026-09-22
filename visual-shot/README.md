@@ -19,22 +19,25 @@ in a **machine-global cache**, so several projects share one provision.
 
 ## Install
 
-This package lives in the
-[`faetschi-bot-utils`](https://github.com/faetschi-bot/faetschi-bot-utils)
-monorepo under `visual-shot/`. Pick one:
+From npm:
 
 ```bash
-# 1. Vendored copy (simplest; no tooling)
+npm i -D visual-shot
+npx visual-shot setup
+```
+
+Or vendor it from the
+[`faetschi-bot-utils`](https://github.com/faetschi-bot/faetschi-bot-utils)
+monorepo (`visual-shot/`):
+
+```bash
+# Vendored copy
 cp -r visual-shot /path/to/project/tools/visual-shot
 node tools/visual-shot/bin/visual-shot.mjs setup
 
-# 2. Git submodule (share one copy across projects)
+# Git submodule (share one copy across projects)
 git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faetschi-bot-utils
 node tools/faetschi-bot-utils/visual-shot/bin/visual-shot.mjs setup
-
-# 3. If published to npm later
-npm i -D visual-shot
-npx visual-shot setup
 ```
 
 Then start your app and capture:

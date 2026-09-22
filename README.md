@@ -8,3 +8,13 @@ Small, reusable utilities by [@faetschi-bot](https://github.com/faetschi-bot).
 
 Each folder is self-contained: copy it into a project or add the repo as a git
 submodule. See the utility's own README for installation and usage.
+
+## Releasing
+
+Each utility is published independently. For `visual-shot`:
+
+```bash
+cd visual-shot
+npm login      # once per machine
+npm publish    # prepublishOnly runs syntax checks first
+```
