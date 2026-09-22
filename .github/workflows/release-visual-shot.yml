@@ -1,0 +1,27 @@
+name: Release visual-shot
+
+on:
+  push:
+    tags:
+      - 'visual-shot-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Pack
+        working-directory: visual-shot
+        run: |
+          npm pack
+          echo "TGZ=visual-shot/$(ls visual-shot-*.tgz)" >> "$GITHUB_ENV"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "$TGZ" --title "$GITHUB_REF_NAME" --generate-notes
