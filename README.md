@@ -24,7 +24,7 @@ npx <tool> --help
 For `visual-shot`:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.1.0/visual-shot-0.1.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
 npx visual-shot setup
 ```
 
@@ -40,24 +40,17 @@ git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faets
 
 ## Releasing a tool
 
-Each tool is versioned and released independently by pushing a tag named
-`<tool>-v<version>`:
+Each tool is versioned and released independently. **Releases are automatic on
+merge:** bump `"version"` in `<tool>/package.json`, commit, and merge to `main`.
+The matching workflow (`.github/workflows/release-<tool>.yml`) resolves the
+version, and if it has not been released yet, runs `npm pack` and creates the
+`<tool>-v<version>` tag and GitHub Release. Re-merging without a version bump is
+a no-op. Do not push tags by hand.
+
+To release `visual-shot`, bump `visual-shot/package.json` and merge:
 
 ```bash
-# 1. bump "version" in <tool>/package.json and commit
-# 2. tag and push — the tag must match the version
-git tag <tool>-v<version>
-git push origin <tool>-v<version>
-```
-
-The matching workflow (`.github/workflows/release-<tool>.yml`) runs `npm pack`
-and attaches `<tool>-<version>.tgz` to a GitHub Release. For `visual-shot`:
-
-```bash
-# bump "version" in visual-shot/package.json, commit, then:
-git tag visual-shot-v0.1.1
-git push origin visual-shot-v0.1.1
-# -> https://github.com/faetschi-bot/faetschi-bot-utils/releases/tag/visual-shot-v0.1.1
+# -> https://github.com/faetschi-bot/faetschi-bot-utils/releases/tag/visual-shot-v<version>
 ```
 
 ## Adding a new tool
@@ -65,6 +58,6 @@ git push origin visual-shot-v0.1.1
 1. Create `<tool>/` with a `package.json` (`name`, `version`, `bin`, `files`,
    `license`, `engines`) and the tool's files. Keep it self-contained.
 2. Copy `.github/workflows/release-visual-shot.yml` to
-   `.github/workflows/release-<tool>.yml` and change the tag pattern to
-   `<tool>-v*` and the `working-directory` to `<tool>`.
-3. Release by pushing a `<tool>-v<version>` tag (see above).
+   `.github/workflows/release-<tool>.yml` and change the `working-directory`,
+   the `visual-shot/**` path filter, and the tag prefix to `<tool>`.
+3. Release by bumping `<tool>/package.json` and merging to `main` (see above).

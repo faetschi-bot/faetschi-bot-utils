@@ -2,8 +2,14 @@ name: Release visual-shot
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'visual-shot-v*'
+    paths:
+      - 'visual-shot/**'
+      - '.github/workflows/release-visual-shot.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,12 +22,43 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Resolve release tag
+        id: release
+        working-directory: visual-shot
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            tag="visual-shot-v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "resolved release tag: $tag"
+
+      - name: Check whether the release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.release.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "${{ steps.release.outputs.tag }} already released; nothing to do"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Pack
+        if: steps.check.outputs.exists == 'false'
         working-directory: visual-shot
         run: |
           npm pack
           echo "TGZ=visual-shot/$(ls visual-shot-*.tgz)" >> "$GITHUB_ENV"
+
       - name: Publish release
+        if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "$TGZ" --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          gh release create "${{ steps.release.outputs.tag }}" "$TGZ" \
+            --title "${{ steps.release.outputs.tag }}" \
+            --generate-notes

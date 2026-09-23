@@ -1,0 +1,20 @@
+name: visual-shot
+description: Reproducible headless-Chromium screenshots for PR review.
+inputs:
+  args:
+    description: Arguments passed to visual-shot, e.g. --url http://127.0.0.1:3000/ --name shot
+    required: true
+  setup:
+    description: Provision Chromium and libraries before capturing.
+    required: false
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - name: Provision
+      if: inputs.setup == 'true'
+      shell: bash
+      run: node "${{ github.action_path }}/bin/visual-shot.mjs" setup
+    - name: Capture
+      shell: bash
+      run: node "${{ github.action_path }}/bin/visual-shot.mjs" ${{ inputs.args }}

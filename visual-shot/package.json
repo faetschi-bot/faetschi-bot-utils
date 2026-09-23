@@ -1,6 +1,6 @@
 {
   "name": "visual-shot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Reproducible headless-Chromium screenshots for PR review, with no-root provisioning.",
   "keywords": [
     "screenshot",
@@ -30,6 +30,8 @@
     "bin",
     "lib",
     "scripts",
+    "action.yml",
+    "AGENTS.md",
     "README.md",
     "LICENSE"
   ],
