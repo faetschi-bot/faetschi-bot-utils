@@ -63,6 +63,7 @@ missing.
 ```
 visual-shot capture [options]        screenshot a URL to a PNG (default command)
 visual-shot diff <before> <after>    compare two images and write a diff PNG
+visual-shot term -- <command...>     render a command's output as a PNG
 visual-shot setup                    provision Chromium + libraries, then exit
 visual-shot doctor [--json]          check the environment, then exit
 ```
@@ -138,6 +139,34 @@ By default `diff` exits `0` and just reports; add `--fail-on-diff` to use it as 
 visual-regression gate, in which case `--json` reports `ok: false` when pixels
 differ (and the process exits `1`). Differing input dimensions are padded to the
 common max size and reported via `sizeMatch: false`.
+
+### Render terminal output (term)
+
+`term` runs a command, captures its stdout/stderr (ANSI colors preserved), and
+renders it as a terminal-style PNG — handy for pasting a test or build transcript
+into a PR. Everything after `--` is the command; without `--`, the first
+non-option token starts the command.
+
+```bash
+npx visual-shot term --title "npm test" -- npm test
+npx visual-shot term --shell "pytest -q 2>&1 | tail -20"
+npx visual-shot term --fail-on-error -- npm run build   # exit 1 if the command fails
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--out <path>` | output PNG (default `$VISUAL_OUT_DIR/term.png`) |
+| `--title <text>` | render a title bar above the output |
+| `--width <px>` / `--font-size <px>` | layout (defaults `900` / `13`) |
+| `--max-lines <n>` | cap rendered lines (default `2000`); truncation is reported |
+| `--timeout <ms>` | kill the command after this (default `120000`) |
+| `--shell "<string>"` | run a single command string through the shell |
+| `--fail-on-error` | exit `1` when the command exits non-zero or times out |
+| `--json` | print `{ ok, out, command, exitCode, signal, timedOut, lines, truncated, durationMs }` |
+
+By default `term` writes the image and exits `0` even if the command failed (the
+failure is shown in the image); use `--fail-on-error` to propagate it.
+Carriage-return progress output is collapsed to its final state.
 
 ## Environment variables
 

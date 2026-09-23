@@ -119,6 +119,20 @@ npx visual-shot diff tmp/images/PRs/before.png tmp/images/PRs/after.png \
 Differing input dimensions are padded to the common max size and reported as
 `sizeMatch: false` rather than failing.
 
+## Render terminal output (term)
+
+`visual-shot term -- <command...>` runs a command and renders its ANSI output as
+a terminal-style PNG, for pasting a test/build transcript into a PR:
+
+```bash
+npx visual-shot term --title "npm test" -- npm test
+npx visual-shot term --fail-on-error --json -- npm run build
+```
+
+Everything after `--` is the command (without `--`, the first non-option token
+starts it). `--shell "<string>"` runs a shell string. `--fail-on-error` exits `1`
+when the command fails; by default the image is written and exit is `0`.
+
 ## Parse the result
 
 Pass `--json` for a stable object on success instead of scraping `saved <path>`:
