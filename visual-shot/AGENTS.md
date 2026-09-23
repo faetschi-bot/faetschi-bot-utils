@@ -25,7 +25,7 @@ Chromium libraries. If you cannot get root, stop and tell the user.
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.4.0/visual-shot-0.4.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
 
 # B. Vendored copy
 cp -r visual-shot /path/to/project/tools/visual-shot
@@ -137,17 +137,20 @@ when the command fails; by default the image is written and exit is `0`. With
 ## Render Mermaid diagrams (diagram)
 
 `visual-shot diagram <input>` renders Mermaid to PNG or SVG. Input is a `.mmd`
-file, a Markdown file (renders every fenced ` ```mermaid ` block), or `-` for
-stdin:
+file, a Markdown file (renders top-level fenced ` ```mermaid ` blocks; a
+4-space-indented block or mermaid text nested inside another fence is skipped),
+or `-` for stdin:
 
 ```bash
 npx visual-shot diagram docs/flow.mmd --out tmp/images/PRs/flow.png
 npx visual-shot diagram docs/design.md --format svg --out tmp/images/PRs/design/ --json
 ```
 
-A pinned `mermaid.min.js` is fetched once into `$VISUAL_SHOT_CACHE/mermaid/` on
-first use (network required only then). `doctor` reports it as an optional check.
-`--md-out <file>` rewrites a Markdown copy with image links.
+PNG output is transparent by default (`--background <color>` paints a solid
+background). A pinned `mermaid.min.js` is fetched once into
+`$VISUAL_SHOT_CACHE/mermaid/` on first use (network required only then).
+`doctor` reports it as an optional check. `--md-out <file>` rewrites a Markdown
+copy with image links, each written as `![diagram](<relative/path>)`.
 
 ## Parse the result
 

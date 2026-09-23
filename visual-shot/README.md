@@ -23,7 +23,7 @@ in a **machine-global cache**, so several projects share one provision.
 Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.4.0/visual-shot-0.4.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
 npx visual-shot setup
 ```
 
@@ -179,7 +179,8 @@ cut off.
 
 `diagram` renders Mermaid to PNG or SVG — useful for PR diagrams and for LaTeX
 figures that need real image files. It accepts a `.mmd` file, a Markdown file
-(renders every fenced ` ```mermaid ` block), or `-` for stdin.
+(renders top-level fenced ` ```mermaid ` blocks; a 4-space-indented block or
+mermaid text nested inside another fence is skipped), or `-` for stdin.
 
 ```bash
 npx visual-shot diagram docs/flow.mmd --out tmp/images/PRs/flow.png
@@ -192,10 +193,10 @@ npx visual-shot diagram docs/design.md --md-out docs/design.rendered.md
 | `--out <path>` | output file (`.mmd`) or directory (`.md`) |
 | `--format <png\|svg>` | output format (default `png`) |
 | `--theme <name>` | Mermaid theme (`default`, `dark`, `neutral`, `forest`) |
-| `--background <color>` | background colour (default transparent) |
+| `--background <color>` | background colour (default `transparent`, for PNG and SVG alike) |
 | `--scale <n>` | device scale factor for PNG (default `2`) |
 | `--md-out <file>` | for Markdown input, write a copy with fences replaced by image links |
-| `--json` | print `{ ok, format, mermaidVersion, outputs }` |
+| `--json` | print `{ ok, format, mermaidVersion, outputs, mdOut? }` |
 
 Mermaid itself is **not** an npm dependency: a pinned `mermaid.min.js` is
 downloaded once into the cache (`$VISUAL_SHOT_CACHE/mermaid/`) on first use, so
@@ -218,6 +219,7 @@ $VISUAL_SHOT_CACHE/
   browsers/   Chromium            (PLAYWRIGHT_BROWSERS_PATH)
   sysroot/    unpacked .debs      (missing libs + fonts, no root)
   pw/         pinned playwright   (self-provisioned if not installed)
+  mermaid/    pinned mermaid.min.js (diagram, fetched on first use)
   env.sh, fonts.conf, .provisioned
 ```
 
@@ -276,7 +278,7 @@ hand.
 Consumers then install it by URL:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.4.0/visual-shot-0.4.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
 npx visual-shot setup
 ```
 

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename as baseName, dirname, extname, join, relative, resolve } from 'node:path';
 import {
   DEFAULT_DIAGRAM_FORMAT,
@@ -48,7 +49,7 @@ export function parse(argv) {
     else if (a === '--format') o.format = val();
     else if (a === '--theme') o.theme = val();
     else if (a === '--background') o.background = val();
-    else if (a === '--scale') o.scale = Number(val());
+    else if (a === '--scale') o.scale = val();
     else if (a === '--md-out') o.mdOut = val();
     else if (a === '--json') o.json = true;
     else if (a === '--help' || a === '-h') o.help = true;
@@ -59,43 +60,51 @@ export function parse(argv) {
   return o;
 }
 
-function parseMermaidFences(markdown) {
+const FENCE_OPEN_RE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
+
+export function parseMermaidFences(markdown) {
   const lines = markdown.split('\n');
   const fences = [];
   const definitions = [];
-  let i = 0;
-  while (i < lines.length) {
-    const open = lines[i].match(/^(\s*)(`{3,}|~{3,})[ \t]*mermaid[ \t]*\r?$/i);
-    if (!open) {
-      i++;
+  let open = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\r$/, '');
+
+    if (open) {
+      const closeRe = new RegExp(`^ {0,3}\\${open.char}{${open.len},}[ \\t]*$`);
+      if (closeRe.test(line)) {
+        if (open.mermaid) {
+          fences.push({ startLine: open.startLine, endLine: i, indent: open.indent });
+          definitions.push(open.body.join('\n').trim());
+        }
+        open = null;
+      } else {
+        open.body.push(line);
+      }
       continue;
     }
-    const indent = open[1];
-    const marker = open[2][0];
-    const markerLen = open[2].length;
-    const startLine = i;
-    const body = [];
-    i++;
-    let closed = false;
-    const closeRe = new RegExp(`^\\s*\\${marker}{${markerLen},}\\s*\\r?$`);
-    while (i < lines.length) {
-      if (closeRe.test(lines[i])) {
-        closed = true;
-        i++;
-        break;
-      }
-      body.push(lines[i].replace(/\r$/, ''));
-      i++;
-    }
-    if (closed) {
-      fences.push({ startLine, endLine: i - 1, indent });
-      definitions.push(body.join('\n').trim());
-    }
+
+    const m = line.match(FENCE_OPEN_RE);
+    if (!m) continue;
+    const indent = m[1];
+    const marker = m[2];
+    const char = marker[0];
+    const info = m[3];
+    // A backtick fence's info string may not itself contain backticks.
+    if (char === '`' && info.includes('`')) continue;
+    const isMermaid = /^mermaid(?:\s|$)/i.test(info.trim());
+    open = { char, len: marker.length, mermaid: isMermaid, startLine: i, indent, body: [] };
   }
+
+  if (open && open.mermaid) {
+    throw new CliError(`unclosed mermaid code fence (opened at line ${open.startLine + 1})`);
+  }
+
   return { fences, definitions };
 }
 
-function replaceFences(markdown, fences, replacementFor) {
+export function replaceFences(markdown, fences, replacementFor) {
   const lines = markdown.split('\n');
   const out = [];
   let cursor = 0;
@@ -107,6 +116,10 @@ function replaceFences(markdown, fences, replacementFor) {
   }
   for (let j = cursor; j < lines.length; j++) out.push(lines[j]);
   return out.join('\n');
+}
+
+export function markdownImageLink(rel) {
+  return `![diagram](<${rel}>)`;
 }
 
 export function validate(opts) {
@@ -137,6 +150,9 @@ export function validate(opts) {
     else if (ext === '.md' || ext === '.markdown') kind = 'md';
     else throw new CliError(`unsupported input "${input}" (expected .mmd, .md, .markdown, or -)`);
     if (!existsSync(input)) throw new CliError(`input not found: ${input}`);
+    if (!statSync(input).isFile()) {
+      throw new CliError(`input is not a file: ${input} (expected .mmd, .md, .markdown, or -)`);
+    }
     content = readFileSync(input, 'utf8');
     base = baseName(input, ext);
   }
@@ -184,9 +200,17 @@ function mermaidAssetPath(cache) {
   return join(cache, 'mermaid', `mermaid-${mermaidVersion()}.min.js`);
 }
 
+const MIN_MERMAID_BYTES = 1000;
+
 async function ensureMermaid(cache) {
   const asset = mermaidAssetPath(cache);
-  if (existsSync(asset)) return asset;
+  if (existsSync(asset)) {
+    try {
+      if (statSync(asset).size >= MIN_MERMAID_BYTES) return asset;
+    } catch {
+      /* unreadable cache entry: fall through and re-download */
+    }
+  }
   const url = `https://cdn.jsdelivr.net/npm/mermaid@${mermaidVersion()}/dist/mermaid.min.js`;
   try {
     await downloadFile(url, asset);
@@ -194,6 +218,14 @@ async function ensureMermaid(cache) {
     throw new CliError(`failed to download Mermaid ${mermaidVersion()} from ${url}: ${e.message}`, 1);
   }
   return asset;
+}
+
+function diagramId(base, index, definition) {
+  const hash = createHash('sha1')
+    .update(`${base}\n${index}\n${definition}`)
+    .digest('hex')
+    .slice(0, 12);
+  return `visualShotDiagram-${hash}`;
 }
 
 const PAGE_HTML = `<!doctype html>
@@ -230,7 +262,7 @@ export async function run(plan, ctx) {
 
     for (let i = 0; i < plan.definitions.length; i++) {
       const index = i + 1;
-      const id = `visualShotDiagram${index}`;
+      const id = diagramId(plan.base, index, plan.definitions[i]);
       const rendered = await page.evaluate(
         async ({ id, def }) => {
           try {
@@ -284,7 +316,10 @@ export async function run(plan, ctx) {
           width: Math.max(1, size.width),
           height: Math.max(1, size.height),
         });
-        await page.locator('#holder svg').screenshot({ path: outPath });
+        await page.locator('#holder svg').screenshot({
+          path: outPath,
+          omitBackground: plan.background === 'transparent',
+        });
       }
 
       outputs.push({ out: outPath, index });
@@ -293,7 +328,7 @@ export async function run(plan, ctx) {
     if (plan.mdOut) {
       const replaced = replaceFences(plan.content, plan.fences, (k) => {
         const rel = relative(dirname(plan.mdOut), outputs[k].out) || outputs[k].out;
-        return `![diagram](${rel})`;
+        return markdownImageLink(rel);
       });
       ensureDir(plan.mdOut);
       writeFileSync(plan.mdOut, replaced);
