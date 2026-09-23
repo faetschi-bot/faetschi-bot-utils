@@ -25,14 +25,20 @@ export function num(value, fallback) {
 }
 
 export function positive(value, fallback, flag) {
-  const n = num(value, fallback);
-  if (n <= 0) throw new CliError(`--${flag} must be greater than 0 (got ${value})`);
+  if (value === undefined) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new CliError(`--${flag} must be greater than 0 (got ${value})`);
+  }
   return n;
 }
 
 export function nonNegative(value, fallback, flag) {
-  const n = num(value, fallback);
-  if (n < 0) throw new CliError(`--${flag} must not be negative (got ${value})`);
+  if (value === undefined) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new CliError(`--${flag} must not be negative (got ${value})`);
+  }
   return n;
 }
 
@@ -110,19 +116,19 @@ export function ensureDir(file) {
   }
 }
 
-export function runProvision(cache) {
+export function runProvision(cache, { quietStdout = false } = {}) {
   process.env.VISUAL_SHOT_CACHE = cache;
-  const r = spawnSync('bash', [join(scriptsDir, 'provision.sh')], {
-    stdio: 'inherit',
-    env: process.env,
-  });
-  if (r.status !== 0) throw new CliError('provisioning failed', r.status ?? 1);
+  // In --json mode, route the provisioning script's stdout to stderr so the
+  // machine-readable result on stdout stays parseable on a cold cache.
+  const stdio = quietStdout ? ['ignore', process.stderr, process.stderr] : 'inherit';
+  const r = spawnSync('bash', [join(scriptsDir, 'provision.sh')], { stdio, env: process.env });
+  if (r.status !== 0) throw new CliError('provisioning failed', 1);
 }
 
-export function ensureProvisioned(cache) {
+export function ensureProvisioned(cache, { json = false } = {}) {
   if (existsSync(join(cache, '.provisioned'))) return;
   console.error('[visual-shot] first run: provisioning Chromium + libraries (this can take a few minutes)...');
-  runProvision(cache);
+  runProvision(cache, { quietStdout: json });
 }
 
 export async function launchBrowser(chromium) {

@@ -1,20 +1,19 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import {
+  DEFAULT_DIFF_SCALE,
   DEFAULT_DIFF_THRESHOLD,
   DEFAULT_NAV_TIMEOUT,
   DEFAULT_OUT_DIR,
   DEFAULT_VIEWPORT,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
-import { ensureDir, launchBrowser } from '../shared.mjs';
+import { ensureDir, launchBrowser, positive } from '../shared.mjs';
 
 export const name = 'diff';
 export const aliases = ['image-diff'];
 export const summary = 'Compare two images (paths or URLs) and write a diff PNG';
 export const needsBrowser = true;
-
-const DEFAULT_DIFF_SCALE_VALUE = 1;
 
 const MIME_BY_EXT = {
   '.png': 'image/png',
@@ -37,7 +36,7 @@ Options:
   --out <path>         explicit output PNG (default: $VISUAL_OUT_DIR/diff.png)
   --threshold <n>      per-pixel color distance threshold, 0..1 (default: ${DEFAULT_DIFF_THRESHOLD})
   --viewport <WxH>     viewport for URL inputs (default: ${DEFAULT_VIEWPORT})
-  --scale <n>          device scale factor for URL inputs (default: ${DEFAULT_DIFF_SCALE_VALUE})
+  --scale <n>          device scale factor for URL inputs (default: ${DEFAULT_DIFF_SCALE})
   --fail-on-diff       exit 1 when any differing pixels are found
   --json               print a machine-readable result object
   --help               show this help`;
@@ -85,19 +84,22 @@ export function validate(opts) {
     throw new CliError(`invalid --viewport "${opts.viewport}" (expected WxH, e.g. 1280x720)`);
   }
 
-  const scale = opts.scale === undefined ? DEFAULT_DIFF_SCALE_VALUE : Number(opts.scale);
-  if (!Number.isFinite(scale) || scale <= 0) {
-    throw new CliError(`--scale must be greater than 0 (got ${opts.scale})`);
-  }
+  const scale = positive(opts.scale, DEFAULT_DIFF_SCALE, 'scale');
 
   if (!opts.before || !opts.after) {
     throw new CliError('missing inputs: expected <before> and <after>');
   }
 
   for (const input of [opts.before, opts.after]) {
-    if (!isUrl(input) && !existsSync(input)) {
-      throw new CliError(`input not found: ${input}`);
+    if (isUrl(input)) continue;
+    if (!existsSync(input)) throw new CliError(`input not found: ${input}`);
+    let stat;
+    try {
+      stat = statSync(input);
+    } catch (e) {
+      throw new CliError(`cannot read input ${input}: ${e.message}`);
     }
+    if (!stat.isFile()) throw new CliError(`input is not a file: ${input}`);
   }
 
   const out = resolve(opts.out || join(process.env.VISUAL_OUT_DIR || DEFAULT_OUT_DIR, 'diff.png'));
@@ -162,6 +164,15 @@ function compareInPage({ before, after, threshold }) {
     const height = Math.max(imgA.naturalHeight, imgB.naturalHeight);
     const sizeMatch =
       imgA.naturalWidth === imgB.naturalWidth && imgA.naturalHeight === imgB.naturalHeight;
+
+    // Guard against canvases Chrome cannot encode (max dimension 65535; large
+    // areas silently return an empty data URL).
+    if (width * 3 > 65535) {
+      throw new Error(`composite image too wide (${width * 3}px > 65535); reduce --scale or image size`);
+    }
+    if (width * height > 100_000_000) {
+      throw new Error(`images too large to compare safely (${width}x${height})`);
+    }
 
     function draw(img) {
       const canvas = document.createElement('canvas');
@@ -241,10 +252,14 @@ async function loadInput(input, plan, browser) {
   });
   try {
     const page = await context.newPage();
-    await page.goto(input, { waitUntil: 'load', timeout: DEFAULT_NAV_TIMEOUT });
+    const res = await page.goto(input, { waitUntil: 'load', timeout: DEFAULT_NAV_TIMEOUT });
+    if (!res || res.status() >= 400) {
+      throw new CliError(`failed to load ${input}: HTTP ${res ? res.status() : 'no response'}`, 1);
+    }
     const buf = await page.screenshot();
     return `data:image/png;base64,${buf.toString('base64')}`;
   } catch (e) {
+    if (e instanceof CliError) throw e;
     throw new CliError(`failed to load ${input}: ${e.message}`, 1);
   } finally {
     await context.close();
@@ -261,7 +276,7 @@ export async function run(plan, ctx) {
     try {
       result = await page.evaluate(compareInPage, { before, after, threshold: plan.threshold });
     } catch (e) {
-      throw new CliError(`comparison failed: ${e.message}`, 1);
+      throw new CliError(`comparison failed for ${plan.before} vs ${plan.after}: ${e.message}`, 1);
     } finally {
       await page.close();
     }
@@ -269,7 +284,11 @@ export async function run(plan, ctx) {
     await browser.close();
   }
 
-  const base64 = result.dataUrl.slice(result.dataUrl.indexOf(',') + 1);
+  const prefix = 'data:image/png;base64,';
+  const base64 = result.dataUrl.startsWith(prefix) ? result.dataUrl.slice(prefix.length) : '';
+  if (!base64) {
+    throw new CliError('comparison produced an empty image (inputs too large?)', 1);
+  }
   try {
     ensureDir(plan.out);
     writeFileSync(plan.out, Buffer.from(base64, 'base64'));
@@ -286,7 +305,7 @@ export async function run(plan, ctx) {
     console.log(
       JSON.stringify(
         {
-          ok: true,
+          ok: !failed,
           out: plan.out,
           before: plan.before,
           after: plan.after,

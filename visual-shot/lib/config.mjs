@@ -14,7 +14,7 @@ export const DEFAULT_PLAYWRIGHT_VERSION = '1.49.1';
 
 // diff
 export const DEFAULT_DIFF_THRESHOLD = 0.1;
-export const DEFAULT_DIFF_SCALE = 2;
+export const DEFAULT_DIFF_SCALE = 1;
 
 // terminal
 export const DEFAULT_TERM_TIMEOUT = 120000;

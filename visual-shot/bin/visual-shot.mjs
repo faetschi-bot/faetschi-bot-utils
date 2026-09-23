@@ -86,7 +86,7 @@ async function main() {
   const plan = command.validate ? command.validate(opts) : opts;
 
   if (command.needsBrowser) {
-    ensureProvisioned(cache);
+    ensureProvisioned(cache, { json: Boolean(opts.json) });
     applyEnvFile(join(cache, 'env.sh'));
     const pw = loadPlaywright(cache);
     if (!pw || !pw.chromium) throw new CliError('playwright not found. Run: visual-shot setup', 1);

@@ -25,7 +25,7 @@ Chromium libraries. If you cannot get root, stop and tell the user.
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.3.0/visual-shot-0.3.0.tgz
 
 # B. Vendored copy
 cp -r visual-shot /path/to/project/tools/visual-shot
@@ -110,8 +110,10 @@ npx visual-shot diff tmp/images/PRs/before.png tmp/images/PRs/after.png \
 ```
 
 - `--threshold <0..1>` per-pixel color tolerance (default `0.1`).
-- `--fail-on-diff` exits `1` when anything changed (visual-regression gate).
+- `--fail-on-diff` exits `1` when anything changed (visual-regression gate); with
+  `--json` it also reports `ok: false`.
 - `--json` returns `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch }`.
+- URL inputs are captured as page screenshots at `--viewport`, not downloaded.
 
 Differing input dimensions are padded to the common max size and reported as
 `sizeMatch: false` rather than failing.

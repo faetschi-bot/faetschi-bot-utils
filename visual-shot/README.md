@@ -23,7 +23,7 @@ in a **machine-global cache**, so several projects share one provision.
 Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.3.0/visual-shot-0.3.0.tgz
 npx visual-shot setup
 ```
 
@@ -116,11 +116,12 @@ page produced more than 50 errors and the lists were capped.
 
 `diff` compares two images and writes a single side-by-side PNG
 (`before | after | diff`, differing pixels highlighted red). Each input is a
-local image path or an `http(s)://` URL (URLs are screenshotted at `--viewport`).
+local image path or an `http(s)://` URL; **URLs are captured as page screenshots
+at `--viewport`, not downloaded as images**.
 
 ```bash
 npx visual-shot diff before.png after.png --out tmp/images/PRs/change.png
-npx visual-shot diff http://localhost:3000/after.png after.png --fail-on-diff
+npx visual-shot diff http://localhost:3000/ after.png --fail-on-diff
 ```
 
 | Flag | Meaning |
@@ -132,8 +133,9 @@ npx visual-shot diff http://localhost:3000/after.png after.png --fail-on-diff
 | `--json` | print `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch, … }` |
 
 By default `diff` exits `0` and just reports; add `--fail-on-diff` to use it as a
-visual-regression gate. Differing input dimensions are padded to the common max
-size and reported via `sizeMatch: false`.
+visual-regression gate, in which case `--json` reports `ok: false` when pixels
+differ (and the process exits `1`). Differing input dimensions are padded to the
+common max size and reported via `sizeMatch: false`.
 
 ## Environment variables
 
@@ -209,7 +211,7 @@ hand.
 Consumers then install it by URL:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.3.0/visual-shot-0.3.0.tgz
 npx visual-shot setup
 ```
 

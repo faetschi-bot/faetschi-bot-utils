@@ -64,3 +64,22 @@ test('diff invalid input emits JSON and does not provision', () => {
     rmSync(cache, { recursive: true, force: true });
   }
 });
+
+test('diff directory input exits 2 without provisioning', () => {
+  const cache = emptyCache();
+  try {
+    const r = run(['diff', cache, cache, '--json'], { cache });
+    assert.equal(r.status, 2);
+    const parsed = JSON.parse(r.stdout);
+    assert.match(parsed.error, /not a file/);
+    assert.equal(existsSync(join(cache, '.provisioned')), false);
+  } finally {
+    rmSync(cache, { recursive: true, force: true });
+  }
+});
+
+test('diff non-numeric --scale exits 2', () => {
+  const r = run(['diff', 'a.png', 'b.png', '--scale', 'abc']);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /--scale must be greater than 0/);
+});
