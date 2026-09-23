@@ -23,7 +23,7 @@ in a **machine-global cache**, so several projects share one provision.
 Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.3.0/visual-shot-0.3.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.4.0/visual-shot-0.4.0.tgz
 npx visual-shot setup
 ```
 
@@ -162,11 +162,17 @@ npx visual-shot term --fail-on-error -- npm run build   # exit 1 if the command 
 | `--timeout <ms>` | kill the command after this (default `120000`) |
 | `--shell "<string>"` | run a single command string through the shell |
 | `--fail-on-error` | exit `1` when the command exits non-zero or times out |
-| `--json` | print `{ ok, out, command, exitCode, signal, timedOut, lines, truncated, durationMs }` |
+| `--json` | print `{ ok, out, command, shell, exitCode, signal, timedOut, lines, truncated, bufferTruncated, durationMs }` |
 
 By default `term` writes the image and exits `0` even if the command failed (the
-failure is shown in the image); use `--fail-on-error` to propagate it.
-Carriage-return progress output is collapsed to its final state.
+failure is shown in the image); use `--fail-on-error` to propagate it (with
+`--json` it then reports `ok: false`). stdout and stderr are captured through
+separate pipes, so their relative ordering in the image is approximate rather
+than a faithful interleave. Carriage returns are rendered with terminal
+overwrite semantics: each `\r`-separated segment is painted from column 0,
+preserving any longer tail (so `hello\rhi` renders as `hillo` and `foo\r` as
+`foo`). `bufferTruncated: true` means the captured output exceeded 8 MiB and was
+cut off.
 
 ## Environment variables
 
@@ -242,7 +248,7 @@ hand.
 Consumers then install it by URL:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.3.0/visual-shot-0.3.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.4.0/visual-shot-0.4.0.tgz
 npx visual-shot setup
 ```
 

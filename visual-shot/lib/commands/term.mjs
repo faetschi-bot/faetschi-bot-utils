@@ -5,6 +5,7 @@ import {
   DEFAULT_TERM_FONT_SIZE,
   DEFAULT_TERM_TIMEOUT,
   DEFAULT_TERM_WIDTH,
+  MAX_TERM_BYTES,
   MAX_TERM_LINES,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
@@ -83,6 +84,9 @@ export function validate(opts) {
   const width = positiveNumber(opts.width, DEFAULT_TERM_WIDTH, 'width');
   const fontSize = positiveNumber(opts.fontSize, DEFAULT_TERM_FONT_SIZE, 'font-size');
   const maxLines = positiveNumber(opts.maxLines, MAX_TERM_LINES, 'max-lines');
+  if (!Number.isInteger(maxLines)) {
+    throw new CliError(`--max-lines must be an integer (got ${opts.maxLines})`);
+  }
   const timeout = positiveNumber(opts.timeout, DEFAULT_TERM_TIMEOUT, 'timeout');
 
   const command = opts.command ?? [];
@@ -147,7 +151,7 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-function ansiToHtml(text) {
+export function ansiToHtml(text) {
   const state = { fg: null, bg: null, bold: false, dim: false, italic: false, underline: false };
   const reset = () => {
     state.fg = null;
@@ -189,9 +193,10 @@ function ansiToHtml(text) {
           const r = codes[k + 2];
           const g = codes[k + 3];
           const b = codes[k + 4];
-          if ([r, g, b].every((x) => Number.isFinite(x))) {
-            state[target] = `rgb(${r},${g},${b})`;
-          }
+          const valid = [r, g, b].every(
+            (x) => Number.isInteger(x) && x >= 0 && x <= 255,
+          );
+          if (valid) state[target] = `rgb(${r},${g},${b})`;
           k += 4;
         }
       }
@@ -228,7 +233,11 @@ function ansiToHtml(text) {
           if (code >= 0x40 && code <= 0x7e) break;
           j++;
         }
-        if (j >= text.length) break;
+        if (j >= text.length) {
+          // Unterminated CSI: drop only the introducer, keep the rest as text.
+          i += 2;
+          continue;
+        }
         if (text[j] === 'm') applySgr(text.slice(i + 2, j));
         i = j + 1;
         continue;
@@ -240,8 +249,14 @@ function ansiToHtml(text) {
           if (text[j] === '\u001b' && text[j + 1] === '\\') break;
           j++;
         }
-        if (j < text.length && text[j] === '\u001b') i = j + 2;
-        else i = j + 1;
+        if (j >= text.length) {
+          // Unterminated OSC: drop only the introducer, keep the rest as text.
+          i += 2;
+        } else if (text[j] === '\u001b') {
+          i = j + 2;
+        } else {
+          i = j + 1;
+        }
         continue;
       }
       i += 2;
@@ -317,9 +332,40 @@ function runCommand(plan) {
   return new Promise((resolvePromise) => {
     const started = Date.now();
     const chunks = [];
+    let bufferedBytes = 0;
+    let bufferTruncated = false;
     let timedOut = false;
     let spawnError = null;
     let settled = false;
+    let timer = null;
+    let graceTimer = null;
+
+    const settle = (code, signal) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (graceTimer) clearTimeout(graceTimer);
+      resolvePromise({
+        output: chunks.join(''),
+        exitCode: code,
+        signal: signal ?? null,
+        timedOut,
+        bufferTruncated,
+        durationMs: Date.now() - started,
+        error: spawnError ? spawnError.message : null,
+      });
+    };
+
+    const append = (d) => {
+      if (bufferTruncated) return;
+      const str = d.toString('utf8');
+      bufferedBytes += Buffer.byteLength(str, 'utf8');
+      if (bufferedBytes > MAX_TERM_BYTES) {
+        bufferTruncated = true;
+        return;
+      }
+      chunks.push(str);
+    };
 
     const spawnOptions = {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -335,18 +381,12 @@ function runCommand(plan) {
         child = spawn(plan.command[0], plan.command.slice(1), spawnOptions);
       }
     } catch (e) {
-      resolvePromise({
-        output: '',
-        exitCode: null,
-        signal: null,
-        timedOut: false,
-        durationMs: Date.now() - started,
-        error: e.message,
-      });
+      spawnError = e;
+      settle(null, null);
       return;
     }
 
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       timedOut = true;
       try {
         if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, 'SIGKILL');
@@ -358,25 +398,32 @@ function runCommand(plan) {
           /* already gone */
         }
       }
+      // A child that escaped the process group (setsid, daemons) survives the
+      // group kill and keeps the stdout/stderr pipes open, so `close` may never
+      // fire. Stop reading and force the promise to settle regardless.
+      try {
+        child.stdout?.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        child.stderr?.destroy();
+      } catch {
+        /* ignore */
+      }
+      graceTimer = setTimeout(() => settle(null, 'SIGKILL'), 250);
+      graceTimer.unref?.();
     }, plan.timeout);
 
-    child.stdout?.on('data', (d) => chunks.push(d.toString('utf8')));
-    child.stderr?.on('data', (d) => chunks.push(d.toString('utf8')));
+    child.stdout?.on('data', append);
+    child.stderr?.on('data', append);
+    child.stdout?.on('error', () => {});
+    child.stderr?.on('error', () => {});
     child.on('error', (e) => {
       spawnError = e;
     });
     child.on('close', (code, signal) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolvePromise({
-        output: chunks.join(''),
-        exitCode: code,
-        signal: signal ?? null,
-        timedOut,
-        durationMs: Date.now() - started,
-        error: spawnError ? spawnError.message : null,
-      });
+      settle(code, signal);
     });
   });
 }
@@ -385,15 +432,22 @@ function normalizeNewlines(text) {
   return text.replace(/\r\n/g, '\n');
 }
 
-// Progress output overwrites a line with \r; keep only the final state of each line.
-function collapseCarriageReturns(text) {
-  return text
-    .replace(/\n$/, '')
-    .split('\n')
-    .map((line) => {
-      const idx = line.lastIndexOf('\r');
-      return idx === -1 ? line : line.slice(idx + 1);
-    });
+// Progress output overwrites a line with \r. A terminal returns the cursor to
+// column 0 and overwrites the existing characters, so each \r-separated segment
+// is painted over the line while any longer tail is preserved.
+export function collapseCarriageReturns(text) {
+  const trimmed = text.replace(/\n$/, '');
+  if (trimmed === '') return [];
+  return trimmed.split('\n').map((line) => {
+    if (!line.includes('\r')) return line;
+    const segments = line.split('\r');
+    let result = segments[0];
+    for (let i = 1; i < segments.length; i++) {
+      const seg = segments[i];
+      result = seg + result.slice(seg.length);
+    }
+    return result;
+  });
 }
 
 async function renderPng(plan, bodyHtml, ctx) {
@@ -427,7 +481,9 @@ export async function run(plan, ctx) {
   let output = result.output;
   let exitCode = result.exitCode;
   if (result.error) {
-    if (exitCode === null) exitCode = 127;
+    // A failed spawn reports errno (e.g. -2 for ENOENT) as the close code;
+    // never leak that as an exit code — surface the shell-conventional 127.
+    exitCode = 127;
     const note = `[visual-shot] failed to start command: ${result.error}`;
     output = output ? `${output.replace(/\n$/, '')}\n${note}\n` : `${note}\n`;
   }
@@ -441,6 +497,7 @@ export async function run(plan, ctx) {
   }
   let body = rendered.join('\n');
   if (truncated) body += `\n… ${allLines.length - plan.maxLines} more line(s) truncated`;
+  if (result.bufferTruncated) body += `\n… output truncated at ${MAX_TERM_BYTES} bytes`;
   const bodyHtml = ansiToHtml(body);
 
   try {
@@ -457,7 +514,7 @@ export async function run(plan, ctx) {
     console.log(
       JSON.stringify(
         {
-          ok: true,
+          ok: !failed,
           out: plan.out,
           command: plan.command,
           shell: plan.shell,
@@ -466,6 +523,7 @@ export async function run(plan, ctx) {
           timedOut: result.timedOut,
           lines,
           truncated,
+          bufferTruncated: result.bufferTruncated,
           durationMs: result.durationMs,
         },
         null,
@@ -480,7 +538,7 @@ export async function run(plan, ctx) {
         : exitCode;
     console.log(`saved ${plan.out}`);
     console.log(
-      `term: exit ${exitLabel}, ${lines} line${lines === 1 ? '' : 's'}, ${result.durationMs}ms${truncated ? ` (truncated to ${plan.maxLines})` : ''}`,
+      `term: exit ${exitLabel}, ${lines} line${lines === 1 ? '' : 's'}, ${result.durationMs}ms${truncated ? ` (truncated to ${plan.maxLines})` : ''}${result.bufferTruncated ? ' (output buffer truncated)' : ''}`,
     );
   }
 

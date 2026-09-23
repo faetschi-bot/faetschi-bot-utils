@@ -25,7 +25,7 @@ Chromium libraries. If you cannot get root, stop and tell the user.
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.3.0/visual-shot-0.3.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.4.0/visual-shot-0.4.0.tgz
 
 # B. Vendored copy
 cp -r visual-shot /path/to/project/tools/visual-shot
@@ -131,7 +131,8 @@ npx visual-shot term --fail-on-error --json -- npm run build
 
 Everything after `--` is the command (without `--`, the first non-option token
 starts it). `--shell "<string>"` runs a shell string. `--fail-on-error` exits `1`
-when the command fails; by default the image is written and exit is `0`.
+when the command fails; by default the image is written and exit is `0`. With
+`--json`, `--fail-on-error` also sets `ok: false` when the command fails.
 
 ## Parse the result
 

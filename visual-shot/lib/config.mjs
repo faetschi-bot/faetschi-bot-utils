@@ -21,6 +21,7 @@ export const DEFAULT_TERM_TIMEOUT = 120000;
 export const DEFAULT_TERM_WIDTH = 900;
 export const DEFAULT_TERM_FONT_SIZE = 13;
 export const MAX_TERM_LINES = 2000;
+export const MAX_TERM_BYTES = 8 * 1024 * 1024;
 
 // diagram
 export const DEFAULT_DIAGRAM_FORMAT = 'png';
