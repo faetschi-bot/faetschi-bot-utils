@@ -22,7 +22,7 @@ in a **machine-global cache**, so several projects share one provision.
 Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.1.0/visual-shot-0.1.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
 npx visual-shot setup
 ```
 
@@ -61,8 +61,13 @@ missing.
 
 ```
 visual-shot setup                 provision Chromium + libraries, then exit
+visual-shot doctor [--json]       check the environment, then exit
 visual-shot [options]             capture a screenshot
 ```
+
+`doctor` reports Node, cache, Chromium, Playwright, and — when `--url` is given —
+whether the dev server responds. It exits non-zero when the environment is not
+ready, so an agent can verify setup before capturing.
 
 | Flag | Meaning |
 |------|---------|
@@ -71,14 +76,36 @@ visual-shot [options]             capture a screenshot
 | `--url <url>` | page to open (default `$VISUAL_URL` or `http://127.0.0.1:5173/`) |
 | `--viewport <WxH>` | viewport size (default `1280x720`) |
 | `--scale <n>` | device scale factor (default `2`, i.e. retina) |
+| `--device <name>` | Playwright device preset, e.g. `"iPhone 13"` |
 | `--wait-for <sel>` | wait for a selector before capturing |
 | `--wait <ms>` | extra settle time (default `1000`) |
 | `--hover <sel>` / `--click <sel>` / `--key <key>` | drive the UI first (repeatable, in order) |
 | `--element <sel>` | capture one element instead of the viewport |
 | `--full-page` | capture the whole scrollable page |
+| `--wait-for-server` | poll `--url` until it responds before navigating |
+| `--server-timeout <ms>` | how long to wait for the server (default `30000`) |
+| `--timeout <ms>` | navigation timeout (default `30000`) |
+| `--retries <n>` | retry a failed capture `n` times (max `10`) |
+| `--header <name:value>` | extra HTTP header (repeatable) |
+| `--storage-state <path>` | Playwright storage state JSON (cookies/localStorage) |
+| `--allow-console-error <pattern>` | ignore matching console errors (repeatable; substring, or regex if it compiles) |
+| `--ignore-console` | ignore all console errors (page errors still fail) |
+| `--json` | print a machine-readable result object |
 
 The process exits non-zero if the page logs any console or page error, so a
-broken build cannot silently produce a "good" screenshot.
+broken build cannot silently produce a "good" screenshot. Use
+`--allow-console-error` to whitelist benign dev noise (favicon 404s, HMR
+warnings). With `--json`, the result is a stable object on success:
+
+```json
+{ "ok": true, "out": "/abs/path.png", "url": "http://127.0.0.1:5173/",
+  "ignoredConsoleErrors": 0, "consoleErrors": [], "pageErrors": [], "truncated": false }
+```
+
+On a validation error (`ok: false` with `error`) or a capture failure, the same
+`--json` flag yields `{ "ok": false, "error": "..." }` (plus `out`/`url` for a
+capture failure) instead of human-readable stderr. `truncated` is `true` when a
+page produced more than 50 errors and the lists were capped.
 
 ## Environment variables
 
@@ -143,32 +170,40 @@ register the MCP with the same cache paths for ad-hoc exploration.
 ## Releasing
 
 Releases are GitHub Release tarballs — no npm registry account or 2FA involved.
-To publish a new version:
+**Releases are automatic on merge:** bump `"version"` in
+`visual-shot/package.json`, commit, and merge to `main`. The
+`Release visual-shot` workflow
+(`.github/workflows/release-visual-shot.yml`) sees the new version, packs the
+tarball, and creates the `visual-shot-v<version>` tag and GitHub Release. If the
+version was already released, the workflow is a no-op. You do not push tags by
+hand.
 
-```bash
-# 1. bump "version" in visual-shot/package.json, then commit
-git add visual-shot/package.json
-git commit -m "visual-shot: v0.1.1"
-
-# 2. tag and push — the tag must match the version
-git tag visual-shot-v0.1.1
-git push origin visual-shot-v0.1.1
-```
-
-The `Release visual-shot` workflow
-(`.github/workflows/release-visual-shot.yml`) runs `npm pack` and attaches
-`visual-shot-0.1.1.tgz` to the release at
-`https://github.com/faetschi-bot/faetschi-bot-utils/releases/tag/visual-shot-v0.1.1`.
 Consumers then install it by URL:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.1.1/visual-shot-0.1.1.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
 npx visual-shot setup
 ```
 
+## Agents and CI
+
+- [`AGENTS.md`](./AGENTS.md) is the canonical bootstrap recipe for AI agents:
+  permissions, install, `doctor --json` verification, dev-server discovery, and
+  the `--json` result contract.
+- A composite GitHub Action is available at `visual-shot/action.yml`. Use it from
+  another repository:
+
+  ```yaml
+  - uses: faetschi-bot/faetschi-bot-utils/visual-shot@main
+    with:
+      args: --url http://127.0.0.1:3000/ --name my-feature --json
+  ```
+
 ## Troubleshooting
 
-- **`playwright not found`** — run `visual-shot setup`, or `npm i -D playwright`.
+- **`playwright not found`** — run `visual-shot setup`. The CLI also resolves a
+  `playwright` already installed in the host project's `node_modules`, but for a
+  vendored copy outside the project tree rely on `setup`.
 - **Blank/zero-width text in the screenshot** — fonts are missing; re-run
   `visual-shot setup` so the sysroot font packages are unpacked.
 - **`Executable doesn't exist`** — the browser download was interrupted; delete

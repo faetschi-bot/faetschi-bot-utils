@@ -1,0 +1,36 @@
+name: visual-shot
+description: Reproducible headless-Chromium screenshots for PR review.
+inputs:
+  args:
+    description: Arguments passed to visual-shot, e.g. --url http://127.0.0.1:3000/ --name shot
+    required: true
+  setup:
+    description: Provision Chromium and libraries before capturing.
+    required: false
+    default: 'true'
+  playwright-version:
+    description: Pinned Playwright version (also used as the cache key).
+    required: false
+    default: '1.49.1'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Cache visual-shot provisioning
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/visual-shot
+        key: visual-shot-${{ runner.os }}-pw${{ inputs.playwright-version }}
+    - name: Provision
+      if: inputs.setup == 'true'
+      shell: bash
+      env:
+        VISUAL_SHOT_PLAYWRIGHT_VERSION: ${{ inputs.playwright-version }}
+      run: node "${{ github.action_path }}/bin/visual-shot.mjs" setup
+    - name: Capture
+      shell: bash
+      env:
+        ARGS: ${{ inputs.args }}
+      run: node "${{ github.action_path }}/bin/visual-shot.mjs" $ARGS

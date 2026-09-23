@@ -6,6 +6,10 @@ export const DEFAULT_OUT_DIR = 'tmp/images/PRs';
 export const DEFAULT_VIEWPORT = '1280x720';
 export const DEFAULT_SCALE = 2;
 export const DEFAULT_WAIT = 1000;
+export const DEFAULT_NAV_TIMEOUT = 30000;
+export const DEFAULT_SERVER_TIMEOUT = 30000;
+export const MAX_ERRORS = 50;
+export const MAX_RETRIES = 10;
 export const DEFAULT_PLAYWRIGHT_VERSION = '1.49.1';
 
 export function cacheDir(env = process.env) {
