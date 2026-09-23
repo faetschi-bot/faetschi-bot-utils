@@ -40,6 +40,7 @@
   },
   "scripts": {
     "setup": "bash scripts/provision.sh",
+    "test": "node --test test/",
     "lint:sh": "bash -n scripts/provision.sh && bash -n scripts/provision-sysroot.sh",
     "prepack": "node --check bin/visual-shot.mjs && node --check lib/config.mjs",
     "prepublishOnly": "node --check bin/visual-shot.mjs && node --check lib/config.mjs"

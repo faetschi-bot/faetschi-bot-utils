@@ -85,22 +85,27 @@ ready, so an agent can verify setup before capturing.
 | `--wait-for-server` | poll `--url` until it responds before navigating |
 | `--server-timeout <ms>` | how long to wait for the server (default `30000`) |
 | `--timeout <ms>` | navigation timeout (default `30000`) |
-| `--retries <n>` | retry a failed capture `n` times |
+| `--retries <n>` | retry a failed capture `n` times (max `10`) |
 | `--header <name:value>` | extra HTTP header (repeatable) |
 | `--storage-state <path>` | Playwright storage state JSON (cookies/localStorage) |
-| `--allow-console-error <pattern>` | ignore matching console errors (repeatable) |
+| `--allow-console-error <pattern>` | ignore matching console errors (repeatable; substring, or regex if it compiles) |
 | `--ignore-console` | ignore all console errors (page errors still fail) |
 | `--json` | print a machine-readable result object |
 
 The process exits non-zero if the page logs any console or page error, so a
 broken build cannot silently produce a "good" screenshot. Use
 `--allow-console-error` to whitelist benign dev noise (favicon 404s, HMR
-warnings). With `--json`, the result is a stable object:
+warnings). With `--json`, the result is a stable object on success:
 
 ```json
 { "ok": true, "out": "/abs/path.png", "url": "http://127.0.0.1:5173/",
-  "ignoredConsoleErrors": 0, "consoleErrors": [], "pageErrors": [] }
+  "ignoredConsoleErrors": 0, "consoleErrors": [], "pageErrors": [], "truncated": false }
 ```
+
+On a validation error (`ok: false` with `error`) or a capture failure, the same
+`--json` flag yields `{ "ok": false, "error": "..." }` (plus `out`/`url` for a
+capture failure) instead of human-readable stderr. `truncated` is `true` when a
+page produced more than 50 errors and the lists were capped.
 
 ## Environment variables
 
@@ -196,7 +201,9 @@ npx visual-shot setup
 
 ## Troubleshooting
 
-- **`playwright not found`** — run `visual-shot setup`, or `npm i -D playwright`.
+- **`playwright not found`** — run `visual-shot setup`. The CLI also resolves a
+  `playwright` already installed in the host project's `node_modules`, but for a
+  vendored copy outside the project tree rely on `setup`.
 - **Blank/zero-width text in the screenshot** — fonts are missing; re-run
   `visual-shot setup` so the sysroot font packages are unpacked.
 - **`Executable doesn't exist`** — the browser download was interrupted; delete

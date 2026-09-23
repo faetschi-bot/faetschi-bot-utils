@@ -13,12 +13,20 @@ import {
   DEFAULT_VIEWPORT,
   DEFAULT_WAIT,
   MAX_ERRORS,
+  MAX_RETRIES,
   cacheDir,
 } from '../lib/config.mjs';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
 const scriptsDir = join(here, '..', 'scripts');
+
+class CliError extends Error {
+  constructor(message, code = 2) {
+    super(message);
+    this.code = code;
+  }
+}
 
 function usage() {
   console.log(`visual-shot - reproducible headless-Chromium screenshots for PR review.
@@ -45,10 +53,10 @@ Options:
   --wait-for-server    poll --url until it responds before navigating
   --server-timeout <ms>  how long to wait for the server (default: ${DEFAULT_SERVER_TIMEOUT})
   --timeout <ms>       navigation timeout (default: ${DEFAULT_NAV_TIMEOUT})
-  --retries <n>        retry a failed capture n times (default: 0)
+  --retries <n>        retry a failed capture n times (default: 0, max ${MAX_RETRIES})
   --header <name:value>  extra HTTP header (repeatable)
   --storage-state <path>  Playwright storage state JSON (cookies/localStorage)
-  --allow-console-error <pattern>  ignore matching console errors (repeatable)
+  --allow-console-error <pattern>  ignore matching console errors (repeatable, regex or substring)
   --ignore-console     ignore all console errors (page errors still fail)
   --json               print a machine-readable result object
   --help               show this help
@@ -73,10 +81,7 @@ function parse(argv) {
     }
     const val = () => {
       const v = argv[++i];
-      if (v === undefined) {
-        console.error(`Missing value for ${a}`);
-        process.exit(2);
-      }
+      if (v === undefined) throw new CliError(`Missing value for ${a}`);
       return v;
     };
     if (a === '--name') o.name = val();
@@ -102,10 +107,7 @@ function parse(argv) {
     else if (a === '--ignore-console') o.ignoreConsole = true;
     else if (a === '--json') o.json = true;
     else if (a === '--help' || a === '-h') o.help = true;
-    else if (a.startsWith('--')) {
-      console.error(`Unknown option: ${a}`);
-      process.exit(2);
-    }
+    else if (a.startsWith('--')) throw new CliError(`Unknown option: ${a}`);
   }
   return o;
 }
@@ -158,35 +160,50 @@ function parseHeaders(list) {
   const headers = {};
   for (const raw of list) {
     const idx = raw.indexOf(':');
-    if (idx === -1) {
-      console.error(`Invalid --header (expected "Name: value"): ${raw}`);
-      process.exit(2);
-    }
+    if (idx === -1) throw new CliError(`Invalid --header (expected "Name: value"): ${raw}`);
     headers[raw.slice(0, idx).trim()] = raw.slice(idx + 1).trim();
   }
   return headers;
+}
+
+function matchesAny(text, patterns) {
+  for (const p of patterns) {
+    if (text.includes(p)) return true;
+    try {
+      if (new RegExp(p).test(text)) return true;
+    } catch {
+      /* not a valid regex and not a substring; ignore this pattern */
+    }
+  }
+  return false;
 }
 
 function num(value, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function matchesAny(text, patterns) {  for (const p of patterns) {
-    try {
-      if (new RegExp(p).test(text)) return true;
-    } catch {
-      if (text.includes(p)) return true;
-    }
-  }
-  return false;
+function positive(value, fallback, flag) {
+  const n = num(value, fallback);
+  if (n <= 0) throw new CliError(`--${flag} must be greater than 0 (got ${value})`);
+  return n;
+}
+
+function nonNegative(value, fallback, flag) {
+  const n = num(value, fallback);
+  if (n < 0) throw new CliError(`--${flag} must not be negative (got ${value})`);
+  return n;
 }
 
 async function waitForServer(url, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
+    const remaining = Math.max(1, deadline - Date.now());
     try {
-      const res = await fetch(url, { redirect: 'manual' });
+      const res = await fetch(url, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(Math.min(5000, remaining)),
+      });
       if (res.status < 500) return;
     } catch (e) {
       lastError = e;
@@ -220,7 +237,7 @@ async function runDoctor(opts, cache) {
     let reachable = false;
     let detail = 'not reachable';
     try {
-      const res = await fetch(url, { redirect: 'manual' });
+      const res = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) });
       reachable = res.status < 500;
       detail = `HTTP ${res.status}`;
     } catch (e) {
@@ -242,161 +259,189 @@ async function runDoctor(opts, cache) {
   return ok;
 }
 
-const opts = parse(process.argv.slice(2));
-if (opts.help) {
-  usage();
-  process.exit(0);
-}
+async function capture(opts, cache) {
+  const url = opts.url || process.env.VISUAL_URL || DEFAULT_URL;
+  const name = opts.name || 'screenshot';
+  const out = resolve(opts.out || join(process.env.VISUAL_OUT_DIR || DEFAULT_OUT_DIR, `${name}.png`));
 
-const cache = cacheDir();
-process.env.VISUAL_SHOT_CACHE = cache;
-
-if (opts.command === 'doctor') {
-  const ok = await runDoctor(opts, cache);
-  process.exit(ok ? 0 : 1);
-}
-
-if (opts.command === 'setup' || !existsSync(join(cache, '.provisioned'))) {
-  if (opts.command !== 'setup') {
-    console.error('[visual-shot] first run: provisioning Chromium + libraries (this can take a few minutes)...');
+  const [w, h] = (opts.viewport || DEFAULT_VIEWPORT).split('x').map(Number);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+    throw new CliError(`invalid --viewport "${opts.viewport}" (expected WxH, e.g. 1280x720)`);
   }
-  const r = spawnSync('bash', [join(scriptsDir, 'provision.sh')], { stdio: 'inherit', env: process.env });
-  if (r.status !== 0) process.exit(r.status ?? 1);
-}
-if (opts.command === 'setup') process.exit(0);
-applyEnvFile(join(cache, 'env.sh'));
+  const scale = positive(opts.scale, DEFAULT_SCALE, 'scale');
+  const wait = nonNegative(opts.wait, DEFAULT_WAIT, 'wait');
+  const navTimeout = positive(opts.timeout, DEFAULT_NAV_TIMEOUT, 'timeout');
+  const serverTimeout = positive(opts.serverTimeout, DEFAULT_SERVER_TIMEOUT, 'server-timeout');
+  const retries = Math.min(MAX_RETRIES, nonNegative(opts.retries, 0, 'retries'));
+  const headers = parseHeaders(opts.header);
 
-const pw = loadPlaywright(cache);
-if (!pw || !pw.chromium) {
-  console.error('[visual-shot] playwright not found. Run: visual-shot setup');
-  process.exit(1);
-}
-const { chromium, devices } = pw;
-
-const url = opts.url || process.env.VISUAL_URL || DEFAULT_URL;
-const name = opts.name || 'screenshot';
-const out = resolve(opts.out || join(process.env.VISUAL_OUT_DIR || DEFAULT_OUT_DIR, `${name}.png`));
-const [w, h] = (opts.viewport || DEFAULT_VIEWPORT).split('x').map(Number);
-if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
-  console.error(`[visual-shot] invalid --viewport "${opts.viewport}" (expected WxH, e.g. 1280x720)`);
-  process.exit(2);
-}
-const scale = num(opts.scale, DEFAULT_SCALE);
-const wait = num(opts.wait, DEFAULT_WAIT);
-const navTimeout = num(opts.timeout, DEFAULT_NAV_TIMEOUT);
-const serverTimeout = num(opts.serverTimeout, DEFAULT_SERVER_TIMEOUT);
-const retries = Math.max(0, num(opts.retries, 0));
-const headers = parseHeaders(opts.header);
-mkdirSync(dirname(out), { recursive: true });
-
-if (opts.device && !devices[opts.device]) {
-  console.error(`[visual-shot] unknown --device "${opts.device}". Try: ${Object.keys(devices).slice(0, 5).join(', ')}, ...`);
-  process.exit(2);
-}
-
-const contextOptions = {
-  viewport: { width: w, height: h },
-  deviceScaleFactor: scale,
-};
-if (Object.keys(headers).length > 0) contextOptions.extraHTTPHeaders = headers;
-if (opts.storageState) contextOptions.storageState = opts.storageState;
-if (opts.device) {
-  Object.assign(contextOptions, devices[opts.device]);
-  if (opts.viewport) contextOptions.viewport = { width: w, height: h };
-  if (opts.scale !== undefined) contextOptions.deviceScaleFactor = scale;
-}
-
-async function attempt() {
-  const browser = await chromium.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-dev-shm-usage',
-      '--use-gl=angle',
-      '--use-angle=swiftshader',
-      '--enable-unsafe-swiftshader',
-      '--ignore-gpu-blocklist',
-    ],
-  });
-  try {
-    const page = await browser.newPage(contextOptions);
-    const consoleErrors = [];
-    const pageErrors = [];
-    page.on('console', (m) => {
-      if (m.type() === 'error' && consoleErrors.length < MAX_ERRORS) consoleErrors.push(m.text());
-    });
-    page.on('pageerror', (e) => {
-      if (pageErrors.length < MAX_ERRORS) pageErrors.push(String(e));
-    });
-
-    await page.goto(url, { waitUntil: 'load', timeout: navTimeout });
-    if (opts.waitFor) await page.waitForSelector(opts.waitFor, { timeout: navTimeout });
-    for (const sel of opts.hover) await page.hover(sel);
-    for (const sel of opts.click) await page.click(sel);
-    for (const k of opts.key) await page.keyboard.press(k);
-    await page.waitForTimeout(wait);
-
-    if (opts.element) await page.locator(opts.element).screenshot({ path: out });
-    else await page.screenshot({ path: out, fullPage: Boolean(opts.fullPage) });
-
-    const ignored = [];
-    const fatalConsole = [];
-    for (const e of consoleErrors) {
-      if (opts.ignoreConsole || matchesAny(e, opts.allowConsoleError)) ignored.push(e);
-      else fatalConsole.push(e);
+  if (opts.command === 'setup' || !existsSync(join(cache, '.provisioned'))) {
+    if (opts.command !== 'setup') {
+      console.error('[visual-shot] first run: provisioning Chromium + libraries (this can take a few minutes)...');
     }
-    return { fatalConsole, fatalPage: pageErrors, ignored };
-  } finally {
-    await browser.close();
+    const r = spawnSync('bash', [join(scriptsDir, 'provision.sh')], { stdio: 'inherit', env: process.env });
+    if (r.status !== 0) throw new CliError('provisioning failed', r.status ?? 1);
   }
-}
+  if (opts.command === 'setup') return;
+  applyEnvFile(join(cache, 'env.sh'));
 
-let lastError;
-let result;
-for (let i = 0; i <= retries; i++) {
+  const pw = loadPlaywright(cache);
+  if (!pw || !pw.chromium) throw new CliError('playwright not found. Run: visual-shot setup', 1);
+  const { chromium, devices } = pw;
+
+  if (opts.device && !devices[opts.device]) {
+    throw new CliError(
+      `unknown --device "${opts.device}". Try: ${Object.keys(devices).slice(0, 5).join(', ')}, ...`,
+    );
+  }
+
+  const contextOptions = { viewport: { width: w, height: h }, deviceScaleFactor: scale };
+  if (Object.keys(headers).length > 0) contextOptions.extraHTTPHeaders = headers;
+  if (opts.storageState) contextOptions.storageState = opts.storageState;
+  if (opts.device) {
+    Object.assign(contextOptions, devices[opts.device]);
+    if (opts.viewport) contextOptions.viewport = { width: w, height: h };
+    if (opts.scale !== undefined) contextOptions.deviceScaleFactor = scale;
+  }
+
   try {
-    if (opts.waitForServer) await waitForServer(url, serverTimeout);
-    result = await attempt();
-    lastError = undefined;
-    break;
+    mkdirSync(dirname(out), { recursive: true });
   } catch (e) {
-    lastError = e;
-    if (i < retries) {
-      if (!opts.json) console.error(`[visual-shot] attempt ${i + 1} failed, retrying: ${e.message}`);
+    throw new CliError(`cannot create output directory ${dirname(out)}: ${e.message}`, 1);
+  }
+
+  async function attempt() {
+    const browser = await chromium.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--use-gl=angle',
+        '--use-angle=swiftshader',
+        '--enable-unsafe-swiftshader',
+        '--ignore-gpu-blocklist',
+      ],
+    });
+    try {
+      const page = await browser.newPage(contextOptions);
+      const consoleErrors = [];
+      const pageErrors = [];
+      let consoleErrorCount = 0;
+      let pageErrorCount = 0;
+      page.on('console', (m) => {
+        if (m.type() !== 'error') return;
+        consoleErrorCount++;
+        if (consoleErrors.length < MAX_ERRORS) consoleErrors.push(m.text());
+      });
+      page.on('pageerror', (e) => {
+        pageErrorCount++;
+        if (pageErrors.length < MAX_ERRORS) pageErrors.push(String(e));
+      });
+
+      await page.goto(url, { waitUntil: 'load', timeout: navTimeout });
+      if (opts.waitFor) await page.waitForSelector(opts.waitFor, { timeout: navTimeout });
+      for (const sel of opts.hover) await page.hover(sel);
+      for (const sel of opts.click) await page.click(sel);
+      for (const k of opts.key) await page.keyboard.press(k);
+      await page.waitForTimeout(wait);
+
+      if (opts.element) await page.locator(opts.element).screenshot({ path: out });
+      else await page.screenshot({ path: out, fullPage: Boolean(opts.fullPage) });
+
+      const ignored = [];
+      const fatalConsole = [];
+      for (const e of consoleErrors) {
+        if (opts.ignoreConsole || matchesAny(e, opts.allowConsoleError)) ignored.push(e);
+        else fatalConsole.push(e);
+      }
+      const truncated = consoleErrorCount > consoleErrors.length || pageErrorCount > pageErrors.length;
+      return { fatalConsole, fatalPage: pageErrors, ignored, truncated, consoleErrorCount, pageErrorCount };
+    } finally {
+      await browser.close();
     }
   }
-}
 
-if (lastError) {
+  let lastError;
+  let result;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      if (opts.waitForServer) await waitForServer(url, serverTimeout);
+      result = await attempt();
+      lastError = undefined;
+      break;
+    } catch (e) {
+      lastError = e;
+      if (i < retries && !opts.json) {
+        console.error(`[visual-shot] attempt ${i + 1} failed, retrying: ${e.message}`);
+      }
+    }
+  }
+
+  if (lastError) {
+    if (opts.json) {
+      console.log(JSON.stringify({ ok: false, out, url, error: lastError.message }, null, 2));
+    } else {
+      console.error(`[visual-shot] capture failed: ${lastError.message}`);
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  const failed = result.fatalConsole.length > 0 || result.fatalPage.length > 0;
   if (opts.json) {
-    console.log(JSON.stringify({ ok: false, out, url, error: lastError.message }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok: !failed,
+          out,
+          url,
+          ignoredConsoleErrors: result.ignored.length,
+          consoleErrors: result.fatalConsole,
+          pageErrors: result.fatalPage,
+          truncated: result.truncated,
+        },
+        null,
+        2,
+      ),
+    );
   } else {
-    console.error(`[visual-shot] capture failed: ${lastError.message}`);
+    console.log(`saved ${out}`);
+    if (result.truncated) {
+      console.error(
+        `[visual-shot] note: error lists truncated at ${MAX_ERRORS} (console: ${result.consoleErrorCount}, page: ${result.pageErrorCount})`,
+      );
+    }
+    if (failed) {
+      console.error('page errors:');
+      for (const e of [...result.fatalConsole, ...result.fatalPage]) console.error(`  ${e}`);
+    }
   }
-  process.exit(1);
+  if (failed) process.exitCode = 1;
 }
 
-const failed = result.fatalConsole.length > 0 || result.fatalPage.length > 0;
-if (opts.json) {
-  console.log(
-    JSON.stringify(
-      {
-        ok: !failed,
-        out,
-        url,
-        ignoredConsoleErrors: result.ignored.length,
-        consoleErrors: result.fatalConsole,
-        pageErrors: result.fatalPage,
-      },
-      null,
-      2,
-    ),
-  );
-} else {
-  console.log(`saved ${out}`);
-  if (failed) {
-    console.error('page errors:');
-    for (const e of [...result.fatalConsole, ...result.fatalPage]) console.error(`  ${e}`);
+async function main(opts) {
+  const cache = cacheDir();
+  process.env.VISUAL_SHOT_CACHE = cache;
+
+  if (opts.command === 'doctor') {
+    process.exitCode = (await runDoctor(opts, cache)) ? 0 : 1;
+    return;
   }
+  await capture(opts, cache);
 }
-if (failed) process.exitCode = 1;
+
+let opts;
+try {
+  opts = parse(process.argv.slice(2));
+  if (opts.help) usage();
+  else await main(opts);
+} catch (e) {
+  const code = e instanceof CliError ? e.code : 1;
+  const json = opts?.json ?? process.argv.includes('--json');
+  if (json) {
+    process.stdout.write(JSON.stringify({ ok: false, error: e.message }, null, 2) + '\n');
+  } else {
+    process.stderr.write(`[visual-shot] ${e.message}\n`);
+  }
+  process.exitCode = code;
+}

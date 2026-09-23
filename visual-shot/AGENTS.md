@@ -37,8 +37,9 @@ git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faets
 front (and fail fast):
 
 ```bash
-npx visual-shot setup          # tarball install
-node tools/visual-shot/bin/visual-shot.mjs setup   # vendored/submodule
+npx visual-shot setup                                  # tarball install
+node tools/visual-shot/bin/visual-shot.mjs setup       # vendored copy
+node tools/faetschi-bot-utils/visual-shot/bin/visual-shot.mjs setup   # submodule
 ```
 
 ## Verify before reporting success
@@ -97,7 +98,7 @@ npx visual-shot --url "$APP_URL" --allow-console-error 'favicon' --name x
 
 ## Parse the result
 
-Pass `--json` for a stable object instead of scraping `saved <path>`:
+Pass `--json` for a stable object on success instead of scraping `saved <path>`:
 
 ```json
 {
@@ -106,14 +107,20 @@ Pass `--json` for a stable object instead of scraping `saved <path>`:
   "url": "http://127.0.0.1:8080/",
   "ignoredConsoleErrors": 1,
   "consoleErrors": [],
-  "pageErrors": []
+  "pageErrors": [],
+  "truncated": false
 }
 ```
 
 - `ok: false` with `error` means the capture itself failed (navigation, timeout,
-  server down).
+  server down), or the arguments were invalid.
 - `ok: false` with `consoleErrors`/`pageErrors` means the screenshot was written
   but the page errored. Exit code is 1 either way.
+- `truncated: true` means the page produced more than 50 errors and the lists
+  were capped.
+
+`--allow-console-error` matches a literal substring first, and falls back to a
+regular expression if the pattern compiles as one.
 
 ## After capturing
 

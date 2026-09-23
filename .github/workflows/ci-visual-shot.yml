@@ -1,0 +1,36 @@
+name: CI visual-shot
+
+on:
+  pull_request:
+    paths:
+      - 'visual-shot/**'
+      - '.github/workflows/ci-visual-shot.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'visual-shot/**'
+      - '.github/workflows/ci-visual-shot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: visual-shot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: node --check bin/visual-shot.mjs && node --check lib/config.mjs
+      - name: Shell lint
+        run: npm run lint:sh
+      - name: Tests
+        run: npm test
+      - name: Pack check
+        run: npm pack --dry-run
