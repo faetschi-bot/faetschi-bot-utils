@@ -1,8 +1,9 @@
 # visual-shot
 
-Reproducible headless-Chromium screenshots for pull requests. One command opens
-your running app, drives it if needed, and writes a PNG you can commit and embed
-in a PR — including on machines with **no root and no browser installed**.
+Reproducible headless-Chromium screenshots and image diffs for pull requests.
+One command opens your running app, drives it if needed, and writes a PNG you can
+commit and embed in a PR — including on machines with **no root and no browser
+installed**.
 
 It is generic: point it at a URL, and it works for any web project. The heavy
 assets (Chromium, missing shared libraries, the pinned Playwright package) live
@@ -60,14 +61,18 @@ missing.
 ## CLI
 
 ```
-visual-shot setup                 provision Chromium + libraries, then exit
-visual-shot doctor [--json]       check the environment, then exit
-visual-shot [options]             capture a screenshot
+visual-shot capture [options]        screenshot a URL to a PNG (default command)
+visual-shot diff <before> <after>    compare two images and write a diff PNG
+visual-shot setup                    provision Chromium + libraries, then exit
+visual-shot doctor [--json]          check the environment, then exit
 ```
 
-`doctor` reports Node, cache, Chromium, Playwright, and — when `--url` is given —
-whether the dev server responds. It exits non-zero when the environment is not
-ready, so an agent can verify setup before capturing.
+`visual-shot [options]` without a command is the same as `visual-shot capture`.
+`doctor` reports Node, cache, Chromium, Playwright, Mermaid, and — when `--url` is
+given — whether the dev server responds. It exits non-zero when a required check
+fails, so an agent can verify setup before capturing.
+
+### Capture options
 
 | Flag | Meaning |
 |------|---------|
@@ -106,6 +111,29 @@ On a validation error (`ok: false` with `error`) or a capture failure, the same
 `--json` flag yields `{ "ok": false, "error": "..." }` (plus `out`/`url` for a
 capture failure) instead of human-readable stderr. `truncated` is `true` when a
 page produced more than 50 errors and the lists were capped.
+
+### Compare images (diff)
+
+`diff` compares two images and writes a single side-by-side PNG
+(`before | after | diff`, differing pixels highlighted red). Each input is a
+local image path or an `http(s)://` URL (URLs are screenshotted at `--viewport`).
+
+```bash
+npx visual-shot diff before.png after.png --out tmp/images/PRs/change.png
+npx visual-shot diff http://localhost:3000/after.png after.png --fail-on-diff
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--out <path>` | output PNG (default `$VISUAL_OUT_DIR/diff.png`) |
+| `--threshold <n>` | per-pixel color distance threshold, `0`–`1` (default `0.1`) |
+| `--viewport <WxH>` / `--scale <n>` | capture settings for URL inputs (default `1280x720`, scale `1`) |
+| `--fail-on-diff` | exit `1` when any differing pixels are found |
+| `--json` | print `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch, … }` |
+
+By default `diff` exits `0` and just reports; add `--fail-on-diff` to use it as a
+visual-regression gate. Differing input dimensions are padded to the common max
+size and reported via `sizeMatch: false`.
 
 ## Environment variables
 

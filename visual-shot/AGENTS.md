@@ -1,8 +1,9 @@
 # visual-shot — agent guide
 
-Reproducible headless-Chromium screenshots for PR review. Point it at a running
-web app (any language, any framework) and it writes a PNG. This file is the
-canonical recipe; prefer it and `visual-shot --help` over reading the source.
+Reproducible headless-Chromium screenshots and image diffs for PR review. Point
+it at a running web app (any language, any framework) and it writes a PNG. This
+file is the canonical recipe; prefer it and `visual-shot --help` over reading the
+source.
 
 ## What an agent needs
 
@@ -95,6 +96,25 @@ narrowly rather than ignoring everything:
 ```bash
 npx visual-shot --url "$APP_URL" --allow-console-error 'favicon' --name x
 ```
+
+## Compare two images (diff)
+
+`visual-shot diff <before> <after>` writes a side-by-side PNG
+(`before | after | diff`) and reports how much changed. Inputs are local image
+paths or `http(s)://` URLs. Use it to show a reviewer *what changed*, not just the
+new state:
+
+```bash
+npx visual-shot diff tmp/images/PRs/before.png tmp/images/PRs/after.png \
+  --out tmp/images/PRs/change.png --json
+```
+
+- `--threshold <0..1>` per-pixel color tolerance (default `0.1`).
+- `--fail-on-diff` exits `1` when anything changed (visual-regression gate).
+- `--json` returns `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch }`.
+
+Differing input dimensions are padded to the common max size and reported as
+`sizeMatch: false` rather than failing.
 
 ## Parse the result
 
