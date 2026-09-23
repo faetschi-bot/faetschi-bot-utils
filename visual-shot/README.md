@@ -1,9 +1,9 @@
 # visual-shot
 
-Reproducible headless-Chromium screenshots and image diffs for pull requests.
-One command opens your running app, drives it if needed, and writes a PNG you can
-commit and embed in a PR — including on machines with **no root and no browser
-installed**.
+Reproducible headless-Chromium visual artifacts for pull requests: screenshots,
+image diffs, terminal captures, and Mermaid diagrams. One command opens your
+running app (or renders a file) and writes a PNG you can commit and embed in a PR
+— including on machines with **no root and no browser installed**.
 
 It is generic: point it at a URL, and it works for any web project. The heavy
 assets (Chromium, missing shared libraries, the pinned Playwright package) live
@@ -64,6 +64,7 @@ missing.
 visual-shot capture [options]        screenshot a URL to a PNG (default command)
 visual-shot diff <before> <after>    compare two images and write a diff PNG
 visual-shot term -- <command...>     render a command's output as a PNG
+visual-shot diagram <input>          render Mermaid diagrams to PNG or SVG
 visual-shot setup                    provision Chromium + libraries, then exit
 visual-shot doctor [--json]          check the environment, then exit
 ```
@@ -174,6 +175,32 @@ preserving any longer tail (so `hello\rhi` renders as `hillo` and `foo\r` as
 `foo`). `bufferTruncated: true` means the captured output exceeded 8 MiB and was
 cut off.
 
+### Render Mermaid diagrams (diagram)
+
+`diagram` renders Mermaid to PNG or SVG — useful for PR diagrams and for LaTeX
+figures that need real image files. It accepts a `.mmd` file, a Markdown file
+(renders every fenced ` ```mermaid ` block), or `-` for stdin.
+
+```bash
+npx visual-shot diagram docs/flow.mmd --out tmp/images/PRs/flow.png
+npx visual-shot diagram docs/design.md --format svg --out tmp/images/PRs/design/
+npx visual-shot diagram docs/design.md --md-out docs/design.rendered.md
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--out <path>` | output file (`.mmd`) or directory (`.md`) |
+| `--format <png\|svg>` | output format (default `png`) |
+| `--theme <name>` | Mermaid theme (`default`, `dark`, `neutral`, `forest`) |
+| `--background <color>` | background colour (default transparent) |
+| `--scale <n>` | device scale factor for PNG (default `2`) |
+| `--md-out <file>` | for Markdown input, write a copy with fences replaced by image links |
+| `--json` | print `{ ok, format, mermaidVersion, outputs }` |
+
+Mermaid itself is **not** an npm dependency: a pinned `mermaid.min.js` is
+downloaded once into the cache (`$VISUAL_SHOT_CACHE/mermaid/`) on first use, so
+later renders work offline. Override the pin with `VISUAL_SHOT_MERMAID_VERSION`.
+
 ## Environment variables
 
 | Variable | Meaning |
@@ -182,6 +209,7 @@ cut off.
 | `VISUAL_OUT_DIR` | default output directory (default `tmp/images/PRs`) |
 | `VISUAL_SHOT_CACHE` | persistent cache dir (default `$XDG_DATA_HOME/visual-shot`, i.e. `~/.local/share/visual-shot`) |
 | `VISUAL_SHOT_PLAYWRIGHT_VERSION` | pinned Playwright version (default `1.49.1`) |
+| `VISUAL_SHOT_MERMAID_VERSION` | pinned Mermaid version for `diagram` (default `11.4.1`) |
 
 ## How it works
 

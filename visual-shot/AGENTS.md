@@ -1,9 +1,9 @@
 # visual-shot — agent guide
 
-Reproducible headless-Chromium screenshots and image diffs for PR review. Point
-it at a running web app (any language, any framework) and it writes a PNG. This
-file is the canonical recipe; prefer it and `visual-shot --help` over reading the
-source.
+Reproducible headless-Chromium visual artifacts for PR review: screenshots,
+image diffs, terminal captures, and Mermaid diagrams. Point it at a running web
+app (any language, any framework) or a file and it writes a PNG/SVG. This file is
+the canonical recipe; prefer it and `visual-shot --help` over reading the source.
 
 ## What an agent needs
 
@@ -133,6 +133,21 @@ Everything after `--` is the command (without `--`, the first non-option token
 starts it). `--shell "<string>"` runs a shell string. `--fail-on-error` exits `1`
 when the command fails; by default the image is written and exit is `0`. With
 `--json`, `--fail-on-error` also sets `ok: false` when the command fails.
+
+## Render Mermaid diagrams (diagram)
+
+`visual-shot diagram <input>` renders Mermaid to PNG or SVG. Input is a `.mmd`
+file, a Markdown file (renders every fenced ` ```mermaid ` block), or `-` for
+stdin:
+
+```bash
+npx visual-shot diagram docs/flow.mmd --out tmp/images/PRs/flow.png
+npx visual-shot diagram docs/design.md --format svg --out tmp/images/PRs/design/ --json
+```
+
+A pinned `mermaid.min.js` is fetched once into `$VISUAL_SHOT_CACHE/mermaid/` on
+first use (network required only then). `doctor` reports it as an optional check.
+`--md-out <file>` rewrites a Markdown copy with image links.
 
 ## Parse the result
 
