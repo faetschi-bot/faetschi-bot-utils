@@ -101,8 +101,9 @@ npx visual-shot --url "$APP_URL" --allow-console-error 'favicon' --name x
 
 `visual-shot diff <before> <after>` writes a side-by-side PNG (`before | after`) —
 a clean before/after composite, not a highlighted diff — and reports how much
-changed. Inputs are local image paths or `http(s)://` URLs. Use it to show a
-reviewer *what changed*, not just the new state:
+changed. The `before` panel is outlined red and the `after` panel green. Inputs
+are local image paths or `http(s)://` URLs. Use it to show a reviewer *what
+changed*, not just the new state:
 
 ```bash
 npx visual-shot diff tmp/images/PRs/before.png tmp/images/PRs/after.png \

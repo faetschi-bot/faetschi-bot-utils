@@ -30,7 +30,8 @@ export function usage() {
   return `visual-shot diff <before> <after> [options]
 
 Compare two images and write a side-by-side (before | after) PNG, plus how many
-pixels changed. Each input is a local image path or an http(s):// URL.
+pixels changed. The before panel is outlined red, the after panel green.
+Each input is a local image path or an http(s):// URL.
 
 Options:
   --out <path>         explicit output PNG (default: $VISUAL_OUT_DIR/diff.png)
@@ -167,12 +168,15 @@ function compareInPage({ before, after, threshold }) {
 
     // Guard against canvases Chrome cannot encode (max dimension 65535; large
     // areas silently return an empty data URL).
+    const BORDER = 6;
     const GAP = 8;
-    const compositeWidth = width * 2 + GAP;
+    const cellWidth = width + BORDER * 2;
+    const cellHeight = height + BORDER * 2;
+    const compositeWidth = cellWidth * 2 + GAP;
     if (compositeWidth > 65535) {
       throw new Error(`composite image too wide (${compositeWidth}px > 65535); reduce --scale or image size`);
     }
-    if (compositeWidth * height > 200_000_000) {
+    if (compositeWidth * cellHeight > 200_000_000) {
       throw new Error(`images too large to compare safely (${width}x${height})`);
     }
 
@@ -199,14 +203,24 @@ function compareInPage({ before, after, threshold }) {
 
     // Side-by-side before | after. We deliberately do not render a highlighted
     // diff panel: this is a before/after comparison, not a pixel-diff report.
+    // Each panel gets a solid outline (before red, after green) for quick
+    // visual distinction.
+    function drawPanel(cx, x0, img, color) {
+      cx.fillStyle = color;
+      cx.fillRect(x0, 0, cellWidth, cellHeight);
+      cx.fillStyle = '#ffffff';
+      cx.fillRect(x0 + BORDER, BORDER, width, height);
+      cx.drawImage(img, x0 + BORDER, BORDER);
+    }
+
     const composite = document.createElement('canvas');
     composite.width = compositeWidth;
-    composite.height = height;
+    composite.height = cellHeight;
     const cx = composite.getContext('2d');
     cx.fillStyle = '#ffffff';
     cx.fillRect(0, 0, composite.width, composite.height);
-    cx.drawImage(imgA, 0, 0);
-    cx.drawImage(imgB, width + GAP, 0);
+    drawPanel(cx, 0, imgA, '#d1242f');
+    drawPanel(cx, cellWidth + GAP, imgB, '#1a7f37');
 
     return {
       dataUrl: composite.toDataURL('image/png'),
