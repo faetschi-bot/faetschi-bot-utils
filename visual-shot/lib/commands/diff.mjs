@@ -12,7 +12,7 @@ import { ensureDir, launchBrowser, positive } from '../shared.mjs';
 
 export const name = 'diff';
 export const aliases = ['image-diff'];
-export const summary = 'Compare two images (paths or URLs) and write a diff PNG';
+export const summary = 'Compare two images (paths or URLs) into a before/after PNG';
 export const needsBrowser = true;
 
 const MIME_BY_EXT = {
@@ -29,8 +29,8 @@ const MIME_BY_EXT = {
 export function usage() {
   return `visual-shot diff <before> <after> [options]
 
-Compare two images and write a side-by-side (before | after | diff) PNG.
-Each input is a local image path or an http(s):// URL.
+Compare two images and write a side-by-side (before | after) PNG, plus how many
+pixels changed. Each input is a local image path or an http(s):// URL.
 
 Options:
   --out <path>         explicit output PNG (default: $VISUAL_OUT_DIR/diff.png)
@@ -167,10 +167,12 @@ function compareInPage({ before, after, threshold }) {
 
     // Guard against canvases Chrome cannot encode (max dimension 65535; large
     // areas silently return an empty data URL).
-    if (width * 3 > 65535) {
-      throw new Error(`composite image too wide (${width * 3}px > 65535); reduce --scale or image size`);
+    const GAP = 8;
+    const compositeWidth = width * 2 + GAP;
+    if (compositeWidth > 65535) {
+      throw new Error(`composite image too wide (${compositeWidth}px > 65535); reduce --scale or image size`);
     }
-    if (width * height > 100_000_000) {
+    if (compositeWidth * height > 200_000_000) {
       throw new Error(`images too large to compare safely (${width}x${height})`);
     }
 
@@ -190,38 +192,21 @@ function compareInPage({ before, after, threshold }) {
     const maxDelta = 35215 * threshold * threshold;
     const totalPixels = width * height;
 
-    const diffCanvas = document.createElement('canvas');
-    diffCanvas.width = width;
-    diffCanvas.height = height;
-    const diffCtx = diffCanvas.getContext('2d');
-    const diffData = diffCtx.createImageData(width, height);
     let changedPixels = 0;
     for (let i = 0; i < a.data.length; i += 4) {
-      const delta = colorDelta(a.data, b.data, i);
-      if (Math.abs(delta) > maxDelta) {
-        changedPixels++;
-        diffData.data[i] = 255;
-        diffData.data[i + 1] = 0;
-        diffData.data[i + 2] = 0;
-        diffData.data[i + 3] = 255;
-      } else {
-        diffData.data[i] = 255;
-        diffData.data[i + 1] = 255;
-        diffData.data[i + 2] = 255;
-        diffData.data[i + 3] = 255;
-      }
+      if (Math.abs(colorDelta(a.data, b.data, i)) > maxDelta) changedPixels++;
     }
-    diffCtx.putImageData(diffData, 0, 0);
 
+    // Side-by-side before | after. We deliberately do not render a highlighted
+    // diff panel: this is a before/after comparison, not a pixel-diff report.
     const composite = document.createElement('canvas');
-    composite.width = width * 3;
+    composite.width = compositeWidth;
     composite.height = height;
     const cx = composite.getContext('2d');
     cx.fillStyle = '#ffffff';
     cx.fillRect(0, 0, composite.width, composite.height);
     cx.drawImage(imgA, 0, 0);
-    cx.drawImage(imgB, width, 0);
-    cx.drawImage(diffCanvas, width * 2, 0);
+    cx.drawImage(imgB, width + GAP, 0);
 
     return {
       dataUrl: composite.toDataURL('image/png'),
@@ -322,7 +307,7 @@ export async function run(plan, ctx) {
   } else {
     console.log(`saved ${plan.out}`);
     console.log(
-      `diff: ${diffPercentage.toFixed(2)}% (${result.changedPixels}/${result.totalPixels} px)`,
+      `changed: ${diffPercentage.toFixed(2)}% (${result.changedPixels}/${result.totalPixels} px)`,
     );
     if (!result.sizeMatch) {
       console.error('[visual-shot] size mismatch: inputs padded to the common max size');

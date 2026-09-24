@@ -115,9 +115,10 @@ page produced more than 50 errors and the lists were capped.
 ### Compare images (diff)
 
 `diff` compares two images and writes a single side-by-side PNG
-(`before | after | diff`, differing pixels highlighted red). Each input is a
-local image path or an `http(s)://` URL; **URLs are captured as page screenshots
-at `--viewport`, not downloaded as images**.
+(`before | after`) — a clean before/after for PRs, with no highlighted diff
+overlay — and reports how many pixels changed. Each input is a local image path
+or an `http(s)://` URL; **URLs are captured as page screenshots at `--viewport`,
+not downloaded as images**.
 
 ```bash
 npx visual-shot diff before.png after.png --out tmp/images/PRs/change.png
