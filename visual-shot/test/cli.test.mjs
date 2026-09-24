@@ -95,3 +95,23 @@ test('non-positive --scale emits JSON and exits 2 without provisioning', () => {
     rmSync(cache, { recursive: true, force: true });
   }
 });
+
+test('non-numeric --scale exits 2 instead of silently defaulting', () => {
+  const cache = emptyCache();
+  try {
+    const r = run(['--scale', 'abc', '--json'], { cache });
+    assert.equal(r.status, 2);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, false);
+    assert.match(parsed.error, /--scale must be greater than 0/);
+    assert.equal(existsSync(join(cache, '.provisioned')), false);
+  } finally {
+    rmSync(cache, { recursive: true, force: true });
+  }
+});
+
+test('alias "shot" resolves to capture', () => {
+  const r = run(['shot', '--help']);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /visual-shot capture/);
+});

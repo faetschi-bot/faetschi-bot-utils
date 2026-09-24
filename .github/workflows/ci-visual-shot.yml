@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check bin/visual-shot.mjs && node --check lib/config.mjs
+        run: npm run check
       - name: Shell lint
         run: npm run lint:sh
       - name: Tests

@@ -1,8 +1,9 @@
 # visual-shot — agent guide
 
-Reproducible headless-Chromium screenshots for PR review. Point it at a running
-web app (any language, any framework) and it writes a PNG. This file is the
-canonical recipe; prefer it and `visual-shot --help` over reading the source.
+Reproducible headless-Chromium visual artifacts for PR review: screenshots,
+image diffs, terminal captures, and Mermaid diagrams. Point it at a running web
+app (any language, any framework) or a file and it writes a PNG/SVG. This file is
+the canonical recipe; prefer it and `visual-shot --help` over reading the source.
 
 ## What an agent needs
 
@@ -24,7 +25,7 @@ Chromium libraries. If you cannot get root, stop and tell the user.
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
 
 # B. Vendored copy
 cp -r visual-shot /path/to/project/tools/visual-shot
@@ -95,6 +96,61 @@ narrowly rather than ignoring everything:
 ```bash
 npx visual-shot --url "$APP_URL" --allow-console-error 'favicon' --name x
 ```
+
+## Compare two images (diff)
+
+`visual-shot diff <before> <after>` writes a side-by-side PNG (`before | after`) —
+a clean before/after composite, not a highlighted diff — and reports how much
+changed. The `before` panel is outlined red and the `after` panel green. Inputs
+are local image paths or `http(s)://` URLs. Use it to show a reviewer *what
+changed*, not just the new state:
+
+```bash
+npx visual-shot diff tmp/images/PRs/before.png tmp/images/PRs/after.png \
+  --out tmp/images/PRs/change.png --json
+```
+
+- `--threshold <0..1>` per-pixel color tolerance (default `0.1`).
+- `--fail-on-diff` exits `1` when anything changed (visual-regression gate); with
+  `--json` it also reports `ok: false`.
+- `--json` returns `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch }`.
+- URL inputs are captured as page screenshots at `--viewport`, not downloaded.
+
+Differing input dimensions are padded to the common max size and reported as
+`sizeMatch: false` rather than failing.
+
+## Render terminal output (term)
+
+`visual-shot term -- <command...>` runs a command and renders its ANSI output as
+a terminal-style PNG, for pasting a test/build transcript into a PR:
+
+```bash
+npx visual-shot term --title "npm test" -- npm test
+npx visual-shot term --fail-on-error --json -- npm run build
+```
+
+Everything after `--` is the command (without `--`, the first non-option token
+starts it). `--shell "<string>"` runs a shell string. `--fail-on-error` exits `1`
+when the command fails; by default the image is written and exit is `0`. With
+`--json`, `--fail-on-error` also sets `ok: false` when the command fails.
+
+## Render Mermaid diagrams (diagram)
+
+`visual-shot diagram <input>` renders Mermaid to PNG or SVG. Input is a `.mmd`
+file, a Markdown file (renders top-level fenced ` ```mermaid ` blocks; a
+4-space-indented block or mermaid text nested inside another fence is skipped),
+or `-` for stdin:
+
+```bash
+npx visual-shot diagram docs/flow.mmd --out tmp/images/PRs/flow.png
+npx visual-shot diagram docs/design.md --format svg --out tmp/images/PRs/design/ --json
+```
+
+PNG output is transparent by default (`--background <color>` paints a solid
+background). A pinned `mermaid.min.js` is fetched once into
+`$VISUAL_SHOT_CACHE/mermaid/` on first use (network required only then).
+`doctor` reports it as an optional check. `--md-out <file>` rewrites a Markdown
+copy with image links, each written as `![diagram](<relative/path>)`.
 
 ## Parse the result
 
