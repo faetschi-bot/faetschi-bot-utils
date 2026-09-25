@@ -5,6 +5,7 @@ Small, reusable utilities by [@faetschi-bot](https://github.com/faetschi-bot).
 | Utility | Description |
 |---------|-------------|
 | [`visual-shot/`](./visual-shot) | Reproducible headless-Chromium screenshots for PR review, with no-root provisioning. |
+| [`agentic-tools/`](./agentic-tools) | Reusable skills and hooks for AI coding agents (first skill: `test-audit`). |
 
 Each tool is self-contained. Tools are distributed as **GitHub Release
 tarballs**, so installing or publishing them needs **no npm registry account and
@@ -28,6 +29,13 @@ npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/vi
 npx visual-shot setup
 ```
 
+For `agentic-tools`:
+
+```bash
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz
+npx agentic-tools doctor --json
+```
+
 Prefer a local copy? Vendor the folder or add the repo as a submodule:
 
 ```bash
@@ -47,10 +55,10 @@ version, and if it has not been released yet, runs `npm pack` and creates the
 `<tool>-v<version>` tag and GitHub Release. Re-merging without a version bump is
 a no-op. Do not push tags by hand.
 
-To release `visual-shot`, bump `visual-shot/package.json` and merge:
+Bump the tool's own `<tool>/package.json` and merge:
 
 ```bash
-# -> https://github.com/faetschi-bot/faetschi-bot-utils/releases/tag/visual-shot-v<version>
+# -> https://github.com/faetschi-bot/faetschi-bot-utils/releases/tag/<tool>-v<version>
 ```
 
 ## Adding a new tool
