@@ -1,0 +1,44 @@
+{
+  "name": "outbound",
+  "version": "0.1.0",
+  "description": "Clean, PR-based release changelogs: verify a repo's release hygiene and scaffold GitHub release categories.",
+  "keywords": [
+    "release",
+    "changelog",
+    "release-notes",
+    "github",
+    "pull-request",
+    "conventional-commits",
+    "ci"
+  ],
+  "homepage": "https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/outbound#readme",
+  "bugs": {
+    "url": "https://github.com/faetschi-bot/faetschi-bot-utils/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faetschi-bot/faetschi-bot-utils.git",
+    "directory": "outbound"
+  },
+  "author": "faetschi-bot",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "outbound": "bin/outbound.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "prepack": "node --check bin/outbound.mjs && node --check lib/checks.mjs",
+    "prepublishOnly": "node --check bin/outbound.mjs && node --check lib/checks.mjs"
+  }
+}
