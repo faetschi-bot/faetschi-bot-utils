@@ -14,44 +14,50 @@ no 2FA**. You can also vendor a folder or add the repo as a git submodule.
 
 ## Installing a tool
 
-Every tool is attached as a tarball to its release on this repo's
-[Releases](https://github.com/faetschi-bot/faetschi-bot-utils/releases) page.
-Install one straight from its URL:
+Each tool ships as a **GitHub Release tarball**, so no npm registry account or
+login is needed. All tools require **Node 20+**.
+
+Install the tool you need by its release URL. Every URL follows the same shape,
+`.../releases/download/<tool>-v<version>/<tool>-<version>.tgz`, and the two
+version occurrences must match:
+
+| Tool | Install (per project) | First command |
+|------|-----------------------|---------------|
+| `visual-shot` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz` | `npx visual-shot setup` |
+| `outbound` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz` | `npx outbound init` |
+| `agentic-tools` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz` | `npx agentic-tools list` |
+
+- **Per project:** run the install inside that project. `-D` records it in
+  `devDependencies`, so it survives reinstalls and an agent can set it up too.
+- **Every project:** use `npm i -g <url>` instead, then call the tool directly
+  (`visual-shot setup`).
+- **Versions:** the table pins the latest release at the time of writing; browse
+  [Releases](https://github.com/faetschi-bot/faetschi-bot-utils/releases) and
+  swap in the version you want.
+
+### Verify an install
+
+Every tool has a machine-readable check that exits non-zero when something is
+wrong:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/<tool>-v<version>/<tool>-<version>.tgz
-npx <tool> --help
-```
-
-For `visual-shot`:
-
-```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
-npx visual-shot setup
-```
-
-For `outbound`:
-
-```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz
+npx visual-shot doctor --json      # run `visual-shot setup` first
 npx outbound doctor --json
-```
-
-For `agentic-tools`:
-
-```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz
 npx agentic-tools doctor --json
 ```
 
-Prefer a local copy? Vendor the folder or add the repo as a submodule:
+### Without npm
+
+Vendor the folder or add the repo as a submodule and call the tool by path:
 
 ```bash
 # vendored copy
 cp -r visual-shot /path/to/project/tools/visual-shot
+node tools/visual-shot/bin/visual-shot.mjs setup
 
 # git submodule (one shared copy across projects)
 git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faetschi-bot-utils
+node tools/faetschi-bot-utils/visual-shot/bin/visual-shot.mjs setup
 ```
 
 ## Releasing a tool
