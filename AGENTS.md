@@ -10,6 +10,7 @@ its own `AGENTS.md` next to it — start there.
 |------|-------------|
 | [`visual-shot/`](./visual-shot) | [`visual-shot/AGENTS.md`](./visual-shot/AGENTS.md) |
 | [`outbound/`](./outbound) | [`outbound/AGENTS.md`](./outbound/AGENTS.md) |
+| [`agentic-tools/`](./agentic-tools) | [`agentic-tools/AGENTS.md`](./agentic-tools/AGENTS.md) |
 
 ## Golden rules
 
@@ -36,4 +37,8 @@ npx visual-shot doctor --json
 # outbound
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz
 npx outbound doctor --json
+
+# agentic-tools
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz
+npx agentic-tools doctor --json
 ```

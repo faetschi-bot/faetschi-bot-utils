@@ -6,6 +6,7 @@ Small, reusable utilities by [@faetschi-bot](https://github.com/faetschi-bot).
 |---------|-------------|
 | [`visual-shot/`](./visual-shot) | Reproducible headless-Chromium screenshots for PR review, with no-root provisioning. |
 | [`outbound/`](./outbound) | Clean, PR-based release changelogs: verify release hygiene and scaffold GitHub release categories. |
+| [`agentic-tools/`](./agentic-tools) | Reusable skills and hooks for AI coding agents (first skill: `test-audit`). |
 
 Each tool is self-contained. Tools are distributed as **GitHub Release
 tarballs**, so installing or publishing them needs **no npm registry account and
@@ -36,6 +37,13 @@ npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/ou
 npx outbound doctor --json
 ```
 
+For `agentic-tools`:
+
+```bash
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz
+npx agentic-tools doctor --json
+```
+
 Prefer a local copy? Vendor the folder or add the repo as a submodule:
 
 ```bash
@@ -58,16 +66,17 @@ a no-op. Do not push tags by hand.
 To release a tool, bump its `<tool>/package.json` and merge:
 
 ```bash
-# visual-shot -> .../releases/tag/visual-shot-v<version>
-# outbound    -> .../releases/tag/outbound-v<version>
+# visual-shot    -> .../releases/tag/visual-shot-v<version>
+# outbound       -> .../releases/tag/outbound-v<version>
+# agentic-tools  -> .../releases/tag/agentic-tools-v<version>
 ```
 
 ## Adding a new tool
 
 1. Create `<tool>/` with a `package.json` (`name`, `version`, `bin`, `files`,
    `license`, `engines`) and the tool's files. Keep it self-contained.
-2. Copy an existing release workflow (`release-visual-shot.yml` or
-   `release-outbound.yml`) to `.github/workflows/release-<tool>.yml` and change
-   the `working-directory`, the `<tool>/**` path filter, and the tag prefix to
-   `<tool>`. Add a matching `ci-<tool>.yml` too.
+2. Copy an existing release workflow (e.g. `release-outbound.yml`) to
+   `.github/workflows/release-<tool>.yml` and change the `working-directory`,
+   the `<tool>/**` path filter, and the tag prefix to `<tool>`. Add a matching
+   `ci-<tool>.yml` too.
 3. Release by bumping `<tool>/package.json` and merging to `main` (see above).

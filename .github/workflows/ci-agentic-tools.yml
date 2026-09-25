@@ -1,0 +1,36 @@
+name: CI agentic-tools
+
+on:
+  pull_request:
+    paths:
+      - 'agentic-tools/**'
+      - '.github/workflows/ci-agentic-tools.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'agentic-tools/**'
+      - '.github/workflows/ci-agentic-tools.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agentic-tools
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: node --check bin/agentic-tools.mjs && node --check lib/skills.mjs
+      - name: Validate skills
+        run: node bin/agentic-tools.mjs doctor
+      - name: Tests
+        run: npm test
+      - name: Pack check
+        run: npm pack --dry-run

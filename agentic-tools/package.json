@@ -1,0 +1,46 @@
+{
+  "name": "agentic-tools",
+  "version": "0.1.0",
+  "description": "Reusable skills and hooks for AI coding agents.",
+  "keywords": [
+    "agent",
+    "skills",
+    "hooks",
+    "ai",
+    "agents",
+    "prompt",
+    "testing"
+  ],
+  "homepage": "https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/agentic-tools#readme",
+  "bugs": {
+    "url": "https://github.com/faetschi-bot/faetschi-bot-utils/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faetschi-bot/faetschi-bot-utils.git",
+    "directory": "agentic-tools"
+  },
+  "author": "faetschi-bot",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agentic-tools": "bin/agentic-tools.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "skills",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "validate": "node bin/agentic-tools.mjs doctor",
+    "prepack": "node --check bin/agentic-tools.mjs && node --check lib/skills.mjs && node bin/agentic-tools.mjs doctor",
+    "prepublishOnly": "node --check bin/agentic-tools.mjs && node --check lib/skills.mjs && node bin/agentic-tools.mjs doctor"
+  }
+}
