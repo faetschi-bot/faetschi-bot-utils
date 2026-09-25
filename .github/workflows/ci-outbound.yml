@@ -1,16 +1,16 @@
-name: CI visual-shot
+name: CI outbound
 
 on:
   pull_request:
     paths:
-      - 'visual-shot/**'
-      - '.github/workflows/ci-visual-shot.yml'
+      - 'outbound/**'
+      - '.github/workflows/ci-outbound.yml'
   push:
     branches:
       - main
     paths:
-      - 'visual-shot/**'
-      - '.github/workflows/ci-visual-shot.yml'
+      - 'outbound/**'
+      - '.github/workflows/ci-outbound.yml'
 
 permissions:
   contents: read
@@ -20,16 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: visual-shot
+        working-directory: outbound
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: Syntax check
-        run: npm run check
-      - name: Shell lint
-        run: npm run lint:sh
+        run: node --check bin/outbound.mjs && node --check lib/checks.mjs
       - name: Tests
         run: npm test
       - name: Pack check

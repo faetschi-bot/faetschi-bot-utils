@@ -1,8 +1,9 @@
 # visual-shot
 
-Reproducible headless-Chromium screenshots for pull requests. One command opens
-your running app, drives it if needed, and writes a PNG you can commit and embed
-in a PR — including on machines with **no root and no browser installed**.
+Reproducible headless-Chromium visual artifacts for pull requests: screenshots,
+image diffs, terminal captures, and Mermaid diagrams. One command opens your
+running app (or renders a file) and writes a PNG you can commit and embed in a PR
+— including on machines with **no root and no browser installed**.
 
 It is generic: point it at a URL, and it works for any web project. The heavy
 assets (Chromium, missing shared libraries, the pinned Playwright package) live
@@ -22,7 +23,7 @@ in a **machine-global cache**, so several projects share one provision.
 Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
 npx visual-shot setup
 ```
 
@@ -60,14 +61,20 @@ missing.
 ## CLI
 
 ```
-visual-shot setup                 provision Chromium + libraries, then exit
-visual-shot doctor [--json]       check the environment, then exit
-visual-shot [options]             capture a screenshot
+visual-shot capture [options]        screenshot a URL to a PNG (default command)
+visual-shot diff <before> <after>    compare two images and write a diff PNG
+visual-shot term -- <command...>     render a command's output as a PNG
+visual-shot diagram <input>          render Mermaid diagrams to PNG or SVG
+visual-shot setup                    provision Chromium + libraries, then exit
+visual-shot doctor [--json]          check the environment, then exit
 ```
 
-`doctor` reports Node, cache, Chromium, Playwright, and — when `--url` is given —
-whether the dev server responds. It exits non-zero when the environment is not
-ready, so an agent can verify setup before capturing.
+`visual-shot [options]` without a command is the same as `visual-shot capture`.
+`doctor` reports Node, cache, Chromium, Playwright, Mermaid, and — when `--url` is
+given — whether the dev server responds. It exits non-zero when a required check
+fails, so an agent can verify setup before capturing.
+
+### Capture options
 
 | Flag | Meaning |
 |------|---------|
@@ -107,6 +114,94 @@ On a validation error (`ok: false` with `error`) or a capture failure, the same
 capture failure) instead of human-readable stderr. `truncated` is `true` when a
 page produced more than 50 errors and the lists were capped.
 
+### Compare images (diff)
+
+`diff` compares two images and writes a single side-by-side PNG
+(`before | after`) — a clean before/after for PRs, with no highlighted diff
+overlay — and reports how many pixels changed. The `before` panel is outlined in
+red and the `after` panel in green, for quick visual distinction. Each input is a
+local image path or an `http(s)://` URL; **URLs are captured as page screenshots
+at `--viewport`, not downloaded as images**.
+
+```bash
+npx visual-shot diff before.png after.png --out tmp/images/PRs/change.png
+npx visual-shot diff http://localhost:3000/ after.png --fail-on-diff
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--out <path>` | output PNG (default `$VISUAL_OUT_DIR/diff.png`) |
+| `--threshold <n>` | per-pixel color distance threshold, `0`–`1` (default `0.1`) |
+| `--viewport <WxH>` / `--scale <n>` | capture settings for URL inputs (default `1280x720`, scale `1`) |
+| `--fail-on-diff` | exit `1` when any differing pixels are found |
+| `--json` | print `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch, … }` |
+
+By default `diff` exits `0` and just reports; add `--fail-on-diff` to use it as a
+visual-regression gate, in which case `--json` reports `ok: false` when pixels
+differ (and the process exits `1`). Differing input dimensions are padded to the
+common max size and reported via `sizeMatch: false`.
+
+### Render terminal output (term)
+
+`term` runs a command, captures its stdout/stderr (ANSI colors preserved), and
+renders it as a terminal-style PNG — handy for pasting a test or build transcript
+into a PR. Everything after `--` is the command; without `--`, the first
+non-option token starts the command.
+
+```bash
+npx visual-shot term --title "npm test" -- npm test
+npx visual-shot term --shell "pytest -q 2>&1 | tail -20"
+npx visual-shot term --fail-on-error -- npm run build   # exit 1 if the command fails
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--out <path>` | output PNG (default `$VISUAL_OUT_DIR/term.png`) |
+| `--title <text>` | render a title bar above the output |
+| `--width <px>` / `--font-size <px>` | layout (defaults `900` / `13`) |
+| `--max-lines <n>` | cap rendered lines (default `2000`); truncation is reported |
+| `--timeout <ms>` | kill the command after this (default `120000`) |
+| `--shell "<string>"` | run a single command string through the shell |
+| `--fail-on-error` | exit `1` when the command exits non-zero or times out |
+| `--json` | print `{ ok, out, command, shell, exitCode, signal, timedOut, lines, truncated, bufferTruncated, durationMs }` |
+
+By default `term` writes the image and exits `0` even if the command failed (the
+failure is shown in the image); use `--fail-on-error` to propagate it (with
+`--json` it then reports `ok: false`). stdout and stderr are captured through
+separate pipes, so their relative ordering in the image is approximate rather
+than a faithful interleave. Carriage returns are rendered with terminal
+overwrite semantics: each `\r`-separated segment is painted from column 0,
+preserving any longer tail (so `hello\rhi` renders as `hillo` and `foo\r` as
+`foo`). `bufferTruncated: true` means the captured output exceeded 8 MiB and was
+cut off.
+
+### Render Mermaid diagrams (diagram)
+
+`diagram` renders Mermaid to PNG or SVG — useful for PR diagrams and for LaTeX
+figures that need real image files. It accepts a `.mmd` file, a Markdown file
+(renders top-level fenced ` ```mermaid ` blocks; a 4-space-indented block or
+mermaid text nested inside another fence is skipped), or `-` for stdin.
+
+```bash
+npx visual-shot diagram docs/flow.mmd --out tmp/images/PRs/flow.png
+npx visual-shot diagram docs/design.md --format svg --out tmp/images/PRs/design/
+npx visual-shot diagram docs/design.md --md-out docs/design.rendered.md
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--out <path>` | output file (`.mmd`) or directory (`.md`) |
+| `--format <png\|svg>` | output format (default `png`) |
+| `--theme <name>` | Mermaid theme (`default`, `dark`, `neutral`, `forest`) |
+| `--background <color>` | background colour (default `transparent`, for PNG and SVG alike) |
+| `--scale <n>` | device scale factor for PNG (default `2`) |
+| `--md-out <file>` | for Markdown input, write a copy with fences replaced by image links |
+| `--json` | print `{ ok, format, mermaidVersion, outputs, mdOut? }` |
+
+Mermaid itself is **not** an npm dependency: a pinned `mermaid.min.js` is
+downloaded once into the cache (`$VISUAL_SHOT_CACHE/mermaid/`) on first use, so
+later renders work offline. Override the pin with `VISUAL_SHOT_MERMAID_VERSION`.
+
 ## Environment variables
 
 | Variable | Meaning |
@@ -115,6 +210,7 @@ page produced more than 50 errors and the lists were capped.
 | `VISUAL_OUT_DIR` | default output directory (default `tmp/images/PRs`) |
 | `VISUAL_SHOT_CACHE` | persistent cache dir (default `$XDG_DATA_HOME/visual-shot`, i.e. `~/.local/share/visual-shot`) |
 | `VISUAL_SHOT_PLAYWRIGHT_VERSION` | pinned Playwright version (default `1.49.1`) |
+| `VISUAL_SHOT_MERMAID_VERSION` | pinned Mermaid version for `diagram` (default `11.4.1`) |
 
 ## How it works
 
@@ -123,6 +219,7 @@ $VISUAL_SHOT_CACHE/
   browsers/   Chromium            (PLAYWRIGHT_BROWSERS_PATH)
   sysroot/    unpacked .debs      (missing libs + fonts, no root)
   pw/         pinned playwright   (self-provisioned if not installed)
+  mermaid/    pinned mermaid.min.js (diagram, fetched on first use)
   env.sh, fonts.conf, .provisioned
 ```
 
@@ -181,7 +278,7 @@ hand.
 Consumers then install it by URL:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
 npx visual-shot setup
 ```
 

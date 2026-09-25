@@ -5,6 +5,7 @@ Small, reusable utilities by [@faetschi-bot](https://github.com/faetschi-bot).
 | Utility | Description |
 |---------|-------------|
 | [`visual-shot/`](./visual-shot) | Reproducible headless-Chromium screenshots for PR review, with no-root provisioning. |
+| [`outbound/`](./outbound) | Clean, PR-based release changelogs: verify release hygiene and scaffold GitHub release categories. |
 | [`agentic-tools/`](./agentic-tools) | Reusable skills and hooks for AI coding agents (first skill: `test-audit`). |
 
 Each tool is self-contained. Tools are distributed as **GitHub Release
@@ -27,6 +28,13 @@ For `visual-shot`:
 ```bash
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
 npx visual-shot setup
+```
+
+For `outbound`:
+
+```bash
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz
+npx outbound doctor --json
 ```
 
 For `agentic-tools`:
@@ -55,17 +63,20 @@ version, and if it has not been released yet, runs `npm pack` and creates the
 `<tool>-v<version>` tag and GitHub Release. Re-merging without a version bump is
 a no-op. Do not push tags by hand.
 
-Bump the tool's own `<tool>/package.json` and merge:
+To release a tool, bump its `<tool>/package.json` and merge:
 
 ```bash
-# -> https://github.com/faetschi-bot/faetschi-bot-utils/releases/tag/<tool>-v<version>
+# visual-shot    -> .../releases/tag/visual-shot-v<version>
+# outbound       -> .../releases/tag/outbound-v<version>
+# agentic-tools  -> .../releases/tag/agentic-tools-v<version>
 ```
 
 ## Adding a new tool
 
 1. Create `<tool>/` with a `package.json` (`name`, `version`, `bin`, `files`,
    `license`, `engines`) and the tool's files. Keep it self-contained.
-2. Copy `.github/workflows/release-visual-shot.yml` to
+2. Copy an existing release workflow (e.g. `release-outbound.yml`) to
    `.github/workflows/release-<tool>.yml` and change the `working-directory`,
-   the `visual-shot/**` path filter, and the tag prefix to `<tool>`.
+   the `<tool>/**` path filter, and the tag prefix to `<tool>`. Add a matching
+   `ci-<tool>.yml` too.
 3. Release by bumping `<tool>/package.json` and merging to `main` (see above).
