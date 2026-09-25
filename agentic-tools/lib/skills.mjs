@@ -1,9 +1,35 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 
 export const SKILLS_DIR = 'skills';
 export const MAX_DESCRIPTION = 1024;
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+export const INSTALL_TARGETS = {
+  opencode: { project: ['.opencode', 'skills'], global: ['.config', 'opencode', 'skills'] },
+  claude: { project: ['.claude', 'skills'], global: ['.claude', 'skills'] },
+  agents: { project: ['.agents', 'skills'], global: ['.agents', 'skills'] },
+};
+
+export function targetDir(target, { global = false, cwd = process.cwd(), home = homedir() } = {}) {
+  const spec = INSTALL_TARGETS[target];
+  if (!spec) return undefined;
+  return join(global ? home : cwd, ...(global ? spec.global : spec.project));
+}
+
+export function copySkillDir(skill, destBase, { force = false } = {}) {
+  const base = resolve(destBase);
+  const dest = join(base, skill.name);
+  const existed = existsSync(dest);
+  if (existed && !force) {
+    throw new Error(`destination already exists: ${dest} (use --force to overwrite)`);
+  }
+  if (existed) rmSync(dest, { recursive: true, force: true });
+  mkdirSync(base, { recursive: true });
+  cpSync(skill.dir, dest, { recursive: true });
+  return { name: skill.name, path: dest, action: existed ? 'overwrite' : 'create' };
+}
 
 export function listSkillDirs(root) {
   const dir = join(root, SKILLS_DIR);

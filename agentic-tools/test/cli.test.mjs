@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,8 +9,12 @@ import { fileURLToPath } from 'node:url';
 const bin = fileURLToPath(new URL('../bin/agentic-tools.mjs', import.meta.url));
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 
-function run(args) {
-  return spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8' });
+function run(args, options = {}) {
+  return spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8', ...options });
+}
+
+function tempDir() {
+  return mkdtempSync(join(tmpdir(), 'agentic-tools-test-'));
 }
 
 function tempRoot(skillBody) {
@@ -111,5 +115,90 @@ test('doctor accepts a valid in-page anchor', () => {
     assert.equal(parsed.ok, true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('install copies the packaged skill into --dir', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', 'test-audit', '--dir', dest, '--json']);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.installed[0].name, 'test-audit');
+    assert.equal(parsed.installed[0].action, 'create');
+    assert.ok(existsSync(join(dest, 'test-audit', 'SKILL.md')));
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install refuses to overwrite without --force', () => {
+  const dest = tempDir();
+  try {
+    assert.equal(run(['install', 'test-audit', '--dir', dest]).status, 0);
+    const again = run(['install', 'test-audit', '--dir', dest]);
+    assert.equal(again.status, 1);
+    assert.match(again.stderr, /already exists/);
+    const forced = run(['install', 'test-audit', '--dir', dest, '--force', '--json']);
+    assert.equal(forced.status, 0);
+    assert.equal(JSON.parse(forced.stdout).installed[0].action, 'overwrite');
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install --dry-run writes nothing', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', '--all', '--dir', dest, '--dry-run', '--json']);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.dryRun, true);
+    assert.equal(parsed.installed[0].action, 'create');
+    assert.equal(existsSync(join(dest, 'test-audit')), false);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install rejects an unknown skill', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', 'nope', '--dir', dest]);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /Unknown skill/);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install rejects --all combined with skill names', () => {
+  const r = run(['install', '--all', 'test-audit']);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /Cannot combine --all/);
+});
+
+test('install defaults to the project opencode skills dir', () => {
+  const cwd = tempDir();
+  try {
+    const r = run(['install', 'test-audit', '--target', 'opencode'], { cwd });
+    assert.equal(r.status, 0);
+    assert.ok(existsSync(join(cwd, '.opencode', 'skills', 'test-audit', 'SKILL.md')));
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test('install --global writes to the home config for the target', () => {
+  const home = tempDir();
+  try {
+    const r = run(['install', 'test-audit', '--target', 'opencode', '--global'], {
+      env: { ...process.env, HOME: home },
+    });
+    assert.equal(r.status, 0);
+    assert.ok(existsSync(join(home, '.config', 'opencode', 'skills', 'test-audit', 'SKILL.md')));
+  } finally {
+    rmSync(home, { recursive: true, force: true });
   }
 });

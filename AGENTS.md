@@ -41,4 +41,5 @@ npx outbound doctor --json
 # agentic-tools
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz
 npx agentic-tools doctor --json
+npx agentic-tools install --all   # copy the skills into .opencode/skills/
 ```
