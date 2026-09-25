@@ -31,14 +31,14 @@ canonical recipe lives in each tool's `AGENTS.md`.
 
 ```bash
 # visual-shot
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-latest/visual-shot.tgz
 npx visual-shot doctor --json
 
 # outbound
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-latest/outbound.tgz
 npx outbound doctor --json
 
 # agentic-tools
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz
 npx agentic-tools doctor --json
 ```

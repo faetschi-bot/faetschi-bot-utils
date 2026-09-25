@@ -20,7 +20,7 @@ reads, not a program.
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz
 
 # B. Vendored copy
 cp -r agentic-tools /path/to/project/tools/agentic-tools

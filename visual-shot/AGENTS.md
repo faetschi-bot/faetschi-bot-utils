@@ -25,7 +25,7 @@ Chromium libraries. If you cannot get root, stop and tell the user.
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-latest/visual-shot.tgz
 
 # B. Vendored copy
 cp -r visual-shot /path/to/project/tools/visual-shot

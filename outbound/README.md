@@ -21,7 +21,7 @@ message. `outbound` makes that pipeline explicit and verifiable.
 Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-latest/outbound.tgz
 npx outbound doctor
 ```
 
