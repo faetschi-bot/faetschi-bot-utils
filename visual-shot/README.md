@@ -23,7 +23,7 @@ in a **machine-global cache**, so several projects share one provision.
 Install the released tarball (no npm registry account needed):
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-latest/visual-shot.tgz
 npx visual-shot setup
 ```
 
@@ -278,7 +278,7 @@ hand.
 Consumers then install it by URL:
 
 ```bash
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.5.0/visual-shot-0.5.0.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-latest/visual-shot.tgz
 npx visual-shot setup
 ```
 

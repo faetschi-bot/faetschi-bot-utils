@@ -17,23 +17,23 @@ no 2FA**. You can also vendor a folder or add the repo as a git submodule.
 Each tool ships as a **GitHub Release tarball**, so no npm registry account or
 login is needed. All tools require **Node 20+**.
 
-Install the tool you need by its release URL. Every URL follows the same shape,
-`.../releases/download/<tool>-v<version>/<tool>-<version>.tgz`, and the two
-version occurrences must match:
+Install the tool you need from its stable `-latest` URL, which always serves the
+newest release:
 
 | Tool | Install (per project) | First command |
 |------|-----------------------|---------------|
-| `visual-shot` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz` | `npx visual-shot setup` |
-| `outbound` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz` | `npx outbound init` |
-| `agentic-tools` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-v0.1.0/agentic-tools-0.1.0.tgz` | `npx agentic-tools list` |
+| `visual-shot` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-latest/visual-shot.tgz` | `npx visual-shot setup` |
+| `outbound` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-latest/outbound.tgz` | `npx outbound init` |
+| `agentic-tools` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz` | `npx agentic-tools list` |
 
 - **Per project:** run the install inside that project. `-D` records it in
   `devDependencies`, so it survives reinstalls and an agent can set it up too.
 - **Every project:** use `npm i -g <url>` instead, then call the tool directly
   (`visual-shot setup`).
-- **Versions:** the table pins the latest release at the time of writing; browse
-  [Releases](https://github.com/faetschi-bot/faetschi-bot-utils/releases) and
-  swap in the version you want.
+- **Pinning:** to lock an exact version instead of the moving `-latest`, use the
+  versioned asset
+  `.../releases/download/<tool>-v<version>/<tool>-<version>.tgz` from the
+  [Releases](https://github.com/faetschi-bot/faetschi-bot-utils/releases) page.
 
 ### Verify an install
 
@@ -66,8 +66,10 @@ Each tool is versioned and released independently. **Releases are automatic on
 merge:** bump `"version"` in `<tool>/package.json`, commit, and merge to `main`.
 The matching workflow (`.github/workflows/release-<tool>.yml`) resolves the
 version, and if it has not been released yet, runs `npm pack` and creates the
-`<tool>-v<version>` tag and GitHub Release. Re-merging without a version bump is
-a no-op. Do not push tags by hand.
+`<tool>-v<version>` tag and GitHub Release. The same workflow then refreshes the
+moving `<tool>-latest` release, whose stable `<tool>.tgz` asset backs the install
+URLs above. Re-merging without a version bump is a no-op. Do not push tags by
+hand.
 
 To release a tool, bump its `<tool>/package.json` and merge:
 

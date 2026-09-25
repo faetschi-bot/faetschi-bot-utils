@@ -74,3 +74,23 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "$TAG" \
             --generate-notes
+
+      - name: Update agentic-tools-latest alias
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TOOL: agentic-tools
+          TAG: ${{ steps.release.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          version="${TAG#${TOOL}-v}"
+          gh release download "$TAG" -R "$REPO" -p "${TOOL}-${version}.tgz" -O "${TOOL}.tgz" --clobber
+          if gh release view "${TOOL}-latest" -R "$REPO" >/dev/null 2>&1; then
+            gh release upload "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" --clobber
+          else
+            gh release create "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" \
+              --target "$GITHUB_SHA" \
+              --title "${TOOL}-latest" \
+              --latest=false \
+              --notes "Moving pointer to the newest ${TOOL} release. Install: https://github.com/${REPO}/releases/download/${TOOL}-latest/${TOOL}.tgz"
+          fi
+          echo "updated ${TOOL}-latest -> ${TAG}"
