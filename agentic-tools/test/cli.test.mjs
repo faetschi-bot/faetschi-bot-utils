@@ -89,3 +89,27 @@ test('doctor fails on a broken relative link', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('doctor fails on a broken in-page anchor', () => {
+  const dir = tempRoot('---\nname: sample\ndescription: "x"\n---\n\n# Sample\n\nSee [nope](#missing).\n');
+  try {
+    const r = run(['doctor', '--json', '--root', dir]);
+    assert.equal(r.status, 1);
+    const parsed = JSON.parse(r.stdout);
+    assert.ok(parsed.skills[0].errors.some((e) => /broken anchor: #missing/.test(e)));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('doctor accepts a valid in-page anchor', () => {
+  const dir = tempRoot('---\nname: sample\ndescription: "x"\n---\n\n# Sample\n\n## Details\n\nSee [details](#details).\n');
+  try {
+    const r = run(['doctor', '--json', '--root', dir]);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

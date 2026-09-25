@@ -5,16 +5,25 @@ description: "Invoke when writing, changing, reviewing, or sweeping tests. Gates
 
 # Test Audit
 
-Three modes, one value bar. **Authoring** gates every new or changed test at
-write time. **Audit** runs focused sweeps of tests that re-assert source,
-duplicate stronger proof, couple behavior to implementation, or keep test-only
-production seams alive. **Campaign** prunes one whole subsystem's test surface.
-Continue broad work as separate coherent follow-up PRs; optimize for confidence,
-not deletion count.
+Two modes, one value bar. **Authoring** gates every new or changed test at write
+time. **Audit** runs focused sweeps of tests that re-assert source, duplicate
+stronger proof, couple behavior to implementation, or keep test-only production
+seams alive. Continue broad work as separate coherent follow-up PRs; optimize for
+confidence, not deletion count.
 
 Repository-specific commands, testing guides, and review gates live in the target
 project's `AGENTS.md` and CI config. Read those first. This skill defines the
 value bar, not the commands.
+
+## Modes
+
+- **Authoring** — before adding or changing a test. Run the
+  [authoring gate](#authoring-gate) first.
+- **Audit** — to sweep an existing area for low-value tests. Do
+  [discovery](#discovery) read-only, then edit one coherent batch.
+
+Pick the mode that matches the request; do not expand an audit into a broad sweep
+without approval.
 
 ## Authoring gate
 
@@ -59,8 +68,8 @@ matches one, and audits hunt for existing tests that do.
 - expected values produced by the helper or renderer under test;
 - mocks that implement the asserted behavior, or one identical mock standing in
   for different APIs;
-- fixtures that supply the receipt, admission, or callback ordering the owner
-  should produce, or persistence asserted against a store the path never writes;
+- fixtures that supply the ordering, acknowledgement, or receipt the owner should
+  produce, or persistence asserted against a store the path never writes;
 - capability tests that restate declared flags instead of exercising the
   delivery or acknowledgement the flag promises;
 - negative controls that pass for an unrelated reason, such as a denial from a
@@ -86,15 +95,15 @@ types directly.
 Keep discovery read-only and report evidence before editing. For broad scope,
 split into parallel lanes by the project's own layout — for example core and
 packages, plugins or extensions, UI and apps, and tooling — plus one
-cross-cutting pattern sweep. Outside campaign mode, prefer a few high-confidence
-candidates over a large speculative inventory. Hunt for the
-[junk patterns](#junk-patterns).
+cross-cutting pattern sweep. Prefer a few high-confidence candidates over a large
+speculative inventory. Hunt for the [junk patterns](#junk-patterns).
 
 ## Retention bar
 
 Keep a test when it independently enforces a public API, plugin SDK, protocol,
-config, migration, storage, security, platform, default, prompt-byte, generated
-cross-language, package, release, or architecture contract. Also keep:
+config, migration, storage, security, platform, default, exact prompt or
+serialized bytes, generated cross-language, package, release, or architecture
+contract. Also keep:
 
 - call ordering when order is observable behavior;
 - regressions with a credible failure mode;
@@ -138,8 +147,8 @@ the target project's testing guide (`AGENTS.md`) and route heavy or slow proof
 through whatever dedicated runner or CI job it defines.
 
 1. Run the smallest owner and sibling tests using the project's test command.
-2. For removed source greps or plan assertions, run the executable script or
-   dry-run that owns the real contract.
+2. For removed source greps or assertions about a plan or manifest, run the
+   executable script or dry-run that owns the real contract.
 3. Run the project's formatter on changed files, then `git diff --check`.
 4. Run the project's changed-file gate (lint, typecheck, selected tests) exactly
    as its policy requires.
@@ -147,19 +156,6 @@ through whatever dedicated runner or CI job it defines.
    from tests and test support.
 6. After final audit edits, run the project's mandatory review step, if it has
    one.
-
-## Campaign mode
-
-Campaign mode prunes one whole subsystem's test surface — every test file a
-plugin, package, or core area owns. Before starting one:
-
-- name the subsystem and its exact file set;
-- get explicit authorization for a campaign-sized change;
-- split discovery into lanes and record [candidate evidence](#candidate-evidence)
-  for every candidate;
-- land one coherent PR per batch, and stop to re-scope rather than expanding.
-
-A campaign is a batch of audits, not a license to delete aggressively.
 
 ## Landing and continuation
 

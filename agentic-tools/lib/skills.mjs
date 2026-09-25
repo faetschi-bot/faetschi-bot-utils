@@ -56,6 +56,43 @@ export function relativeLinks(text) {
   return links;
 }
 
+export function anchorLinks(text) {
+  const links = [];
+  const re = /\[[^\]]*\]\((#[^)\s]+)\)/g;
+  let match;
+  while ((match = re.exec(text)) !== null) links.push(match[1].slice(1));
+  return links;
+}
+
+export function slugify(text) {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export function headingAnchors(text) {
+  const body = text.startsWith('---') ? text.slice(text.indexOf('\n---', 3) + 4) : text;
+  const counts = new Map();
+  for (const line of body.split('\n')) {
+    const match = line.match(/^#{1,6}\s+(.*\S)\s*$/);
+    if (!match) continue;
+    const slug = slugify(match[1]);
+    if (slug) counts.set(slug, (counts.get(slug) ?? 0) + 1);
+  }
+  const anchors = new Set();
+  for (const [slug, count] of counts) {
+    anchors.add(slug);
+    for (let i = 1; i < count; i++) anchors.add(`${slug}-${i}`);
+  }
+  return anchors;
+}
+
 export function validateSkill(skill) {
   const errors = [];
   const warnings = [];
@@ -88,6 +125,11 @@ export function validateSkill(skill) {
       continue;
     }
     if (!existsSync(abs)) errors.push(`broken relative link: ${href}`);
+  }
+
+  const anchors = headingAnchors(text);
+  for (const anchor of anchorLinks(text)) {
+    if (!anchors.has(anchor)) errors.push(`broken anchor: #${anchor}`);
   }
 
   return { name: skill.name, ok: errors.length === 0, errors, warnings };

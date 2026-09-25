@@ -27,8 +27,8 @@ Options:
   --help               show this help
 
 Skills live in <root>/skills/<name>/SKILL.md. doctor checks each one for valid
-frontmatter (name, description) and working relative links. Exit code is 0 when
-every skill is valid, 1 otherwise.`);
+frontmatter (name, description), working relative links, and in-page anchors.
+Exit code is 0 when every skill is valid, 1 otherwise.`);
 }
 
 function parse(argv) {

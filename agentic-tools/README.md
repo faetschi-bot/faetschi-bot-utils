@@ -47,9 +47,9 @@ agentic-tools doctor [options]    validate every SKILL.md, then exit
 | `--json` | print a machine-readable result object |
 
 `doctor` validates every `skills/*/SKILL.md`: frontmatter has a `name` that
-matches the directory plus a non-empty `description`, and all relative links
-resolve. It exits non-zero on any problem, so CI and agents can verify a skill
-before trusting it.
+matches the directory plus a non-empty `description`, and all relative links and
+in-page anchors resolve. It exits non-zero on any problem, so CI and agents can
+verify a skill before trusting it.
 
 ```bash
 $ npx agentic-tools doctor --json

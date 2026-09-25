@@ -38,8 +38,8 @@ npx agentic-tools doctor --json
 ```
 
 It validates every `skills/*/SKILL.md`: frontmatter has a `name` that matches the
-directory plus a non-empty `description`, and all relative links resolve. It
-exits non-zero on any problem.
+directory plus a non-empty `description`, and all relative links and in-page
+anchors resolve. It exits non-zero on any problem.
 
 ## Use a skill
 
