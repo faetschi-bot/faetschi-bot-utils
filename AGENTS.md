@@ -9,6 +9,7 @@ its own `AGENTS.md` next to it — start there.
 | Tool | Agent guide |
 |------|-------------|
 | [`visual-shot/`](./visual-shot) | [`visual-shot/AGENTS.md`](./visual-shot/AGENTS.md) |
+| [`outbound/`](./outbound) | [`outbound/AGENTS.md`](./outbound/AGENTS.md) |
 
 ## Golden rules
 
@@ -25,9 +26,14 @@ its own `AGENTS.md` next to it — start there.
 ## Installing a tool into a project
 
 Tools are distributed as GitHub Release tarballs (no npm registry account). The
-canonical recipe lives in each tool's `AGENTS.md`. For `visual-shot`:
+canonical recipe lives in each tool's `AGENTS.md`.
 
 ```bash
+# visual-shot
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.2.0/visual-shot-0.2.0.tgz
 npx visual-shot doctor --json
+
+# outbound
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-v0.1.0/outbound-0.1.0.tgz
+npx outbound doctor --json
 ```
