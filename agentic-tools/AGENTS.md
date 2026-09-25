@@ -43,22 +43,46 @@ anchors resolve. It exits non-zero on any problem.
 
 ## Use a skill
 
-Skills are addressed by their `SKILL.md` file. There are two common ways to
-attach one to an agent:
+The fastest path is `install`, which copies one or more skill directories into
+the agent's skills directory (the `SKILL.md` plus any supporting files):
 
-1. **Copy into the agent's skills directory** (so the agent discovers it
-   automatically). The exact path depends on the agent or harness — for
-   OpenCode that is `.opencode/skill/<name>/SKILL.md` (or `skills/`) in the
-   project, or `~/.config/opencode/skill/<name>/SKILL.md` globally:
+```bash
+# OpenCode project skills: <project>/.opencode/skills/<name>/
+npx agentic-tools install test-audit
+
+# Every skill, into the user-global OpenCode dir (~/.config/opencode/skills/)
+npx agentic-tools install --all --global
+
+# Other presets, or an explicit destination directory
+npx agentic-tools install test-audit --target claude
+npx agentic-tools install test-audit --target agents --global
+npx agentic-tools install --all --dir ./tools/skills
+```
+
+Targets (project / global):
+
+| Target | Project | Global |
+|--------|---------|--------|
+| `opencode` (default) | `.opencode/skills` | `~/.config/opencode/skills` |
+| `claude` | `.claude/skills` | `~/.claude/skills` |
+| `agents` | `.agents/skills` | `~/.agents/skills` |
+
+`install` validates each skill first, copies it to `<dir>/<name>`, and refuses to
+overwrite an existing skill directory unless you pass `--force`. It also supports
+`--dry-run` and `--json`.
+
+Alternatives when you do not want to install:
+
+1. **Copy by hand** into the agent's skills directory:
 
    ```bash
-   mkdir -p .opencode/skill
-   cp -r node_modules/agentic-tools/skills/test-audit .opencode/skill/
+   mkdir -p .opencode/skills
+   cp -r node_modules/agentic-tools/skills/test-audit .opencode/skills/
    ```
 
-   OpenCode also auto-loads `~/.claude/skills/<name>/SKILL.md` and
-   `~/.agents/skills/<name>/SKILL.md`, and you can register this pack's
-   `skills/` directory directly via `skills.paths` in `opencode.json`.
+   OpenCode also auto-loads `.claude/skills/` and `.agents/skills/` in the
+   project and their `~/.<agent>/skills` global forms, and you can register this
+   pack's `skills/` directory directly via `skills.paths` in `opencode.json`.
 
 2. **Point the agent at the file** when you invoke it, e.g. "follow
    `node_modules/agentic-tools/skills/test-audit/SKILL.md`". Use this when you

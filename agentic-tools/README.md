@@ -37,13 +37,21 @@ node tools/faetschi-bot-utils/agentic-tools/bin/agentic-tools.mjs doctor
 ## CLI
 
 ```
-agentic-tools list [options]      list the skills in this package
-agentic-tools doctor [options]    validate every SKILL.md, then exit
+agentic-tools list [options]                 list the skills in this package
+agentic-tools doctor [options]               validate every SKILL.md, then exit
+agentic-tools install <skill...> [options]   copy skills into an agent skills dir
+agentic-tools install --all [options]        copy every skill in the pack
 ```
 
 | Flag | Meaning |
 |------|---------|
 | `--root <path>` | package root to inspect (default: this package) |
+| `--target <name>` | install preset: `opencode` (default), `claude`, `agents` |
+| `--global` | install to the user-global dir instead of the project |
+| `--dir <path>` | explicit destination skills dir (overrides `--target`/`--global`) |
+| `--all` | select every skill in the pack |
+| `--force` | overwrite existing skill directories |
+| `--dry-run` | report what would be installed without writing anything |
 | `--json` | print a machine-readable result object |
 
 `doctor` validates every `skills/*/SKILL.md`: frontmatter has a `name` that
@@ -89,18 +97,37 @@ concrete test command, formatter, and review gate come from the target project's
 
 ## Use a skill
 
-Copy the skill into your agent's skills directory so it is discovered
-automatically. For OpenCode that is `.opencode/skill/<name>/SKILL.md` (or
-`skills/`) in the project, or `~/.config/opencode/skill/<name>/SKILL.md`
-globally:
+Install the skill into your agent's skills directory so it is discovered
+automatically. `install` copies the whole skill directory — the `SKILL.md` plus
+any supporting files — and validates it first:
 
 ```bash
-mkdir -p .opencode/skill
-cp -r node_modules/agentic-tools/skills/test-audit .opencode/skill/
+# OpenCode project skills: <project>/.opencode/skills/<name>/
+npx agentic-tools install test-audit
+
+# Every skill, into the user-global OpenCode dir (~/.config/opencode/skills/)
+npx agentic-tools install --all --global
+
+# Other presets, or an explicit destination directory
+npx agentic-tools install test-audit --target claude
+npx agentic-tools install test-audit --target agents --global
+npx agentic-tools install --all --dir ./tools/skills
 ```
 
-OpenCode also auto-loads `~/.claude/skills/<name>/SKILL.md` and
-`~/.agents/skills/<name>/SKILL.md`, and you can register this pack's `skills/`
+Targets (project / global):
+
+| Target | Project | Global |
+|--------|---------|--------|
+| `opencode` (default) | `.opencode/skills` | `~/.config/opencode/skills` |
+| `claude` | `.claude/skills` | `~/.claude/skills` |
+| `agents` | `.agents/skills` | `~/.agents/skills` |
+
+It refuses to overwrite an existing skill directory unless you pass `--force`,
+and supports `--dry-run` to preview and `--json` for scripting.
+
+To copy by hand instead, OpenCode reads `.opencode/skills/`, and also auto-loads
+`.claude/skills/` and `.agents/skills/` in the project plus their
+`~/.<agent>/skills` global forms; you can also register this pack's `skills/`
 directory directly via `skills.paths` in `opencode.json`. Alternatively point the
 agent at the file for a single task: "follow
 `node_modules/agentic-tools/skills/test-audit/SKILL.md`".
