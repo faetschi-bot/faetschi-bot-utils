@@ -136,7 +136,7 @@ test('setup --dry-run writes nothing', () => {
 test('update regenerates the workflow from the stored config', () => {
   const dir = gitRepo();
   try {
-    run(['setup', '--repo', dir, '--mention', '@example-bot', '--no-share']);
+    run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-users', 'alice', '--no-share']);
     writeFileSync(join(dir, '.github/workflows/mention-agent.yml'), '# stale\n');
     assert.equal(doctor(dir).body.ok, false, 'stale workflow should fail doctor');
 
@@ -195,6 +195,29 @@ test('print --standalone emits a self-contained workflow', () => {
     assert.match(r.stdout, /use_github_token: true/);
     assert.match(r.stdout, /actions\/checkout@v4/);
     assert.doesNotMatch(r.stdout, /uses: .*mention-agent\.yml@/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an empty allowlist fails doctor', () => {
+  const dir = gitRepo();
+  try {
+    run(['setup', '--repo', dir, '--mention', '@example-bot']);
+    const { status, body } = doctor(dir);
+    assert.equal(status, 1);
+    assert.ok(body.checks.find((c) => c.name === 'allowlist' && !c.ok));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an unknown provider without explicit env/secret/model exits 2', () => {
+  const dir = gitRepo();
+  try {
+    const r = run(['setup', '--repo', dir, '--mention', '@example-bot', '--provider', 'acme']);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /unknown provider/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

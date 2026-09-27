@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { buildConfig } from '../lib/config.mjs';
+import { ConfigError, buildConfig, validateConfig } from '../lib/config.mjs';
 import { renderCaller, renderReusable, renderStandalone } from '../lib/render.mjs';
 import { REPOSITORY, VERSION } from '../lib/package-info.mjs';
 
@@ -40,19 +40,30 @@ test('renderStandalone inlines the gate and the steps', () => {
   const yaml = renderStandalone(config({ standalone: true }));
   assert.match(yaml, /use_github_token: true/);
   assert.match(yaml, /actions\/checkout@v4/);
-  assert.match(yaml, /anomalyco\/opencode\/github@latest/);
-  assert.ok(
-    yaml.includes(`contains(fromJSON("[\\"alice\\",\\"bob\\"]"), github.event.comment.user.login)`),
-    'standalone gate matches the allowlist through fromJSON',
-  );
-  assert.match(yaml, /github\.event\.comment\.user\.login != "example-bot"/);
+  assert.match(yaml, /uses: anomalyco\/opencode\/github@[0-9a-f]{40} # /);
+  assert.match(yaml, /persist-credentials: true/);
+  assert.match(yaml, /timeout-minutes: 30/);
+  assert.match(yaml, /group: mention-agent-\$\{\{ github\.event\.issue\.number \|\| github\.event\.pull_request\.number \}\}/);
+  // GitHub expressions only accept single-quoted string literals.
+  assert.ok(yaml.includes(`contains(github.event.comment.body, '@example-bot')`), 'mention is a single-quoted literal');
+  assert.ok(yaml.includes(`contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)`), 'association gate');
+  assert.ok(yaml.includes(`contains(fromJSON('["alice","bob"]'), github.event.comment.user.login)`), 'allowlist via fromJSON');
+  assert.ok(yaml.includes(`github.event.comment.user.login != 'example-bot'`), 'self-login is a single-quoted literal');
   assert.doesNotMatch(yaml, /uses: .*mention-agent\.yml@/);
+  assert.equal((yaml.match(/"/g) || []).length > 0, true, 'YAML still quotes values');
+});
+
+test('renderStandalone in app mode uses the default token for checkout only', () => {
+  const yaml = renderStandalone(config({ identity: 'app' }));
+  assert.match(yaml, /use_github_token: false/);
+  assert.match(yaml, /token: \$\{\{ github\.token \}\}/);
+  assert.doesNotMatch(yaml, /name: Verify token/);
 });
 
 test('renderStandalone omits the allowlist clause when no users are set', () => {
   const yaml = renderStandalone(buildConfig({ flags: { mention: '@example-bot', allowUsers: [] } }));
   assert.doesNotMatch(yaml, /allow-users/);
-  assert.doesNotMatch(yaml, /fromJSON/);
+  assert.doesNotMatch(yaml, /alice/);
 });
 
 test('a caller with no allowlist passes an empty string', () => {
@@ -65,9 +76,13 @@ test('renderReusable is a workflow_call with the expected gate and secrets', () 
   assert.match(yaml, /workflow_call:/);
   assert.match(yaml, /provider-key:/);
   assert.match(yaml, /contains\(github\.event\.comment\.body, inputs\.mention\)/);
+  assert.ok(yaml.includes(`contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)`), 'association gate');
   assert.match(yaml, /inputs\['allow-users'\]/);
   assert.match(yaml, /fromJSON\(inputs\['allow-users'\]\)/);
   assert.doesNotMatch(yaml, /replace\(/, 'GitHub expressions have no replace function');
+  assert.match(yaml, /persist-credentials: true/);
+  assert.match(yaml, /timeout-minutes: 30/);
+  assert.match(yaml, /uses: anomalyco\/opencode\/github@[0-9a-f]{40} # /);
   assert.match(yaml, /use_github_token: \$\{\{ inputs\.identity == 'pat' \}\}/);
   assert.match(yaml, /Export the provider credential/);
   assert.match(yaml, /GITHUB_ENV/);
@@ -94,7 +109,6 @@ test('no account name or credential is hardcoded in source', () => {
 test('the hosting repository is derived from package metadata', () => {
   assert.equal(REPOSITORY, 'faetschi-bot/faetschi-bot-utils');
   assert.equal(config().workflow.reusableRepo, REPOSITORY);
-  // The renderer output carries the derived repo only through config, never a literal.
   assert.doesNotMatch(renderReusable(), /faetschi/i);
 });
 
@@ -103,6 +117,14 @@ test('--provider switches the default env, secret, and model', () => {
   assert.equal(chosen.provider.env, 'OPENAI_API_KEY');
   assert.equal(chosen.provider.secret, 'OPENAI_API_KEY');
   assert.equal(chosen.model, 'openai/gpt-5.6-sol');
+});
+
+test('update --provider switches defaults even when a config exists', () => {
+  const existing = buildConfig({ flags: { mention: '@example-bot' } });
+  assert.equal(existing.provider.env, 'OPENCODE_API_KEY');
+  const updated = buildConfig({ existing, flags: { provider: 'anthropic' } });
+  assert.equal(updated.provider.env, 'ANTHROPIC_API_KEY');
+  assert.equal(updated.model, 'anthropic/claude-sonnet-4-5');
 });
 
 test('an unlisted provider works through explicit env/secret/model', () => {
@@ -123,7 +145,17 @@ test('an unlisted provider works through explicit env/secret/model', () => {
   assert.match(caller, /provider-env: "ACME_API_KEY"/);
   assert.match(caller, /provider-key: \$\{\{ secrets\.ACME_KEY \}\}/);
   assert.match(caller, /model: "acme\/rocket-1"/);
-  // The reusable workflow exports whatever env name it is given, so any
-  // provider passes through without a code change.
   assert.ok(renderReusable().includes('PROVIDER_ENV: ${{ inputs.provider-env }}'));
+});
+
+test('an unknown provider without explicit env/secret/model is rejected', () => {
+  assert.throws(
+    () => buildConfig({ flags: { mention: '@example-bot', provider: 'acme' } }),
+    (error) => error instanceof ConfigError && /unknown provider/.test(error.message),
+  );
+});
+
+test('login validation rejects a trailing hyphen', () => {
+  const problems = validateConfig(config({ allowUsers: ['bad-'] }));
+  assert.ok(problems.some((message) => /not a valid GitHub login/.test(message)));
 });
