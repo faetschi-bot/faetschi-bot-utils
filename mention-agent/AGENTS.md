@@ -41,14 +41,31 @@ npx mention-agent setup \
 
 This writes `.mention-agent.json` and `.github/workflows/mention-agent.yml`
 (a caller for the shared reusable workflow). It never overwrites existing files
-without `--force`. Then add the repository secrets it names and commit both
-files:
+without `--force`. The defaults are safe: the agent is **comment-only** and an
+**allowlist is required**. Add `--allow-writes` only if it must commit, and pass
+`--allow-any-writer` only if you deliberately want any write-access user able to
+trigger runs. Then add the repository secrets it names and commit both files:
 
 ```bash
 npx mention-agent doctor --json      # require "ok": true
 git add .mention-agent.json .github/workflows/mention-agent.yml
 git commit -m "chore: add mention-agent"
 ```
+
+## Security checklist (run this at setup)
+
+`setup` prints this list; follow it before the first mention:
+
+1. For a `pat` install, create the token secret from a **dedicated account** as
+   a **fine-grained token scoped to this one repository**:
+   - comment-only (default): `Contents: read`, `Issues: write`, `Pull requests: write`
+   - with `--allow-writes`: also `Contents: write`
+2. Store the provider key as a secret with only the access the agent needs.
+3. Keep `--allow-users` short; `doctor` fails without an allowlist.
+4. Never mention the agent on fork PRs you do not trust — it reads untrusted
+   text and may run branch code.
+5. Prefer comment-only; with writes on, review every commit before merging.
+6. Keep `share` off (default).
 
 Do not edit the generated workflow by hand. Change `.mention-agent.json` (or pass
 flags) and run `mention-agent update`.
@@ -73,7 +90,8 @@ reported as `skipped`; say so instead of claiming full verification.
 
 Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 `--provider`, `--provider-env`, `--provider-secret`, `--token-secret`,
-`--self-login`, `--allow-users`, `--ref`, `--reusable-repo`, `--standalone`,
+`--self-login`, `--allow-users` (required unless `--allow-any-writer`),
+`--allow-writes`, `--ref`, `--reusable-repo`, `--standalone`,
 `--share`/`--no-share`.
 
 ## How it behaves
@@ -81,20 +99,21 @@ Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 - The agent runs only when the mention phrase appears in a comment. `@bot review
   this PR` passes the comment as the instruction; a bare `@bot` produces a
   default summary/review.
-- It comments the result, and commits to the same pull request only when the
-  requested work changes files (or opens a pull request when mentioned on an
-  issue).
+- It is **comment-only by default** and cannot push. With `--allow-writes` it
+  commits to the same pull request when the requested work changes files (or
+  opens a pull request when mentioned on an issue).
 - Only logins in `allowUsers` (required; `doctor` errors when empty) that are
   also repository `OWNER`/`MEMBER`/`COLLABORATOR`s with `admin`/`write` can
   trigger a run. `*[bot]` and `self-login` are ignored.
 
 ## Security rules
 
+- Follow the **Security checklist** above at setup; `setup` prints it.
 - Never hardcode a mention phrase, account name, or secret; they live in the
   config or flags.
-- Keep `share` off unless the user asks otherwise.
+- Keep `share` off and writes off unless the user asks otherwise.
 - Point `--token-secret` at a **dedicated, fine-grained token** limited to the
-  one repository and Contents/Issues/Pull requests write.
+  one repository; add `Contents: write` only with `--allow-writes`.
 - Treat issue and PR text as untrusted: the agent can run branch code with the
   token and provider key in its environment. Set `--allow-users` and do not
   loosen it for unreviewed accounts.

@@ -2,8 +2,9 @@
 
 Let a GitHub comment mention run an AI coding agent in your repository. Mention
 your bot in an issue or pull request — `@example-bot review this PR` — and the
-agent reads the thread, reviews the change, and answers in a comment. When the
-task asks for code, it commits the change to the same pull request instead.
+agent reads the thread, reviews the change, and answers in a comment. With
+`--allow-writes` it can also commit the change to the same pull request; by
+default it is **comment-only**.
 
 `mention-agent` is an installer. It writes a small caller workflow plus a config
 file into a repository; the workflow itself is maintained **once** in
@@ -53,6 +54,29 @@ npx mention-agent setup \
   --token-secret EXAMPLE_BOT_TOKEN
 ```
 
+The defaults are chosen to be safe: the agent is **comment-only** (it cannot push
+code) and a **trigger allowlist is required**. Add `--allow-writes` only if you
+want the agent to commit to the pull request.
+
+### Secure setup checklist
+
+Do these before the first mention. `setup` prints the same list, tailored to
+your config:
+
+1. **Scope the token.** For a `pat` install, create the token secret from a
+   **dedicated account** as a **fine-grained token scoped to this repository**:
+   - comment-only (default): `Contents: read`, `Issues: write`, `Pull requests: write`
+   - with `--allow-writes`: also `Contents: write`
+2. **Limit the provider key.** Use a provider key with only the access the agent
+   needs; store it as the provider secret.
+3. **Keep the allowlist short.** Only the logins in `--allow-users` can trigger a
+   run; `doctor` fails without one.
+4. **Treat input as untrusted.** The agent reads issue and PR text and may run
+   branch code. Do not mention it on fork PRs you do not trust.
+5. **Stay comment-only** unless you need commits; with writes on, review every
+   commit before merging.
+6. **Keep `share` off** (the default) so the agent session is not published.
+
 Then:
 
 1. Add the repository secrets it names (Settings → Secrets and variables →
@@ -72,9 +96,9 @@ Now, on any issue or pull request:
 - `@example-bot` on its own — a default summary/review of the thread or the
   commented lines.
 
-The agent leaves a 👀 reaction while it works, replies in a comment, and, when a
-requested change modifies files, commits to the pull request's branch (or opens a
-pull request when the mention is on an issue).
+The agent leaves a 👀 reaction while it works and replies in a comment. With
+`--allow-writes`, when a requested change modifies files it commits to the pull
+request's branch (or opens a pull request when the mention is on an issue).
 
 ## What `setup` writes
 
@@ -97,6 +121,7 @@ re-renders. Both support `--dry-run`.
 | `selfLogin` | `--self-login` | Login to ignore so the agent never answers itself. Defaults to `mention` without the leading `@`. |
 | `allowUsers` | `--allow-users` | Comma-separated logins allowed to trigger a run. Empty means any user with write access. |
 | `share` | `--share` / `--no-share` | Publish the agent session to the provider share page. Off by default. |
+| `allowWrites` | `--allow-writes` | Let the agent commit and push. Off by default (comment-only). |
 | `provider.env` | `--provider-env` | Environment variable the credential is exported as. |
 | `provider.secret` | `--provider-secret` | Repository secret holding the credential. |
 | `tokenSecret` | `--token-secret` | Repository secret holding the GitHub token (`pat`). |
@@ -129,16 +154,22 @@ Three gates apply before any agent run, cheapest first:
    `COLLABORATOR` of the repository, checked in the job condition so an outsider
    never starts a runner.
 2. The **allowlist** (`allowUsers`) — only those logins can trigger a run.
-   Everyone else is ignored, so a stray comment cannot spend tokens. `doctor`
+   Everyone else is ignored, so a stray comment cannot spend tokens. `setup`
+   refuses to run without one (pass `--allow-any-writer` to opt out) and `doctor`
    treats an **empty allowlist as an error**: name who may spend tokens.
 3. The action's **built-in check** — the commenter must have `admin` or `write`
    access. Bots (`*[bot]`) and the configured `self-login` are always ignored.
 
 ## Security notes
 
+- Run the **Secure setup checklist** above first; the safe defaults are enforced
+  by the generated workflow and re-checked by `doctor`.
+- **Comment-only by default.** The workflow does not persist git credentials, so
+  a `pat`-mode agent structurally cannot push. `--allow-writes` enables commits,
+  and then the token needs `Contents: write`.
 - `share` is off by default, so the agent session is not published.
-- The caller requests only `contents: read`; the ability to comment and push
-  comes from the token you pass, not the default `GITHUB_TOKEN`.
+- The caller requests only `contents: read`; the ability to comment (and, with
+  writes, push) comes from the token you pass, not the default `GITHUB_TOKEN`.
 - The token you provide to a `pat` install has whatever access its owner has.
   Prefer a **dedicated account** with a **fine-grained token** scoped to the one
   repository and only Contents/Issues/Pull requests write.
