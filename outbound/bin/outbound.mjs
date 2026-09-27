@@ -29,8 +29,9 @@ Options:
   --workflow <path>    release workflow path (setup default: .github/workflows/release.yml)
   --no-remote          skip the checks that call GitHub via gh
   --quiet              print nothing except JSON errors/results
-  --force              overwrite an existing release config (init only)
+  --force              overwrite generated files (init/setup only)
   --json               print a machine-readable result object
+  --version            print the installed outbound version
   --help               show this help
 
 outbound inspects the current repo and reports whether GitHub can produce a
