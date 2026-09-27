@@ -97,3 +97,33 @@ test('the hosting repository is derived from package metadata', () => {
   // The renderer output carries the derived repo only through config, never a literal.
   assert.doesNotMatch(renderReusable(), /faetschi/i);
 });
+
+test('--provider switches the default env, secret, and model', () => {
+  const chosen = buildConfig({ flags: { mention: '@example-bot', provider: 'openai' } });
+  assert.equal(chosen.provider.env, 'OPENAI_API_KEY');
+  assert.equal(chosen.provider.secret, 'OPENAI_API_KEY');
+  assert.equal(chosen.model, 'openai/gpt-5.6-sol');
+});
+
+test('an unlisted provider works through explicit env/secret/model', () => {
+  const custom = buildConfig({
+    flags: {
+      mention: '@example-bot',
+      provider: 'acme',
+      providerEnv: 'ACME_API_KEY',
+      providerSecret: 'ACME_KEY',
+      model: 'acme/rocket-1',
+    },
+  });
+  assert.equal(custom.provider.env, 'ACME_API_KEY');
+  assert.equal(custom.provider.secret, 'ACME_KEY');
+  assert.equal(custom.model, 'acme/rocket-1');
+
+  const caller = renderCaller(custom);
+  assert.match(caller, /provider-env: "ACME_API_KEY"/);
+  assert.match(caller, /provider-key: \$\{\{ secrets\.ACME_KEY \}\}/);
+  assert.match(caller, /model: "acme\/rocket-1"/);
+  // The reusable workflow exports whatever env name it is given, so any
+  // provider passes through without a code change.
+  assert.ok(renderReusable().includes('PROVIDER_ENV: ${{ inputs.provider-env }}'));
+});
