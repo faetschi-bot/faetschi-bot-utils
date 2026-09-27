@@ -34,5 +34,18 @@ jobs:
         run: npm test
       - name: Reusable workflow is in sync
         run: node scripts/sync-reusable.mjs --check
+      - name: Lint workflows
+        working-directory: ${{ github.workspace }}
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          curl -fsSL -o actionlint.tgz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar xzf actionlint.tgz actionlint
+          ./actionlint -color \
+            .github/workflows/mention-agent.yml \
+            .github/workflows/ci-mention-agent.yml \
+            .github/workflows/release-mention-agent.yml
+          rm -f actionlint actionlint.tgz
       - name: Pack check
         run: npm pack --dry-run
