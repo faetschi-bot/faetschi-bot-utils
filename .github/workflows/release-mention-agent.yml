@@ -100,8 +100,15 @@ jobs:
           echo "updated ${TOOL}-latest -> ${TAG}"
 
       # Target repositories point their caller at this moving major tag, so the
-      # shared reusable workflow can be upgraded in one place. It must move even
-      # when package.json was not bumped (workflow-only changes).
+      # shared reusable workflow can be upgraded in one place. Verify before
+      # moving it: a red commit must not change code that runs in consumers.
+      - name: Verify before moving the ref
+        working-directory: mention-agent
+        run: |
+          npm run check
+          npm test
+          node scripts/sync-reusable.mjs --check
+
       - name: Move the mention-agent-v1 ref
         env:
           REF_TAG: mention-agent-v1
