@@ -33,7 +33,7 @@ on:
         type: string
         default: ""
       allow-users:
-        description: "Comma-separated logins allowed to trigger a run. Empty means any user with write access."
+        description: "JSON array of logins allowed to trigger a run, for example [\"alice\",\"bob\"]. Empty means any user with write access."
         type: string
         default: ""
     secrets:
@@ -50,7 +50,7 @@ permissions:
 jobs:
   agent:
     if: >
-      github.event.comment != null && !endsWith(github.event.comment.user.login, '[bot]') && contains(github.event.comment.body, inputs.mention) && (inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login']) && (inputs['allow-users'] == '' || contains(format(',{0},', replace(inputs['allow-users'], ' ', '')), format(',{0},', github.event.comment.user.login)))
+      github.event.comment != null && !endsWith(github.event.comment.user.login, '[bot]') && contains(github.event.comment.body, inputs.mention) && (inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login']) && (inputs['allow-users'] == '' || contains(fromJSON(inputs['allow-users']), github.event.comment.user.login))
     runs-on: ubuntu-latest
     permissions:
       contents: read

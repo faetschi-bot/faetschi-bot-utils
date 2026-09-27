@@ -22,7 +22,7 @@ test('renderCaller produces a caller for the shared workflow', () => {
   assert.match(yaml, /pull_request_review_comment:/);
   assert.match(yaml, /uses: ".*\/\.github\/workflows\/mention-agent\.yml@mention-agent-v1"/);
   assert.match(yaml, /mention: "@example-bot"/);
-  assert.match(yaml, /allow-users: "alice,bob"/);
+  assert.ok(yaml.includes('allow-users: "[\\"alice\\",\\"bob\\"]"'), 'caller passes the allowlist as a JSON array');
   assert.match(yaml, /self-login: "example-bot"/);
   assert.match(yaml, /share: false/);
   assert.match(yaml, /token: \$\{\{ secrets\.MENTION_AGENT_TOKEN \}\}/);
@@ -42,8 +42,8 @@ test('renderStandalone inlines the gate and the steps', () => {
   assert.match(yaml, /actions\/checkout@v4/);
   assert.match(yaml, /anomalyco\/opencode\/github@latest/);
   assert.ok(
-    yaml.includes(`contains(",alice,bob,", format(',{0},', github.event.comment.user.login))`),
-    'standalone gate matches the allowlist with delimiters',
+    yaml.includes(`contains(fromJSON("[\\"alice\\",\\"bob\\"]"), github.event.comment.user.login)`),
+    'standalone gate matches the allowlist through fromJSON',
   );
   assert.match(yaml, /github\.event\.comment\.user\.login != "example-bot"/);
   assert.doesNotMatch(yaml, /uses: .*mention-agent\.yml@/);
@@ -52,7 +52,12 @@ test('renderStandalone inlines the gate and the steps', () => {
 test('renderStandalone omits the allowlist clause when no users are set', () => {
   const yaml = renderStandalone(buildConfig({ flags: { mention: '@example-bot', allowUsers: [] } }));
   assert.doesNotMatch(yaml, /allow-users/);
-  assert.doesNotMatch(yaml, /, format\(/);
+  assert.doesNotMatch(yaml, /fromJSON/);
+});
+
+test('a caller with no allowlist passes an empty string', () => {
+  const yaml = renderCaller(buildConfig({ flags: { mention: '@example-bot', allowUsers: [] } }));
+  assert.match(yaml, /allow-users: ""/);
 });
 
 test('renderReusable is a workflow_call with the expected gate and secrets', () => {
@@ -61,6 +66,8 @@ test('renderReusable is a workflow_call with the expected gate and secrets', () 
   assert.match(yaml, /provider-key:/);
   assert.match(yaml, /contains\(github\.event\.comment\.body, inputs\.mention\)/);
   assert.match(yaml, /inputs\['allow-users'\]/);
+  assert.match(yaml, /fromJSON\(inputs\['allow-users'\]\)/);
+  assert.doesNotMatch(yaml, /replace\(/, 'GitHub expressions have no replace function');
   assert.match(yaml, /use_github_token: \$\{\{ inputs\.identity == 'pat' \}\}/);
   assert.match(yaml, /Export the provider credential/);
   assert.match(yaml, /GITHUB_ENV/);

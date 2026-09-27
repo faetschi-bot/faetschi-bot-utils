@@ -43,9 +43,8 @@ function standaloneGate(config) {
     parts.push(`github.event.comment.user.login != ${q(config.selfLogin)}`);
   }
   if (config.allowUsers.length > 0) {
-    const list = `,${config.allowUsers.join(',')},`.replace(/\s+/g, '');
     parts.push(
-      `contains(${q(list)}, format(',{0},', github.event.comment.user.login))`,
+      `contains(fromJSON(${q(JSON.stringify(config.allowUsers))}), github.event.comment.user.login)`,
     );
   }
   return parts.join(' && ');
@@ -53,7 +52,9 @@ function standaloneGate(config) {
 
 /**
  * Job-level `if:` for the reusable workflow. Hyphenated workflow_call inputs
- * are read with bracket notation, as GitHub expressions require.
+ * are read with bracket notation, as GitHub expressions require. The allowlist
+ * travels as a JSON array so membership is exact (no substring matches) and no
+ * `replace`-style string surgery is needed, which GitHub expressions lack.
  */
 function reusableGate() {
   return [
@@ -61,7 +62,7 @@ function reusableGate() {
     "!endsWith(github.event.comment.user.login, '[bot]')",
     'contains(github.event.comment.body, inputs.mention)',
     "(inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login'])",
-    "(inputs['allow-users'] == '' || contains(format(',{0},', replace(inputs['allow-users'], ' ', '')), format(',{0},', github.event.comment.user.login)))",
+    "(inputs['allow-users'] == '' || contains(fromJSON(inputs['allow-users']), github.event.comment.user.login))",
   ].join(' && ');
 }
 
@@ -115,6 +116,7 @@ function callerJobPermissions(identity) {
  * @returns {string} YAML
  */
 export function renderCaller(config) {
+  const allowUsers = config.allowUsers.length > 0 ? JSON.stringify(config.allowUsers) : '';
   const lines = [
     marker(),
     `name: ${TOOL_NAME}`,
@@ -135,7 +137,7 @@ export function renderCaller(config) {
   lines.push(`      model: ${q(config.model)}`);
   lines.push(`      agent: ${q(config.agent)}`);
   lines.push(`      share: ${yamlBool(config.share)}`);
-  lines.push(`      allow-users: ${q(config.allowUsers.join(','))}`);
+  lines.push(`      allow-users: ${q(allowUsers)}`);
   lines.push(`      self-login: ${q(config.selfLogin)}`);
   lines.push(`      provider-env: ${q(config.provider.env)}`);
   lines.push(`      identity: ${q(config.identity)}`);
@@ -241,7 +243,7 @@ export function renderReusable() {
     '        type: string',
     '        default: ""',
     '      allow-users:',
-    '        description: "Comma-separated logins allowed to trigger a run. Empty means any user with write access."',
+    '        description: "JSON array of logins allowed to trigger a run, for example [\\"alice\\",\\"bob\\"]. Empty means any user with write access."',
     '        type: string',
     '        default: ""',
     '    secrets:',
