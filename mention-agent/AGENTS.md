@@ -64,9 +64,10 @@ git commit -m "chore: add mention-agent"
 3. Keep `--allow-users` short; `doctor` fails without an allowlist.
 4. Never mention the agent on fork PRs you do not trust — it reads untrusted
    text and may run branch code.
-5. Keep the restricted agent on (the default): it denies `shell`, web, subagents,
-   and `.env` reads, and denies edits unless writes are on. `--no-restrict-agent`
-   opts out.
+5. Keep the restricted agent on (the default): it denies web, subagents, and
+   `.env` reads; comment-only mode also denies shell and edits. Write mode allows
+   only curated test/build/lint commands so the agent can verify edits. Those
+   commands execute repository code. `--no-restrict-agent` opts out.
 6. Prefer comment-only; for commits use `--allow-writes`, and gate them with
    `--write-environment <name>` — create that environment with required
    reviewers, "prevent self-review", default-branch-only deployment, and the
@@ -108,9 +109,10 @@ Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 - It is **comment-only by default** and cannot push. With `--allow-writes` it
   commits to the same pull request when the requested work changes files (or
   opens a pull request when mentioned on an issue).
-- Every run injects a **restricted agent** (no shell, web, subagents, or `.env`
-  reads; no edits unless writes are on), so an injected prompt has no command,
-  network, or secret channel.
+- Every run injects a **restricted agent** (no web, subagents, or `.env` reads;
+  no shell or edits in comment-only mode). Write mode permits only curated
+  test/build/lint commands and edits, so it can verify its own changes but runs
+  repository code.
 - Only logins in `allowUsers` (required; `doctor` errors when empty) that are
   also repository `OWNER`/`MEMBER`/`COLLABORATOR`s with `admin`/`write` can
   trigger a run. `*[bot]` and `self-login` are ignored.
@@ -123,9 +125,9 @@ Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 - Keep `share` off and writes off unless the user asks otherwise.
 - Point `--token-secret` at a **dedicated, fine-grained token** limited to the
   one repository; add `Contents: write` only with `--allow-writes`.
-- Treat issue and PR text as untrusted: the agent can run branch code with the
-  token and provider key in its environment. Set `--allow-users` and do not
-  loosen it for unreviewed accounts.
+- Treat issue and PR text as untrusted: write mode can run curated branch tools
+  with the token and provider key in the runner environment. Set
+  `--allow-users` and do not loosen it for unreviewed accounts.
 
 ## Releasing (maintainers)
 

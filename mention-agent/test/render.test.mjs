@@ -188,7 +188,12 @@ test('a restricted agent is injected by default', () => {
   assert.match(yaml, /OPENCODE_CONFIG=\$CONFIG_PATH/);
   assert.ok(yaml.includes('"default_agent":"mention-agent"'), 'injects the restricted default agent');
   assert.ok(yaml.includes('"edit","resource":"*","effect":"deny"'), 'comment-only denies edits');
-  assert.ok(yaml.includes('"edit","resource":"*","effect":"allow"'), 'the writes variant is present to switch to');
+  assert.ok(yaml.includes('"edit","resource":"*","effect":"allow"'), 'the writes variant allows edits');
+  assert.match(yaml, /if \[ "\$ALLOW_EDITS" = "true" \]; then/);
+
+  const writes = renderStandalone(config({ allowWrites: true }));
+  assert.ok(writes.includes('"action":"shell","resource":"npm test *"'), 'writes allow test commands');
+  assert.ok(writes.includes('"action":"shell","resource":"cargo build *"'), 'writes allow build commands');
 });
 
 test('--no-restrict-agent omits the constraint and keeps the configured agent', () => {

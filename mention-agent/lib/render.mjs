@@ -36,18 +36,41 @@ const ASSOCIATIONS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
 const ASSOCIATIONS_EXPR = exprString(JSON.stringify(ASSOCIATIONS));
 
 /**
- * The restricted agent config injected for the run (Lever 1). It removes the
- * tools an injected prompt would need to exfiltrate secrets or act: shell,
- * web, and subagents are denied, `.env` reads are denied, and edits are allowed
- * only when writes are enabled. `build` is restricted too, so the fallback
- * agent cannot escape the policy if `default_agent` is overridden.
+ * Shell commands the agent may run in write mode so it can verify its edits.
+ * These run the repository's own tooling, which executes branch code; the
+ * allowlist is a convenience, not a sandbox.
  */
-function restrictedAgentJson(allowEdits) {
+const TEST_SHELL_PATTERNS = [
+  'npm test *', 'npm run *', 'npm ci *', 'npm install *',
+  'pnpm *', 'yarn *',
+  'bun test *', 'bun run *', 'bun install *',
+  'make *',
+  'go test *', 'go build *', 'go vet *',
+  'cargo test *', 'cargo build *', 'cargo check *', 'cargo clippy *', 'cargo fmt *',
+  'pytest *', 'python -m pytest *', 'python -m unittest *', 'tox *',
+  'mvn *', './mvnw *', 'gradle *', './gradlew *',
+  'dotnet test *', 'dotnet build *',
+  'ruff *', 'eslint *', 'prettier *', 'tsc *',
+  'git status *', 'git diff *', 'git log *', 'git show *',
+];
+
+/**
+ * The restricted agent config injected for the run (Lever 1). It removes the
+ * tools an injected prompt would need to exfiltrate secrets or act: shell, web,
+ * and subagents are denied, `.env` reads are denied, and edits are allowed only
+ * when writes are enabled. `build` is restricted too, so the fallback agent
+ * cannot escape the policy if `default_agent` is overridden. Write mode allows
+ * only the curated test/build/lint commands above.
+ */
+function restrictedAgentJson(allowEdits, allowShell) {
   const permissions = [
     { action: '*', resource: '*', effect: 'deny' },
     { action: 'read', resource: '*', effect: 'allow' },
     { action: 'glob', resource: '*', effect: 'allow' },
     { action: 'grep', resource: '*', effect: 'allow' },
+    ...(allowShell
+      ? TEST_SHELL_PATTERNS.map((resource) => ({ action: 'shell', resource, effect: 'allow' }))
+      : []),
     { action: 'edit', resource: '*', effect: allowEdits ? 'allow' : 'deny' },
     { action: 'read', resource: '*.env', effect: 'deny' },
     { action: 'read', resource: '*.env.*', effect: 'deny' },
@@ -73,9 +96,9 @@ function constrainSteps(bind) {
     '        run: |',
     '          mkdir -p "$(dirname "$CONFIG_PATH")"',
     '          if [ "$ALLOW_EDITS" = "true" ]; then',
-    `            printf '%s\\n' '${restrictedAgentJson(true)}' > "$CONFIG_PATH"`,
+    `            printf '%s\\n' '${restrictedAgentJson(true, true)}' > "$CONFIG_PATH"`,
     '          else',
-    `            printf '%s\\n' '${restrictedAgentJson(false)}' > "$CONFIG_PATH"`,
+    `            printf '%s\\n' '${restrictedAgentJson(false, false)}' > "$CONFIG_PATH"`,
     '          fi',
     '          echo "OPENCODE_CONFIG=$CONFIG_PATH" >> "$GITHUB_ENV"',
     '',

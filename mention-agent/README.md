@@ -73,12 +73,13 @@ your config:
    needs; store it as the provider secret.
 3. **Keep the allowlist short.** Only the logins in `--allow-users` can trigger a
    run; `doctor` fails without one.
-4. **Treat input as untrusted.** The agent reads issue and PR text and may run
-   branch code. Do not mention it on fork PRs you do not trust.
+4. **Treat input as untrusted.** The agent reads issue and PR text; write mode
+   may run branch tooling. Do not mention it on fork PRs you do not trust.
 5. **Keep the restricted agent on** (default). It denies `shell`, `webfetch`,
    `websearch`, subagents, and `.env` reads, and denies edits unless writes are
-   enabled — so a successful prompt injection has no command, network, or secret
-   channel. `--no-restrict-agent` turns it off.
+   enabled. Write mode also permits only the curated test/build/lint commands so
+   the agent can verify its edits; those commands execute repository code.
+   `--no-restrict-agent` turns the restriction off.
 6. **Stay comment-only** unless you need commits; with writes on, review every
    commit before merging.
 7. **Gate writes behind an environment.** With `--write-environment <name>`,
@@ -87,6 +88,25 @@ your config:
    provider key) there as **environment secrets** — writes then need an approval
    and the secrets are not readable by every repository writer.
 8. **Keep `share` off** (the default) so the agent session is not published.
+
+### What the agent can and cannot do
+
+| Capability | Comment-only (default) | Writes (`--allow-writes`) | Writes + `--write-environment` |
+|---|---|---|---|
+| Read files, `grep`, `glob` | ✅ | ✅ | ✅ |
+| Post or replace a comment | ✅ (by the action) | ✅ (by the action) | ✅ (by the action) |
+| Run shell commands | ❌ | ✅ Curated test/build/lint commands only | ✅ After environment approval; curated commands only |
+| Fetch URLs / web search | ❌ | ❌ | ❌ |
+| Read `.env` files or environment variables | ❌ | ❌ | ❌ |
+| Launch subagents / MCP tools | ❌ | ❌ | ❌ |
+| Edit files | ❌ | ✅ | ✅ After approval |
+| Commit / push | ❌ | ✅ The action does it | ✅ The action does it after approval |
+| Push directly to the default branch | ❌ | ❌ | ❌ |
+
+Write-mode shell commands are intentionally limited to common test, build,
+format, lint, and git-inspection commands. This is not a sandbox: a repository's
+test or build script can execute arbitrary code, so treat `--allow-writes` as a
+higher-risk mode and review the resulting commits.
 
 Then:
 
@@ -133,7 +153,7 @@ re-renders. Both support `--dry-run`.
 | `allowUsers` | `--allow-users` | Comma-separated logins allowed to trigger a run. Empty means any user with write access. |
 | `share` | `--share` / `--no-share` | Publish the agent session to the provider share page. Off by default. |
 | `allowWrites` | `--allow-writes` | Let the agent commit and push. Off by default (comment-only). |
-| `restrictAgent` | `--no-restrict-agent` | Inject a restricted agent (no shell, web, or `.env` reads). On by default. |
+| `restrictAgent` | `--no-restrict-agent` | Inject a restricted agent (no web, `.env` reads, or unrestricted shell). On by default. Write mode permits curated verification commands. |
 | `writeEnvironment` | `--write-environment` | Gate writes behind a GitHub environment (required reviewers + environment secrets). Requires `--allow-writes`. |
 | `provider.env` | `--provider-env` | Environment variable the credential is exported as. |
 | `provider.secret` | `--provider-secret` | Repository secret holding the credential. |
@@ -181,9 +201,10 @@ Three gates apply before any agent run, cheapest first:
   a `pat`-mode agent structurally cannot push. `--allow-writes` enables commits,
   and then the token needs `Contents: write`.
 - **Restricted agent by default.** Each run injects a config that makes the
-  agent unable to run shell commands, fetch URLs, launch subagents, or read
-  `.env` files, and unable to edit files unless writes are enabled. This is what
-  removes the prompt-injection exfiltration and execution channels.
+  agent unable to fetch URLs, launch subagents, or read `.env` files. It cannot
+  edit or run shell commands in comment-only mode. Write mode permits only the
+  curated test/build/lint commands so it can verify edits; those commands run
+  repository code and therefore weaken the execution boundary.
 - **Environment-gated writes.** With `--write-environment`, the write path is a
   self-contained workflow whose job references that environment, because GitHub
   cannot pass environment secrets through a reusable workflow. The token then
@@ -194,11 +215,11 @@ Three gates apply before any agent run, cheapest first:
 - The token you provide to a `pat` install has whatever access its owner has.
   Prefer a **dedicated account** with a **fine-grained token** scoped to the one
   repository and only Contents/Issues/Pull requests write.
-- **Prompt injection is inherent.** The agent reads untrusted issue and PR text,
-  and for a PR it checks out the branch, so it may run that code with the token
-  and provider key in its environment. Only an allowlisted, write-access user
-  can start a run, but treat fork PRs and untrusted contributors as untrusted
-  input regardless. There is no sandbox around the runner's network.
+- **Prompt injection is inherent.** The agent reads untrusted issue and PR text.
+  In write mode it may run curated branch tooling with the token and provider
+  key in its environment. Only an allowlisted, write-access user can start a
+  run, but treat fork PRs and untrusted contributors as untrusted input
+  regardless. There is no sandbox around the runner's network.
 - **Fork pull requests:** pushing back to a fork usually fails, because the token
   generally has no write access to someone else's fork. Commenting still works.
 - **Supply chain:** the job runs the third-party action
