@@ -86,7 +86,7 @@ jobs:
           TAG: ${{ steps.release.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          version="${TAG#${TOOL}-v}"
+          version="${TAG#"${TOOL}"-v}"
           gh release download "$TAG" -R "$REPO" -p "${TOOL}-${version}.tgz" -O "${TOOL}.tgz" --clobber
           if gh release view "${TOOL}-latest" -R "$REPO" >/dev/null 2>&1; then
             gh release upload "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" --clobber
