@@ -1,0 +1,112 @@
+name: Release mention-agent
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'mention-agent-v*'
+    paths:
+      - 'mention-agent/**'
+      - '.github/workflows/mention-agent.yml'
+      - '.github/workflows/release-mention-agent.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve release tag
+        id: release
+        working-directory: mention-agent
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = "tag" ]; then
+            tag="$REF_NAME"
+            expected="mention-agent-v$(node -p "require('./package.json').version")"
+            if [ "$tag" != "$expected" ]; then
+              echo "tag $tag does not match package.json version ($expected)" >&2
+              exit 1
+            fi
+          else
+            tag="mention-agent-v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "resolved release tag: $tag"
+
+      - name: Check whether the release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "$TAG already released; nothing to pack"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        if: steps.check.outputs.exists == 'false'
+        working-directory: mention-agent
+        run: |
+          npm pack
+          echo "TGZ=mention-agent/$(ls mention-agent-*.tgz)" >> "$GITHUB_ENV"
+
+      - name: Publish release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release create "$TAG" "$TGZ" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes
+
+      - name: Update mention-agent-latest alias
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TOOL: mention-agent
+          TAG: ${{ steps.release.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          version="${TAG#${TOOL}-v}"
+          gh release download "$TAG" -R "$REPO" -p "${TOOL}-${version}.tgz" -O "${TOOL}.tgz" --clobber
+          if gh release view "${TOOL}-latest" -R "$REPO" >/dev/null 2>&1; then
+            gh release upload "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" --clobber
+          else
+            gh release create "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" \
+              --target "$GITHUB_SHA" \
+              --title "${TOOL}-latest" \
+              --latest=false \
+              --notes "Moving pointer to the newest ${TOOL} release. Install: https://github.com/${REPO}/releases/download/${TOOL}-latest/${TOOL}.tgz"
+          fi
+          echo "updated ${TOOL}-latest -> ${TAG}"
+
+      # Target repositories point their caller at this moving major tag, so the
+      # shared reusable workflow can be upgraded in one place. It must move even
+      # when package.json was not bumped (workflow-only changes).
+      - name: Move the mention-agent-v1 ref
+        env:
+          REF_TAG: mention-agent-v1
+          SHA: ${{ github.sha }}
+        run: |
+          git tag -f "$REF_TAG" "$SHA"
+          git push --force origin "refs/tags/$REF_TAG"
+          echo "moved $REF_TAG -> $SHA"
