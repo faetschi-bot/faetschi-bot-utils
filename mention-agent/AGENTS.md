@@ -64,8 +64,14 @@ git commit -m "chore: add mention-agent"
 3. Keep `--allow-users` short; `doctor` fails without an allowlist.
 4. Never mention the agent on fork PRs you do not trust — it reads untrusted
    text and may run branch code.
-5. Prefer comment-only; with writes on, review every commit before merging.
-6. Keep `share` off (default).
+5. Keep the restricted agent on (the default): it denies `shell`, web, subagents,
+   and `.env` reads, and denies edits unless writes are on. `--no-restrict-agent`
+   opts out.
+6. Prefer comment-only; for commits use `--allow-writes`, and gate them with
+   `--write-environment <name>` — create that environment with required
+   reviewers, "prevent self-review", default-branch-only deployment, and the
+   token (and provider key) as environment secrets.
+7. Keep `share` off (default).
 
 Do not edit the generated workflow by hand. Change `.mention-agent.json` (or pass
 flags) and run `mention-agent update`.
@@ -91,8 +97,8 @@ reported as `skipped`; say so instead of claiming full verification.
 Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 `--provider`, `--provider-env`, `--provider-secret`, `--token-secret`,
 `--self-login`, `--allow-users` (required unless `--allow-any-writer`),
-`--allow-writes`, `--ref`, `--reusable-repo`, `--standalone`,
-`--share`/`--no-share`.
+`--allow-writes`, `--write-environment`, `--no-restrict-agent`, `--ref`,
+`--reusable-repo`, `--standalone`, `--share`/`--no-share`.
 
 ## How it behaves
 
@@ -102,6 +108,9 @@ Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 - It is **comment-only by default** and cannot push. With `--allow-writes` it
   commits to the same pull request when the requested work changes files (or
   opens a pull request when mentioned on an issue).
+- Every run injects a **restricted agent** (no shell, web, subagents, or `.env`
+  reads; no edits unless writes are on), so an injected prompt has no command,
+  network, or secret channel.
 - Only logins in `allowUsers` (required; `doctor` errors when empty) that are
   also repository `OWNER`/`MEMBER`/`COLLABORATOR`s with `admin`/`write` can
   trigger a run. `*[bot]` and `self-login` are ignored.

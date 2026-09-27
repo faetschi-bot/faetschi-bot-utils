@@ -55,8 +55,10 @@ npx mention-agent setup \
 ```
 
 The defaults are chosen to be safe: the agent is **comment-only** (it cannot push
-code) and a **trigger allowlist is required**. Add `--allow-writes` only if you
-want the agent to commit to the pull request.
+code), a **trigger allowlist is required**, and each run injects a **restricted
+agent** that has no shell, no web access, and cannot read `.env` files. Add
+`--allow-writes` only if you want the agent to commit, and pair it with
+`--write-environment` to require an approval.
 
 ### Secure setup checklist
 
@@ -73,9 +75,18 @@ your config:
    run; `doctor` fails without one.
 4. **Treat input as untrusted.** The agent reads issue and PR text and may run
    branch code. Do not mention it on fork PRs you do not trust.
-5. **Stay comment-only** unless you need commits; with writes on, review every
+5. **Keep the restricted agent on** (default). It denies `shell`, `webfetch`,
+   `websearch`, subagents, and `.env` reads, and denies edits unless writes are
+   enabled — so a successful prompt injection has no command, network, or secret
+   channel. `--no-restrict-agent` turns it off.
+6. **Stay comment-only** unless you need commits; with writes on, review every
    commit before merging.
-6. **Keep `share` off** (the default) so the agent session is not published.
+7. **Gate writes behind an environment.** With `--write-environment <name>`,
+   create that environment with **required reviewers**, **prevent self-review**,
+   deployment branches limited to the default branch, and put the token (and
+   provider key) there as **environment secrets** — writes then need an approval
+   and the secrets are not readable by every repository writer.
+8. **Keep `share` off** (the default) so the agent session is not published.
 
 Then:
 
@@ -122,6 +133,8 @@ re-renders. Both support `--dry-run`.
 | `allowUsers` | `--allow-users` | Comma-separated logins allowed to trigger a run. Empty means any user with write access. |
 | `share` | `--share` / `--no-share` | Publish the agent session to the provider share page. Off by default. |
 | `allowWrites` | `--allow-writes` | Let the agent commit and push. Off by default (comment-only). |
+| `restrictAgent` | `--no-restrict-agent` | Inject a restricted agent (no shell, web, or `.env` reads). On by default. |
+| `writeEnvironment` | `--write-environment` | Gate writes behind a GitHub environment (required reviewers + environment secrets). Requires `--allow-writes`. |
 | `provider.env` | `--provider-env` | Environment variable the credential is exported as. |
 | `provider.secret` | `--provider-secret` | Repository secret holding the credential. |
 | `tokenSecret` | `--token-secret` | Repository secret holding the GitHub token (`pat`). |
@@ -167,6 +180,14 @@ Three gates apply before any agent run, cheapest first:
 - **Comment-only by default.** The workflow does not persist git credentials, so
   a `pat`-mode agent structurally cannot push. `--allow-writes` enables commits,
   and then the token needs `Contents: write`.
+- **Restricted agent by default.** Each run injects a config that makes the
+  agent unable to run shell commands, fetch URLs, launch subagents, or read
+  `.env` files, and unable to edit files unless writes are enabled. This is what
+  removes the prompt-injection exfiltration and execution channels.
+- **Environment-gated writes.** With `--write-environment`, the write path is a
+  self-contained workflow whose job references that environment, because GitHub
+  cannot pass environment secrets through a reusable workflow. The token then
+  lives as an environment secret and the job waits for its approval rules.
 - `share` is off by default, so the agent session is not published.
 - The caller requests only `contents: read`; the ability to comment (and, with
   writes, push) comes from the token you pass, not the default `GITHUB_TOKEN`.
@@ -189,6 +210,29 @@ Three gates apply before any agent run, cheapest first:
   update.
 - Runs are bounded by `timeout-minutes: 30` and serialized per issue/PR with a
   `concurrency` group so repeated mentions do not race pushes or duplicate spend.
+
+## Going further (not implemented)
+
+Documented so you can pick them up later:
+
+- **Short-lived identity.** `--identity app` uses GitHub App installation tokens
+  (about an hour) instead of a long-lived PAT. Trade-off: comments come from the
+  app bot, not your account.
+- **Pin everything.** Pin `--ref` to an exact `mention-agent-vX.Y.Z`, pin
+  `actions/checkout` to a commit SHA, and enable the repository/org policy
+  "require actions pinned to a full-length commit SHA". Add a `CODEOWNERS` entry
+  for `.github/workflows/` so workflow edits require review (a workflow edit is
+  secret access), plus code scanning and secret scanning.
+- **Read-only default token.** Set the repository's default `GITHUB_TOKEN`
+  permissions to read-only.
+- **Refuse fork PRs.** Gate the job on
+  `github.event.pull_request.head.repo.fork == false` so only same-repository
+  branches run the agent.
+- **Provider budget.** Use a project-scoped provider key with a spend limit.
+- **Run it on your own box.** Dispatch from a workflow to your hardened
+  OpenChamber container over Tailscale instead of running on GitHub's runner: no
+  secrets in GitHub, controlled egress, your sandbox. Highest security, highest
+  complexity.
 
 ## Verify an install
 
