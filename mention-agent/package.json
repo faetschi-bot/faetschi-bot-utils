@@ -30,7 +30,6 @@
   "files": [
     "bin",
     "lib",
-    "scripts",
     "AGENTS.md",
     "README.md",
     "LICENSE"
