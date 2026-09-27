@@ -139,5 +139,6 @@ catch it, and curate the body with `gh release edit "$TAG" --notes-file NOTES.md
 
 ## Releasing outbound (maintainers)
 
-Do not tag by hand. Bump `version` in `outbound/package.json`, merge to `main`;
-the release workflow detects the new version and publishes the tarball.
+Do not tag by hand. Bump `version` in `outbound/package.json`, land it on
+`develop`, then promote `develop → main`; the release workflow detects the new
+version and publishes the tarball.

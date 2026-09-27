@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - develop
     paths:
       - 'visual-shot/**'
       - '.github/workflows/ci-visual-shot.yml'

@@ -21,8 +21,11 @@ its own `AGENTS.md` next to it — start there.
   and a `--help`; prefer those.
 - **Verify, don't assume.** Tools expose a `doctor --json` (or equivalent) check;
   run it before reporting success.
-- **Releases are automated.** Merging a version bump to `main` publishes a GitHub
-  Release tarball automatically. Do not push tags by hand unless asked.
+- **Branch flow.** Regular changes target `develop`; releases are cut when
+  `develop` is promoted to `main`. See `CONTRIBUTING.md`.
+- **Releases are automated.** Merging a version bump to `main` (via a
+  `develop → main` promotion) publishes a GitHub Release tarball automatically.
+  Do not push tags by hand unless asked.
 
 ## Installing a tool into a project
 

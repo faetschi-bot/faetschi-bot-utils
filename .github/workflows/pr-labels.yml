@@ -1,0 +1,83 @@
+name: PR labels
+
+# Applies the labels that .github/release.yml groups release notes by.
+# Uses pull_request_target so it can label PRs from forks; it never checks out
+# or executes PR code, only reads the PR title and changed file paths.
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply labels from title and changed files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          labels=""
+          add() {
+            for existing in $labels; do
+              [ "$existing" = "$1" ] && return 0
+            done
+            labels="$labels $1"
+          }
+
+          # Type comes from the PR title (the title is the changelog line).
+          if printf '%s' "$TITLE" | grep -Eiq '^[a-z]+(\([^)]+\))?!:' \
+             || printf '%s' "$TITLE" | grep -Eiq 'breaking[ -]change'; then
+            add breaking-change
+          fi
+          if printf '%s' "$TITLE" | grep -Eiq '^feat(\([^)]+\))?!?:'; then
+            add enhancement
+          elif printf '%s' "$TITLE" | grep -Eiq '^fix(\([^)]+\))?!?:'; then
+            add bug
+          elif printf '%s' "$TITLE" | grep -Eiq '^docs?(\([^)]+\))?!?:'; then
+            add documentation
+          elif printf '%s' "$TITLE" | grep -Eiq '^chore\(deps[^)]*\)!?:|^deps(\([^)]+\))?!?:'; then
+            add dependencies
+          elif printf '%s' "$TITLE" | grep -Eiq '^(chore|ci|build|test|style)(\([^)]+\))?!?:'; then
+            add ignore-for-release
+          fi
+
+          # Scope comes from the changed paths (for filtering, not note sections).
+          files="$(gh pr view "$PR" -R "$REPO" --json files -q '.files[].path')"
+          paths="$(printf '%s\n' "$files" | sed '/^$/d')"
+          add_path() {
+            if printf '%s\n' "$paths" | grep -Eq "$1"; then add "$2"; fi
+          }
+          add_path '^visual-shot/' 'tool:visual-shot'
+          add_path '^outbound/' 'tool:outbound'
+          add_path '^agentic-tools/' 'tool:agentic-tools'
+          add_path '^\.github/' 'ci'
+
+          labels="${labels# }"
+          if [ -z "$labels" ]; then
+            echo "No labels matched this PR title/paths."
+            exit 0
+          fi
+
+          echo "Applying labels: $labels"
+          for label in $labels; do
+            case "$label" in
+              breaking-change|semver-major)    color=b60205 ;;
+              enhancement|feature|semver-minor) color=a2eeef ;;
+              bug|fix)                          color=d73a4a ;;
+              documentation|docs)               color=0075ca ;;
+              dependencies)                     color=0366d6 ;;
+              ci)                               color=5319e7 ;;
+              *)                                color=ededed ;;
+            esac
+            gh label create "$label" -R "$REPO" --color "$color" 2>/dev/null || true
+          done
+          gh pr edit "$PR" -R "$REPO" --add-label "$(printf '%s' "$labels" | tr ' ' ',')"

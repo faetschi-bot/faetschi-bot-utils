@@ -197,5 +197,6 @@ machine-global, so provisioning once covers every project on the machine.
 
 ## Releasing (maintainers)
 
-Do not tag by hand. Bump `version` in `visual-shot/package.json`, merge to
-`main`; the release workflow detects the new version and publishes the tarball.
+Do not tag by hand. Bump `version` in `visual-shot/package.json`, land it on
+`develop`, then promote `develop → main`; the release workflow detects the new
+version and publishes the tarball.

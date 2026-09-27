@@ -93,5 +93,6 @@ npx agentic-tools list
 
 ## Releasing (maintainers)
 
-Do not tag by hand. Bump `version` in `agentic-tools/package.json`, merge to
-`main`; the release workflow detects the new version and publishes the tarball.
+Do not tag by hand. Bump `version` in `agentic-tools/package.json`, land it on
+`develop`, then promote `develop → main`; the release workflow detects the new
+version and publishes the tarball.

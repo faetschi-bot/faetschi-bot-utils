@@ -62,16 +62,18 @@ node tools/faetschi-bot-utils/visual-shot/bin/visual-shot.mjs setup
 
 ## Releasing a tool
 
-Each tool is versioned and released independently. **Releases are automatic on
-merge:** bump `"version"` in `<tool>/package.json`, commit, and merge to `main`.
-The matching workflow (`.github/workflows/release-<tool>.yml`) resolves the
-version, and if it has not been released yet, runs `npm pack` and creates the
-`<tool>-v<version>` tag and GitHub Release. The same workflow then refreshes the
-moving `<tool>-latest` release, whose stable `<tool>.tgz` asset backs the install
-URLs above. Re-merging without a version bump is a no-op. Do not push tags by
-hand.
+Each tool is versioned and released independently. **Regular work lands on
+`develop`; releases are cut from `main`:** bump `"version"` in
+`<tool>/package.json` on a branch off `develop`, merge into `develop`, then open
+a `develop → main` promotion PR and merge it. The matching workflow
+(`.github/workflows/release-<tool>.yml`) resolves the version, and if it has not
+been released yet, runs `npm pack` and creates the `<tool>-v<version>` tag and
+GitHub Release. The same workflow then refreshes the moving `<tool>-latest`
+release, whose stable `<tool>.tgz` asset backs the install URLs above.
+Re-merging without a version bump is a no-op. Do not push tags by hand. See
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) for the branch model and PR labels.
 
-To release a tool, bump its `<tool>/package.json` and merge:
+To release a tool, bump its `<tool>/package.json` and promote it to `main`:
 
 ```bash
 # visual-shot    -> .../releases/tag/visual-shot-v<version>
@@ -87,4 +89,5 @@ To release a tool, bump its `<tool>/package.json` and merge:
    `.github/workflows/release-<tool>.yml` and change the `working-directory`,
    the `<tool>/**` path filter, and the tag prefix to `<tool>`. Add a matching
    `ci-<tool>.yml` too.
-3. Release by bumping `<tool>/package.json` and merging to `main` (see above).
+3. Release by bumping `<tool>/package.json` and promoting it through `develop`
+   to `main` (see above).
