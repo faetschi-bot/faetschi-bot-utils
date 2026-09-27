@@ -143,11 +143,12 @@ function agentSteps(bind) {
     `        uses: ${CHECKOUT_ACTION}`,
     '        with:',
     '          fetch-depth: 1',
-    // Persist credentials in both modes: in pat mode this is what lets the
-    // agent push, because the upstream action only configures git auth itself
-    // when it is NOT using a caller-provided token. In app mode the action
-    // overwrites this header with its installation token.
-    '          persist-credentials: true',
+    // Comment-only by default: without persisted credentials the pat-mode
+    // agent has nothing to push with, because the upstream action only
+    // configures git auth itself when it is NOT using a caller-provided token.
+    // --allow-writes flips this on. In app mode the action overwrites the
+    // header with its installation token regardless.
+    `          persist-credentials: ${bind.persist}`,
     `          token: ${bind.checkoutToken}`,
     '',
     '      - name: Run the mention agent',
@@ -203,6 +204,7 @@ export function renderCaller(config) {
   lines.push(`      model: ${q(config.model)}`);
   lines.push(`      agent: ${q(config.agent)}`);
   lines.push(`      share: ${yamlBool(config.share)}`);
+  lines.push(`      allow-writes: ${yamlBool(config.allowWrites)}`);
   lines.push(`      allow-users: ${q(allowUsers)}`);
   lines.push(`      self-login: ${q(config.selfLogin)}`);
   lines.push(`      provider-env: ${q(config.provider.env)}`);
@@ -233,6 +235,7 @@ export function renderStandalone(config) {
     // action replaces it with its installation token before any push.
     checkoutToken: isPat ? secretRef(config.tokenSecret) : '${{ github.token }}',
     tokenCheck: isPat ? { emit: true, if: null } : { emit: false },
+    persist: yamlBool(config.allowWrites),
     model: q(config.model),
     agent: q(config.agent),
     mention: q(config.mention),
@@ -276,6 +279,7 @@ export function renderReusable() {
     token: '${{ secrets.token }}',
     checkoutToken: "${{ inputs.identity == 'pat' && secrets.token || github.token }}",
     tokenCheck: { emit: true, if: "inputs.identity == 'pat'" },
+    persist: '${{ inputs.allow-writes }}',
     model: '${{ inputs.model }}',
     agent: '${{ inputs.agent }}',
     mention: '${{ inputs.mention }}',
@@ -311,6 +315,10 @@ export function renderReusable() {
     '        default: pat',
     '      share:',
     '        description: "Publish the agent session to the provider share page."',
+    '        type: boolean',
+    '        default: false',
+    '      allow-writes:',
+    '        description: "Let the agent commit and push. Off keeps the agent comment-only."',
     '        type: boolean',
     '        default: false',
     '      self-login:',

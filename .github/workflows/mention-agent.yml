@@ -28,6 +28,10 @@ on:
         description: "Publish the agent session to the provider share page."
         type: boolean
         default: false
+      allow-writes:
+        description: "Let the agent commit and push. Off keeps the agent comment-only."
+        type: boolean
+        default: false
       self-login:
         description: "Login to ignore so the agent never answers itself."
         type: string
@@ -90,7 +94,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: ${{ inputs.allow-writes }}
           token: ${{ inputs.identity == 'pat' && secrets.token || github.token }}
 
       - name: Run the mention agent

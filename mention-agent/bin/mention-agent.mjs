@@ -8,6 +8,7 @@ import { renderCaller, renderStandalone } from '../lib/render.mjs';
 import { gitRoot } from '../lib/repo.mjs';
 import { VERSION } from '../lib/package-info.mjs';
 import { providerNames } from '../lib/providers.mjs';
+import { securityChecklist } from '../lib/checklist.mjs';
 
 class CliError extends Error {
   constructor(message, code = 2) {
@@ -40,6 +41,8 @@ Options:
   --ref <ref>              shared workflow ref (default: ${TOOL_NAME}-v1)
   --reusable-repo <o/r>    repo hosting the shared workflow (default: this tool's repo)
   --standalone             render a self-contained workflow instead of calling the shared one
+  --allow-writes           let the agent commit and push (default: comment-only)
+  --allow-any-writer       allow any write-access user to trigger (default: require --allow-users)
   --share                  publish the agent session (default: off)
   --no-share               do not publish the agent session (default)
   --no-remote              skip the checks that call GitHub via gh
@@ -54,7 +57,9 @@ ${TOOL_NAME} writes ${CONFIG_FILE} and one workflow file (by default
 .github/workflows/${TOOL_NAME}.yml) that calls a reusable workflow maintained
 once in this tool's repository. Put the mention phrase, the secrets, and who may
 trigger it in ${CONFIG_FILE}, then commit both files and add the named repository
-secrets. Exit code is 0 on success, 1 when a doctor check fails, 2 on bad usage.`);
+secrets. Secure defaults: the agent is comment-only (no code push), a trigger
+allowlist is required, and session sharing is off. Exit code is 0 on success, 1
+when a doctor check fails, 2 on bad usage.`);
 }
 
 function parse(argv) {
@@ -87,6 +92,8 @@ function parse(argv) {
     else if (a === '--ref') o.ref = val();
     else if (a === '--reusable-repo') o.reusableRepo = val();
     else if (a === '--standalone') o.standalone = true;
+    else if (a === '--allow-writes') o.allowWrites = true;
+    else if (a === '--allow-any-writer') o.allowAnyWriter = true;
     else if (a === '--share') o.share = true;
     else if (a === '--no-share') o.share = false;
     else if (a === '--no-remote') o.noRemote = true;
@@ -109,29 +116,53 @@ function requireRoot(opts) {
   return root;
 }
 
+// The allowlist is the main spend control; require it unless the user explicitly
+// opts out. `doctor` also fails on an empty allowlist.
+function requireAllowlist(config, opts) {
+  if (config.allowUsers.length === 0 && opts.allowAnyWriter !== true) {
+    throw new CliError(
+      'set --allow-users to name who may trigger runs, or pass --allow-any-writer to allow any write-access user',
+    );
+  }
+}
+
 function runSetup(opts) {
   const root = requireRoot(opts);
   const { config, files } = planSetup({ dir: root, flags: opts });
+  requireAllowlist(config, opts);
   const { written, skipped } = applyFiles(files, { force: opts.force, dryRun: opts.dryRun });
+  const security = securityChecklist(config);
 
   if (opts.json) {
-    console.log(JSON.stringify({ ok: true, dir: root, config, written: written.map((f) => f.path), skipped: skipped.map((f) => f.path), dryRun: opts.dryRun === true }, null, 2));
+    console.log(
+      JSON.stringify(
+        { ok: true, dir: root, config, security, written: written.map((f) => f.path), skipped: skipped.map((f) => f.path), dryRun: opts.dryRun === true },
+        null,
+        2,
+      ),
+    );
   } else if (!opts.quiet) {
     for (const file of written) console.log(`[${TOOL_NAME}] ${opts.dryRun ? 'would write' : 'wrote'} ${file.path}`);
     for (const file of skipped) console.log(`[${TOOL_NAME}] kept existing ${file.path} (use --force to overwrite)`);
-    console.log(`[${TOOL_NAME}] next: add repository secrets, then commit ${CONFIG_FILE} and the workflow.`);
-    for (const name of [config.provider.secret, ...(config.identity === 'pat' ? [config.tokenSecret] : [])]) {
-      console.log(`[${TOOL_NAME}]   secret ${name}`);
-    }
+    console.log(`[${TOOL_NAME}] security checklist - do these before the first mention:`);
+    security.forEach((item, index) => console.log(`[${TOOL_NAME}]   ${index + 1}. ${item}`));
+    console.log(`[${TOOL_NAME}] then verify and commit: ${TOOL_NAME} doctor --json`);
   }
 }
 
 function runUpdate(opts) {
   const root = requireRoot(opts);
   const { config, files } = planUpdate({ dir: root, flags: opts });
+  requireAllowlist(config, opts);
   const { written, skipped } = applyFiles(files, { force: true, dryRun: opts.dryRun });
   if (opts.json) {
-    console.log(JSON.stringify({ ok: true, dir: root, config, written: written.map((f) => f.path), skipped: skipped.map((f) => f.path), dryRun: opts.dryRun === true }, null, 2));
+    console.log(
+      JSON.stringify(
+        { ok: true, dir: root, config, security: securityChecklist(config), written: written.map((f) => f.path), skipped: skipped.map((f) => f.path), dryRun: opts.dryRun === true },
+        null,
+        2,
+      ),
+    );
   } else if (!opts.quiet) {
     for (const file of written) console.log(`[${TOOL_NAME}] ${opts.dryRun ? 'would update' : 'updated'} ${file.path}`);
   }

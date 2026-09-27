@@ -34,6 +34,10 @@ export function defaultConfig({ provider = DEFAULT_PROVIDER, reusableRepo = REPO
     identity: 'pat',
     selfLogin: '',
     allowUsers: [],
+    // Comment-only by default: the generated workflow does not persist git
+    // credentials, so the agent structurally cannot push code unless the user
+    // opts in with --allow-writes. Comments still work.
+    allowWrites: false,
     share: false,
     provider: { env: spec.env, secret: spec.secret },
     tokenSecret: DEFAULT_TOKEN_SECRET,
@@ -103,6 +107,7 @@ export function buildConfig({ existing = null, flags = {}, reusableRepo = REPOSI
   if (flags.model !== undefined) merged.model = flags.model;
   if (flags.agent !== undefined) merged.agent = flags.agent;
   if (flags.identity !== undefined) merged.identity = flags.identity;
+  if (flags.allowWrites !== undefined) merged.allowWrites = flags.allowWrites === true;
   if (flags.selfLogin !== undefined) merged.selfLogin = flags.selfLogin;
   if (flags.allowUsers !== undefined) merged.allowUsers = flags.allowUsers;
   if (flags.share !== undefined) merged.share = flags.share;
@@ -132,6 +137,7 @@ export function buildConfig({ existing = null, flags = {}, reusableRepo = REPOSI
   }
   merged.allowUsers = merged.allowUsers.map((entry) => String(entry).trim()).filter(Boolean);
   merged.share = merged.share === true;
+  merged.allowWrites = merged.allowWrites === true;
 
   return merged;
 }
@@ -150,6 +156,9 @@ export function validateConfig(config) {
   }
   if (!config.agent || typeof config.agent !== 'string') {
     errors.push('agent is required');
+  }
+  if (typeof config.allowWrites !== 'boolean') {
+    errors.push('allowWrites must be a boolean');
   }
   if (!ENV_RE.test(config.provider?.env ?? '')) {
     errors.push('provider env must be a valid environment variable name, e.g. OPENCODE_API_KEY');

@@ -145,6 +145,18 @@ export function runChecks({ dir, flags = {}, noRemote = false }) {
       : check('share', true, WARNING, 'session sharing is disabled'),
   );
 
+  checks.push(
+    config.allowWrites
+      ? check('writes', false, WARNING, 'writes enabled: the agent can commit and push', {
+          hint: 'use a Contents-write token and review commits, or omit --allow-writes for comment-only',
+        })
+      : config.identity === 'app'
+        ? check('writes', false, WARNING, 'app mode: comment-only cannot be enforced here; the app installation governs writes', {
+            hint: 'grant the app only the permissions you need',
+          })
+        : check('writes', true, WARNING, 'comment-only: the agent cannot push code'),
+  );
+
   const skipped = runRemoteChecks(checks, { slug: slug?.slug ?? null, config, noRemote });
   const ok = checks.every((entry) => entry.ok || entry.severity !== ERROR);
   return { ok, dir: root, checks, skipped };
