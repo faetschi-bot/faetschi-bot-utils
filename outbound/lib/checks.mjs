@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeReleaseConfig } from './release-config.mjs';
+import { readOutboundConfig } from './adoption.mjs';
 
 export const RELEASE_CONFIG_PATHS = ['.github/release.yml', '.github/release.yaml'];
 export const RELEASE_CONFIG_DEFAULT = '.github/release.yml';
@@ -97,6 +98,33 @@ export function matchingTags(dir, prefix) {
   return r.stdout.split('\n').map((s) => s.trim()).filter(Boolean);
 }
 
+export function packageVersion(dir, packagePath) {
+  if (!packagePath) return null;
+  try {
+    const value = JSON.parse(readFileSync(join(dir, packagePath), 'utf8'));
+    return typeof value.version === 'string' ? value.version : null;
+  } catch {
+    return null;
+  }
+}
+
+export function allTags(dir) {
+  const r = git(dir, ['tag', '--list', '--sort=-v:refname']);
+  if (r.status !== 0) return [];
+  return r.stdout.split('\n').map((s) => s.trim()).filter(Boolean);
+}
+
+export function detectTagPrefixes(tags) {
+  const prefixes = new Set();
+  for (const tag of tags) {
+    const match = tag.match(/^(.*-v)(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/) ||
+      tag.match(/^(v)(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/) ||
+      tag.match(/^(.*?)(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/);
+    if (match) prefixes.add(match[1]);
+  }
+  return [...prefixes].sort();
+}
+
 // Resolve the GitHub remote + default branch once, shared by the remote checks.
 // Mirrors the old pr-only behavior: unavailable or unauthenticated gh is not a
 // failure, it is a skip, so the tool is useful without network access.
@@ -168,14 +196,30 @@ function readReleaseConfig(dir) {
   return { configPath, analysis };
 }
 
-export function runChecks({ dir, tagPrefix, noRemote = false } = {}) {
+export function runChecks({ dir, tagPrefix, packagePath, noRemote = false, releaseBranch } = {}) {
   const checks = [];
-  const add = (name, ok, detail, hint = '', skipped = false) => checks.push({ name, ok, detail, hint, skipped });
-  const skip = (name, detail, hint = '') => checks.push({ name, ok: true, detail, hint, skipped: true });
+  const add = (name, ok, detail, hint = '', skipped = false, severity = 'error') => checks.push({ name, ok, detail, hint, skipped, severity });
+  const skip = (name, detail, hint = '') => checks.push({ name, ok: true, detail, hint, skipped: true, severity: 'info' });
 
   const inRepo = isGitRepo(dir);
   add('git-repo', inRepo, inRepo ? dir : 'not a git work tree', 'Run outbound inside a git repository.');
   if (!inRepo) return { ok: false, checks };
+
+  const stored = readOutboundConfig(dir);
+  if (stored.error) add('outbound-config', false, stored.error, 'Fix or remove .outbound.json.');
+  const configuredPrefix = tagPrefix ?? stored.config.tagPrefix;
+  const detectedPrefixes = detectTagPrefixes(allTags(dir));
+  const effectivePrefix = configuredPrefix ?? (detectedPrefixes.length === 1 ? detectedPrefixes[0] : undefined);
+  const effectivePackage = packagePath ?? stored.config.package;
+  const effectiveBranch = releaseBranch ?? stored.config.releaseBranch;
+  if (stored.config.releaseBranch && effectiveBranch) {
+    add('release-branch', true, `configured release branch: ${effectiveBranch}`, '', false, 'info');
+  }
+  if (!configuredPrefix && detectedPrefixes.length === 1) {
+    add('tag-prefix', true, `auto-detected tag prefix: ${detectedPrefixes[0] || '(empty)'}`, '', false, 'info');
+  } else if (!configuredPrefix && detectedPrefixes.length > 1) {
+    add('tag-prefix', false, `multiple tag prefixes found: ${detectedPrefixes.join(', ')}`, 'Set --tag-prefix or run outbound setup --tag-prefix <prefix> for the package being released.', false, 'warning');
+  }
 
   const { configPath, analysis } = readReleaseConfig(dir);
   add('release-config', Boolean(configPath), configPath || 'no .github/release.yml', 'Run: outbound init');
@@ -218,21 +262,34 @@ export function runChecks({ dir, tagPrefix, noRemote = false } = {}) {
     skip('release-workflow-write', 'no release workflow to inspect');
   }
 
-  if (tagPrefix) {
-    const tags = matchingTags(dir, tagPrefix);
+  if (effectivePrefix) {
+    const tags = matchingTags(dir, effectivePrefix);
     add(
       'tag-scheme',
       tags.length > 0,
-      tags.length ? `${tags.length} tag(s), latest ${tags[0]}` : `no tags matching ${tagPrefix}*`,
-      `Tag releases as ${tagPrefix}<version>.`,
+      tags.length ? `${tags.length} tag(s), latest ${tags[0]}` : `no tags matching ${effectivePrefix}*`,
+      `Tag releases as ${effectivePrefix}<version>.`,
+      false,
+      effectivePrefix ? 'warning' : 'error',
     );
+    const version = packageVersion(dir, effectivePackage);
+    if (effectivePackage && !version) add('package-version', false, `cannot read a version from ${effectivePackage}`, 'Set packagePath to a version file with a string version.', false, 'error');
+    else if (version) {
+      const expected = `${effectivePrefix}${version}`;
+      add('package-tag', tags.includes(expected), tags.includes(expected) ? `${effectivePackage} ${version} -> ${expected}` : `expected release tag ${expected} does not exist`, `Release ${effectivePackage} version ${version} as ${expected}.`, false, 'warning');
+    }
+    const all = allTags(dir);
+    const unrelated = all.filter((tag) => !tag.startsWith(effectivePrefix));
+    const workflows = findReleaseWorkflows(dir);
+    const scoped = workflows.length > 0 && workflows.every((path) => readFileSync(join(dir, path), 'utf8').includes('--notes-start-tag'));
+    add('tag-safety', unrelated.length === 0 || scoped, unrelated.length === 0 ? `all tags use ${effectivePrefix}` : scoped ? `${unrelated.length} other tag family/families found; workflows pin --notes-start-tag` : `${unrelated.length} tag(s) use another prefix and release notes may include unrelated PRs`, scoped ? '' : 'Use --notes-start-tag with the previous tag for this package (setup scaffolds it).', false, 'warning');
   }
 
   if (noRemote) {
     skip('release-labels', 'disabled by --no-remote', 'Re-run without --no-remote (needs: gh auth login).');
     skip('pr-titles', 'disabled by --no-remote', 'Re-run without --no-remote (needs: gh auth login).');
     skip('pr-only', 'disabled by --no-remote', 'Re-run without --no-remote (needs: gh auth login).');
-    return { ok: checks.every((c) => c.ok), checks };
+    return { ok: checks.filter((c) => c.severity !== 'warning' && c.severity !== 'info').every((c) => c.ok), checks };
   }
 
   const ctx = githubContext(dir);
@@ -247,7 +304,7 @@ export function runChecks({ dir, tagPrefix, noRemote = false } = {}) {
   const pr = checkPullRequestPolicy(dir, ctx);
   add('pr-only', pr.ok, pr.detail, pr.hint, pr.skipped);
 
-  return { ok: checks.every((c) => c.ok), checks };
+  return { ok: checks.filter((c) => c.severity !== 'warning' && c.severity !== 'info').every((c) => c.ok), checks };
 }
 
 function addReleaseLabelsCheck(dir, ctx, configPath, analysis, add, skip) {

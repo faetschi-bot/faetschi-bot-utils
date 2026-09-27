@@ -45,15 +45,51 @@ node tools/faetschi-bot-utils/outbound/bin/outbound.mjs doctor
 ```
 outbound doctor [options]     check the repo's release hygiene, then exit
 outbound init [options]       write a .github/release.yml, then exit
+outbound setup [options]      scaffold a complete release setup, then exit
 ```
 
 | Flag | Meaning |
 |------|---------|
 | `--repo <path>` | repository to check or configure (default `cwd`, resolved to the git root) |
 | `--tag-prefix <p>` | also verify tags named `<p><version>` exist |
+| `--release-branch <b>` | release branch for `setup` (default `main`) |
+| `--package <path>` | version file for `setup`/`doctor` (default `package.json`) |
+| `--workflow <path>` | release workflow path for `setup` |
 | `--no-remote` | skip the checks that call GitHub via `gh` |
-| `--force` | overwrite an existing release config (`init` only) |
+| `--quiet` | suppress human-readable output (exit status remains authoritative) |
+| `--force` | overwrite generated files (`init`/`setup` only) |
 | `--json` | print a machine-readable result object |
+| `--version` | print the installed outbound version |
+
+## One-command adoption
+
+For a normal single-package GitHub repository:
+
+```bash
+npx outbound setup
+npx outbound doctor --json
+```
+
+`setup` writes only missing files (use `--force` to replace existing generated
+files):
+
+- `.github/release.yml` — release-note categories;
+- `.github/workflows/release.yml` — version-driven release workflow with
+  `contents: write` and a package-scoped `--notes-start-tag`;
+- `.outbound.json` — the selected release branch, tag prefix, version file, and
+  workflow path, so later `doctor` calls need no repeated flags;
+- `.github/outbound-labels.sh` — creates the labels referenced by the generated
+  release config (`gh` authentication is required when you run it).
+
+For a monorepo package:
+
+```bash
+npx outbound setup --package packages/widget/package.json \
+  --tag-prefix widget-v --workflow .github/workflows/release-widget.yml
+```
+
+Review generated files before committing them. `setup` never overwrites an
+existing file unless `--force` is supplied.
 
 `doctor` runs these checks:
 
@@ -69,6 +105,10 @@ outbound init [options]       write a .github/release.yml, then exit
 | `pr-only` | `gh` | the default branch does not require pull requests |
 | `tag-scheme` | `--tag-prefix` | no tags match `<prefix>*` |
 
+When no prefix is configured, `doctor` auto-detects a single prefix from
+semantic-version tags. Multiple families (common in monorepos) produce a
+warning and require an explicit `--tag-prefix` or `.outbound.json` setting.
+
 `--no-remote` skips the three `gh` checks, so `doctor` stays fully offline.
 
 `doctor` exits non-zero when a check fails, so an agent can verify a repo before
@@ -81,7 +121,7 @@ claiming it is release-ready. With `--json`:
   "skipped": 1,
   "checks": [
     { "name": "git-repo", "ok": true, "detail": "/abs/path", "hint": "", "skipped": false },
-    { "name": "release-config", "ok": true, "detail": ".github/release.yml", "hint": "", "skipped": false },
+    { "name": "release-config", "ok": true, "detail": ".github/release.yml", "hint": "", "skipped": false, "severity": "error" },
     { "name": "release-config-valid", "ok": true, "detail": "4 category(ies), catch-all present", "hint": "", "skipped": false },
     { "name": "release-workflow", "ok": true, "detail": ".github/workflows/release.yml", "hint": "", "skipped": false },
     { "name": "release-workflow-write", "ok": true, "detail": ".github/workflows/release.yml grants \"contents: write\"", "hint": "", "skipped": false },
@@ -93,6 +133,9 @@ claiming it is release-ready. With `--json`:
 ```
 
 - `ok: false` means at least one check failed; read `hint` for the fix.
+- Every check has a `severity`: `error` blocks `ok`, `warning` is actionable
+  but does not block release readiness, and `info` describes configuration or a
+  skipped remote check.
 - `skipped > 0` means some checks could not be evaluated (`release-labels`,
   `pr-titles`, and `pr-only` need `gh`; `pr-only` also needs admin access). Report
   that instead of claiming full verification.
@@ -154,6 +197,11 @@ jobs:
 
 Bumping `package.json` and merging then produces a release whose body is the list
 of merged PRs since the last one.
+
+For a monorepo, use a distinct tag prefix for each package and pass the previous
+tag explicitly to GitHub's generated-notes command. The workflow produced by
+`setup` does this automatically with `--notes-start-tag`, preventing a widget
+release from absorbing another package's PRs.
 
 ## Why PRs
 
