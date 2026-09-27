@@ -123,13 +123,16 @@ install at once is a planned extension; the registry and the generic
 
 ## Access control
 
-Two gates apply before any agent run:
+Three gates apply before any agent run, cheapest first:
 
-1. The **allowlist** (`allowUsers`). When set, only those logins can trigger a
-   run; everyone else is ignored, so a stray comment cannot spend tokens.
-2. The action's **built-in check**: the commenter must have `admin` or `write`
-   access to the repository. Bots (`*[bot]`) and the configured `self-login` are
-   always ignored.
+1. **Association** — the commenter must be an `OWNER`, `MEMBER`, or
+   `COLLABORATOR` of the repository, checked in the job condition so an outsider
+   never starts a runner.
+2. The **allowlist** (`allowUsers`) — only those logins can trigger a run.
+   Everyone else is ignored, so a stray comment cannot spend tokens. `doctor`
+   treats an **empty allowlist as an error**: name who may spend tokens.
+3. The action's **built-in check** — the commenter must have `admin` or `write`
+   access. Bots (`*[bot]`) and the configured `self-login` are always ignored.
 
 ## Security notes
 
@@ -137,9 +140,24 @@ Two gates apply before any agent run:
 - The caller requests only `contents: read`; the ability to comment and push
   comes from the token you pass, not the default `GITHUB_TOKEN`.
 - The token you provide to a `pat` install has whatever access its owner has.
-  Prefer a dedicated account with access only to the repositories you need.
-- The agent runs on GitHub's runners. Only collaborators with write access (and,
-  when configured, the allowlist) can start a run.
+  Prefer a **dedicated account** with a **fine-grained token** scoped to the one
+  repository and only Contents/Issues/Pull requests write.
+- **Prompt injection is inherent.** The agent reads untrusted issue and PR text,
+  and for a PR it checks out the branch, so it may run that code with the token
+  and provider key in its environment. Only an allowlisted, write-access user
+  can start a run, but treat fork PRs and untrusted contributors as untrusted
+  input regardless. There is no sandbox around the runner's network.
+- **Fork pull requests:** pushing back to a fork usually fails, because the token
+  generally has no write access to someone else's fork. Commenting still works.
+- **Supply chain:** the job runs the third-party action
+  `anomalyco/opencode/github` pinned to a reviewed commit, which itself installs
+  the latest `opencode` at run time. The shared reusable workflow is referenced
+  by the moving `mention-agent-v1` tag, which this repository force-moves on
+  merge; a compromise of the hosting repository would reach every consumer.
+  Pin `--ref` to an exact `mention-agent-vX.Y.Z` tag if you want to review each
+  update.
+- Runs are bounded by `timeout-minutes: 30` and serialized per issue/PR with a
+  `concurrency` group so repeated mentions do not race pushes or duplicate spend.
 
 ## Verify an install
 

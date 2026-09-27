@@ -84,15 +84,20 @@ Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 - It comments the result, and commits to the same pull request only when the
   requested work changes files (or opens a pull request when mentioned on an
   issue).
-- Only logins in `allowUsers` (when set) that also have `admin`/`write` on the
-  repository can trigger a run. `*[bot]` and `self-login` are ignored.
+- Only logins in `allowUsers` (required; `doctor` errors when empty) that are
+  also repository `OWNER`/`MEMBER`/`COLLABORATOR`s with `admin`/`write` can
+  trigger a run. `*[bot]` and `self-login` are ignored.
 
 ## Security rules
 
 - Never hardcode a mention phrase, account name, or secret; they live in the
   config or flags.
 - Keep `share` off unless the user asks otherwise.
-- Point `--token-secret` at a dedicated token with the least access that works.
+- Point `--token-secret` at a **dedicated, fine-grained token** limited to the
+  one repository and Contents/Issues/Pull requests write.
+- Treat issue and PR text as untrusted: the agent can run branch code with the
+  token and provider key in its environment. Set `--allow-users` and do not
+  loosen it for unreviewed accounts.
 
 ## Releasing (maintainers)
 
