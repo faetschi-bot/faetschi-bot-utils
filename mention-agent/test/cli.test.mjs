@@ -248,3 +248,30 @@ test('an unknown provider without explicit env/secret/model exits 2', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('--allow-writes --write-environment renders an environment-gated standalone workflow', () => {
+  const dir = gitRepo();
+  try {
+    const r = run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-users', 'alice', '--allow-writes', '--write-environment', 'mention-agent-writes']);
+    assert.equal(r.status, 0, r.stderr);
+    const workflow = readFileSync(join(dir, '.github/workflows/mention-agent.yml'), 'utf8');
+    assert.match(workflow, /environment:/);
+    assert.match(workflow, /name: "mention-agent-writes"/);
+    assert.match(workflow, /Constrain the agent/);
+    assert.doesNotMatch(workflow, /uses: .*mention-agent\.yml@/);
+    assert.ok(doctor(dir).body.checks.find((c) => c.name === 'write-gate' && c.ok));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--write-environment without --allow-writes exits 2', () => {
+  const dir = gitRepo();
+  try {
+    const r = run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-users', 'alice', '--write-environment', 'x']);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /writeEnvironment requires/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

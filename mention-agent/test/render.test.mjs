@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { ConfigError, buildConfig, validateConfig } from '../lib/config.mjs';
+import { ConfigError, buildConfig, validateConfig, wantsStandalone } from '../lib/config.mjs';
 import { securityChecklist } from '../lib/checklist.mjs';
 import { renderCaller, renderReusable, renderStandalone } from '../lib/render.mjs';
 import { REPOSITORY, VERSION } from '../lib/package-info.mjs';
@@ -176,4 +176,46 @@ test('the security checklist names the token scope and the safe default', () => 
   assert.match(commentOnly, /comment-only/);
   const writes = securityChecklist(config({ allowWrites: true })).join('\n');
   assert.match(writes, /Writes are enabled/);
+});
+
+test('a restricted agent is injected by default', () => {
+  const caller = renderCaller(config());
+  assert.match(caller, /agent: "mention-agent"/);
+  assert.match(caller, /restrict-agent: true/);
+
+  const yaml = renderStandalone(config());
+  assert.match(yaml, /name: Constrain the agent/);
+  assert.match(yaml, /OPENCODE_CONFIG=\$CONFIG_PATH/);
+  assert.ok(yaml.includes('"default_agent":"mention-agent"'), 'injects the restricted default agent');
+  assert.ok(yaml.includes('"edit","resource":"*","effect":"deny"'), 'comment-only denies edits');
+  assert.ok(yaml.includes('"edit","resource":"*","effect":"allow"'), 'the writes variant is present to switch to');
+});
+
+test('--no-restrict-agent omits the constraint and keeps the configured agent', () => {
+  const flags = { restrictAgent: false, agent: 'build' };
+  const yaml = renderStandalone(config(flags));
+  assert.doesNotMatch(yaml, /Constrain the agent/);
+  assert.match(yaml, /agent: "build"/);
+  assert.match(renderCaller(config(flags)), /restrict-agent: false/);
+});
+
+test('writeEnvironment forces a standalone workflow with the environment gate', () => {
+  const cfg = config({ allowWrites: true, writeEnvironment: 'mention-agent-writes' });
+  assert.equal(wantsStandalone(cfg), true);
+  const yaml = renderStandalone(cfg);
+  assert.match(yaml, /environment:/);
+  assert.match(yaml, /name: "mention-agent-writes"/);
+  assert.match(yaml, /persist-credentials: true/);
+});
+
+test('writeEnvironment without allowWrites is rejected', () => {
+  const problems = validateConfig(config({ writeEnvironment: 'mention-agent-writes' }));
+  assert.ok(problems.some((message) => /writeEnvironment requires/.test(message)));
+});
+
+test('the checklist explains the write environment when set', () => {
+  const items = securityChecklist(config({ allowWrites: true, writeEnvironment: 'mention-agent-writes' })).join('\n');
+  assert.match(items, /Create environment "mention-agent-writes" with required reviewers/);
+  const ungated = securityChecklist(config({ allowWrites: true })).join('\n');
+  assert.match(ungated, /not environment-gated/);
 });
