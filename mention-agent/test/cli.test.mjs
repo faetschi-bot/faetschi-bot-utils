@@ -106,7 +106,7 @@ test('setup writes config and workflow, and doctor passes', () => {
 test('setup keeps existing files without --force and overwrites with it', () => {
   const dir = gitRepo();
   try {
-    assert.equal(run(['setup', '--repo', dir, '--mention', '@example-bot']).status, 0);
+    assert.equal(run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-users', 'alice']).status, 0);
     const first = readFileSync(join(dir, '.github/workflows/mention-agent.yml'), 'utf8');
 
     const second = run(['setup', '--repo', dir, '--mention', '@other-bot']);
@@ -124,7 +124,7 @@ test('setup keeps existing files without --force and overwrites with it', () => 
 test('setup --dry-run writes nothing', () => {
   const dir = gitRepo();
   try {
-    const r = run(['setup', '--repo', dir, '--mention', '@example-bot', '--dry-run']);
+    const r = run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-users', 'alice', '--dry-run']);
     assert.equal(r.status, 0);
     assert.equal(existsSync(join(dir, '.mention-agent.json')), false);
     assert.equal(existsSync(join(dir, '.github/workflows/mention-agent.yml')), false);
@@ -151,7 +151,7 @@ test('update regenerates the workflow from the stored config', () => {
 test('doctor fails when the workflow is missing', () => {
   const dir = gitRepo();
   try {
-    run(['setup', '--repo', dir, '--mention', '@example-bot']);
+    run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-users', 'alice']);
     rmSync(join(dir, '.github/workflows/mention-agent.yml'));
     const { status, body } = doctor(dir);
     assert.equal(status, 1);
@@ -203,10 +203,36 @@ test('print --standalone emits a self-contained workflow', () => {
 test('an empty allowlist fails doctor', () => {
   const dir = gitRepo();
   try {
-    run(['setup', '--repo', dir, '--mention', '@example-bot']);
+    run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-any-writer']);
     const { status, body } = doctor(dir);
     assert.equal(status, 1);
     assert.ok(body.checks.find((c) => c.name === 'allowlist' && !c.ok));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('setup requires an allowlist unless --allow-any-writer is given', () => {
+  const dir = gitRepo();
+  try {
+    const r = run(['setup', '--repo', dir, '--mention', '@example-bot']);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /--allow-users/);
+    const ok = run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-any-writer']);
+    assert.equal(ok.status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('setup prints the security checklist and defaults to comment-only', () => {
+  const dir = gitRepo();
+  try {
+    const r = run(['setup', '--repo', dir, '--mention', '@example-bot', '--allow-users', 'alice']);
+    assert.equal(r.status, 0);
+    assert.match(r.stdout, /security checklist/);
+    assert.match(r.stdout, /fine-grained token scoped to THIS repository/);
+    assert.match(readFileSync(join(dir, '.github/workflows/mention-agent.yml'), 'utf8'), /allow-writes: false/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

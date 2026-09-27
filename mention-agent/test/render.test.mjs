@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ConfigError, buildConfig, validateConfig } from '../lib/config.mjs';
+import { securityChecklist } from '../lib/checklist.mjs';
 import { renderCaller, renderReusable, renderStandalone } from '../lib/render.mjs';
 import { REPOSITORY, VERSION } from '../lib/package-info.mjs';
 
@@ -24,6 +25,7 @@ test('renderCaller produces a caller for the shared workflow', () => {
   assert.match(yaml, /mention: "@example-bot"/);
   assert.ok(yaml.includes('allow-users: "[\\"alice\\",\\"bob\\"]"'), 'caller passes the allowlist as a JSON array');
   assert.match(yaml, /self-login: "example-bot"/);
+  assert.match(yaml, /allow-writes: false/);
   assert.match(yaml, /share: false/);
   assert.match(yaml, /token: \$\{\{ secrets\.MENTION_AGENT_TOKEN \}\}/);
   assert.match(yaml, /provider-key: \$\{\{ secrets\.OPENCODE_API_KEY \}\}/);
@@ -41,7 +43,7 @@ test('renderStandalone inlines the gate and the steps', () => {
   assert.match(yaml, /use_github_token: true/);
   assert.match(yaml, /actions\/checkout@v4/);
   assert.match(yaml, /uses: anomalyco\/opencode\/github@[0-9a-f]{40} # /);
-  assert.match(yaml, /persist-credentials: true/);
+  assert.match(yaml, /persist-credentials: false/);
   assert.match(yaml, /timeout-minutes: 30/);
   assert.match(yaml, /group: mention-agent-\$\{\{ github\.event\.issue\.number \|\| github\.event\.pull_request\.number \}\}/);
   // GitHub expressions only accept single-quoted string literals.
@@ -80,7 +82,8 @@ test('renderReusable is a workflow_call with the expected gate and secrets', () 
   assert.match(yaml, /inputs\['allow-users'\]/);
   assert.match(yaml, /fromJSON\(inputs\['allow-users'\]\)/);
   assert.doesNotMatch(yaml, /replace\(/, 'GitHub expressions have no replace function');
-  assert.match(yaml, /persist-credentials: true/);
+  assert.match(yaml, /persist-credentials: \$\{\{ inputs\.allow-writes \}\}/);
+  assert.match(yaml, /allow-writes:/);
   assert.match(yaml, /timeout-minutes: 30/);
   assert.match(yaml, /uses: anomalyco\/opencode\/github@[0-9a-f]{40} # /);
   assert.match(yaml, /use_github_token: \$\{\{ inputs\.identity == 'pat' \}\}/);
@@ -158,4 +161,19 @@ test('an unknown provider without explicit env/secret/model is rejected', () => 
 test('login validation rejects a trailing hyphen', () => {
   const problems = validateConfig(config({ allowUsers: ['bad-'] }));
   assert.ok(problems.some((message) => /not a valid GitHub login/.test(message)));
+});
+
+test('comment-only is the default; --allow-writes persists git credentials', () => {
+  assert.match(renderStandalone(config()), /persist-credentials: false/);
+  assert.match(renderStandalone(config({ allowWrites: true })), /persist-credentials: true/);
+  assert.match(renderCaller(config({ allowWrites: true })), /allow-writes: true/);
+  assert.match(renderCaller(config()), /allow-writes: false/);
+});
+
+test('the security checklist names the token scope and the safe default', () => {
+  const commentOnly = securityChecklist(config()).join('\n');
+  assert.match(commentOnly, /fine-grained token scoped to THIS repository/);
+  assert.match(commentOnly, /comment-only/);
+  const writes = securityChecklist(config({ allowWrites: true })).join('\n');
+  assert.match(writes, /Writes are enabled/);
 });
