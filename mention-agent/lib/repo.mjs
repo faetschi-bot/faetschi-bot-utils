@@ -37,7 +37,7 @@ export function gitRemoteUrl(dir, name = 'origin') {
 export function parseGitHubRemote(url) {
   if (typeof url !== 'string' || url.length === 0) return null;
   const cleaned = url.trim().replace(/\.git$/, '');
-  const match = cleaned.match(/github\.com[/:]([^/]+)\/([^/]+)$/);
+  const match = cleaned.match(/^(?:https?:\/\/|ssh:\/\/git@|git@)github\.com[/:]([^/]+)\/([^/]+)$/);
   if (!match) return null;
   const [, owner, repo] = match;
   return { owner, repo, slug: `${owner}/${repo}` };

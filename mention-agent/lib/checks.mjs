@@ -125,8 +125,8 @@ export function runChecks({ dir, flags = {}, noRemote = false }) {
 
   checks.push(
     config.allowUsers.length > 0
-      ? check('allowlist', true, WARNING, `restricted to ${config.allowUsers.join(', ')}`)
-      : check('allowlist', false, WARNING, 'no allowlist: any user with write access can trigger a run', {
+      ? check('allowlist', true, ERROR, `restricted to ${config.allowUsers.join(', ')}`)
+      : check('allowlist', false, ERROR, 'no allowlist: any user with write access can trigger a run', {
           hint: 'set --allow-users to keep token spend to named people',
         }),
   );
