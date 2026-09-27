@@ -116,7 +116,10 @@ re-renders. Both support `--dry-run`.
 
 Any provider the OpenCode action supports works: pass `--provider-env` and
 `--model` for one that is not listed. The reusable workflow exports whatever
-`provider-env` names, so no provider is hardcoded in it.
+`provider-env` names, so no provider is hardcoded in it. Adding a preset is a
+one-line entry in `lib/providers.mjs`. Supporting several providers in one
+install at once is a planned extension; the registry and the generic
+`provider-env` are shaped for it.
 
 ## Access control
 
