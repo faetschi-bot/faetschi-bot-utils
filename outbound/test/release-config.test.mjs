@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeReleaseConfig } from '../lib/release-config.mjs';
-import { isUnusablePrTitle } from '../lib/checks.mjs';
+import { detectTagPrefixes, isUnusablePrTitle } from '../lib/checks.mjs';
 
 const scaffold = `changelog:
   exclude:
@@ -101,4 +101,10 @@ test('flags unusable PR titles', () => {
   assert.equal(isUnusablePrTitle({ title: 'feat(ui): add dark mode' }), false);
   assert.equal(isUnusablePrTitle({ title: 'Fix crash when the token expires' }), false);
   assert.equal(isUnusablePrTitle({ title: 'refactor/cleanup', headRefName: 'refactor/cleanup' }), true);
+});
+
+test('detects one tag family and exposes ambiguity for monorepos', () => {
+  assert.deepEqual(detectTagPrefixes(['v1.0.0', 'v1.1.0']), ['v']);
+  assert.deepEqual(detectTagPrefixes(['widget-v1.0.0', 'widget-v1.1.0']), ['widget-v']);
+  assert.deepEqual(detectTagPrefixes(['widget-v1.0.0', 'api-v2.0.0']), ['api-v', 'widget-v']);
 });

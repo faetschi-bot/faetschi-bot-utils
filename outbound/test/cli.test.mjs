@@ -30,6 +30,12 @@ test('--help exits 0 and prints usage', () => {
   assert.match(r.stdout, /Usage:/);
 });
 
+test('--version prints the package version', () => {
+  const r = run(['--version']);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /^outbound 0\.3\.0\n$/);
+});
+
 test('unknown option exits 2', () => {
   const r = run(['--nope']);
   assert.equal(r.status, 2);
@@ -123,6 +129,78 @@ test('doctor from a subdirectory resolves to the git root', () => {
     const parsed = JSON.parse(r.stdout);
     assert.equal(realpathSync(parsed.dir), realpathSync(dir));
     assert.ok(parsed.checks.some((c) => c.name === 'release-config' && c.ok === true));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('setup scaffolds config, release workflow, and label script without overwriting', () => {
+  const dir = tempRepo();
+  try {
+    writeFileSync(join(dir, 'package.json'), '{"name":"demo","version":"1.2.3"}\n');
+    const first = run(['setup', '--repo', dir, '--tag-prefix', 'demo-v', '--json']);
+    assert.equal(first.status, 0);
+    const result = JSON.parse(first.stdout);
+    assert.deepEqual(result.config, {
+      releaseBranch: 'main',
+      tagPrefix: 'demo-v',
+      package: 'package.json',
+      workflow: '.github/workflows/release.yml',
+    });
+    assert.equal(existsSync(join(dir, '.outbound.json')), true);
+    assert.equal(existsSync(join(dir, '.github/release.yml')), true);
+    assert.equal(existsSync(join(dir, '.github/workflows/release.yml')), true);
+    assert.equal(existsSync(join(dir, '.github/outbound-labels.sh')), true);
+    assert.match(readFileSync(join(dir, '.github/workflows/release.yml'), 'utf8'), /--notes-start-tag/);
+
+    writeFileSync(join(dir, '.github/workflows/release.yml'), '# keep\n');
+    const second = run(['setup', '--repo', dir, '--json']);
+    assert.equal(second.status, 0);
+    assert.equal(readFileSync(join(dir, '.github/workflows/release.yml'), 'utf8'), '# keep\n');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('doctor reads persisted setup defaults and treats unreleased versions as warnings', () => {
+  const dir = tempRepo();
+  try {
+    writeFileSync(join(dir, 'package.json'), '{"name":"demo","version":"1.2.3"}\n');
+    run(['setup', '--repo', dir, '--tag-prefix', 'demo-v']);
+    const r = run(['doctor', '--repo', dir, '--no-remote', '--json']);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    const tag = parsed.checks.find((c) => c.name === 'package-tag');
+    assert.equal(tag.ok, false);
+    assert.equal(tag.severity, 'warning');
+    assert.equal(parsed.ok, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('setup scopes a monorepo workflow to the selected package', () => {
+  const dir = tempRepo();
+  try {
+    mkdirSync(join(dir, 'packages/widget'), { recursive: true });
+    writeFileSync(join(dir, 'packages/widget/package.json'), '{"name":"widget","version":"1.2.3"}\n');
+    const r = run(['setup', '--repo', dir, '--package', 'packages/widget/package.json', '--tag-prefix', 'widget-v']);
+    assert.equal(r.status, 0);
+    const workflow = readFileSync(join(dir, '.github/workflows/release.yml'), 'utf8');
+    assert.match(workflow, /working-directory: packages\/widget/);
+    assert.match(workflow, /require\('\.\/package\.json'\)/);
+    assert.match(workflow, /--notes-start-tag/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--quiet suppresses human doctor output', () => {
+  const dir = tempRepo();
+  try {
+    const r = run(['doctor', '--repo', dir, '--quiet', '--no-remote']);
+    assert.equal(r.status, 1);
+    assert.equal(r.stdout, '');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

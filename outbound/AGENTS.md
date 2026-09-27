@@ -41,7 +41,8 @@ cp -r outbound /path/to/project/tools/outbound
 git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faetschi-bot-utils
 ```
 
-Then `npx outbound doctor --json` (tarball) or
+Then `npx outbound setup` (recommended for a new target) and
+`npx outbound doctor --json` (tarball) or
 `node tools/outbound/bin/outbound.mjs doctor --json` (vendored/submodule).
 `outbound` resolves the current directory to the git root, so it works from any
 subdirectory.
@@ -61,6 +62,14 @@ no label reused); a workflow creates releases with `--generate-notes` and grants
 the repo, that recent merged PR titles read as changelog lines, and that the
 default branch requires PRs. `--tag-prefix <p>` additionally requires tags
 `<p><version>`. It exits non-zero when a check fails.
+
+`setup` scaffolds `.github/release.yml`, a release workflow, `.outbound.json`,
+and `.github/outbound-labels.sh` without overwriting existing files unless
+`--force` is given. Persisted setup values (`releaseBranch`, `tagPrefix`,
+`package`, and `workflow`) are used by later `doctor` runs; explicit CLI flags
+override them. For monorepos, use a package-specific prefix such as
+`widget-v`; generated workflows pass `--notes-start-tag` so GitHub does not use
+another package's release as the range boundary.
 
 Add `--no-remote` to skip every `gh` check when offline. If `"skipped"` is
 greater than 0, some checks could not be evaluated (the `gh` checks need
@@ -140,7 +149,7 @@ catch it, and curate the body with `gh release edit "$TAG" --notes-file NOTES.md
    repo, so `release-labels` passes.
 4. `.github/release.yml` present and matching those labels.
 5. CI creates the tag and runs `gh release create … --generate-notes`.
-6. `outbound doctor --json` reports `"ok": true`.
+6. `outbound doctor --json` reports `"ok": true`; review any `warning` checks.
 
 ## Releasing outbound (maintainers)
 
