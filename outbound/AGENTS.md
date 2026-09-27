@@ -25,7 +25,7 @@ Corollaries:
 | A git repository (ideally GitHub) with a remote | Releases and generated notes live on GitHub. |
 | Write access to the target project | To add `.github/release.yml` / a release workflow. |
 | Node 20+ | To run `outbound`. |
-| `gh` (optional) | `outbound doctor` uses it to verify branch protection. |
+| `gh` (optional) | `outbound doctor` uses it to verify repo labels, recent PR titles, and branch protection. |
 | Network (optional) | Only for the `gh`-based checks. |
 
 ## Bootstrap (pick one)
@@ -60,8 +60,11 @@ valid (parseable, every category titled and labelled, one catch-all `"*"` last,
 no label reused); a workflow creates releases with `--generate-notes` and grants
 `contents: write`; and, with `gh`, that the labels the config references exist on
 the repo, that recent merged PR titles read as changelog lines, and that the
-default branch requires PRs. `--tag-prefix <p>` additionally requires tags
-`<p><version>`. It exits non-zero when a check fails.
+default branch requires PRs. `--tag-prefix <p>` checks tags named
+`<p><version>` and enables package/tag safety checks. A missing first-release
+tag is a warning; malformed configuration, missing workflow permissions, missing
+labels, bad PR titles, and missing branch protection remain errors. It exits
+non-zero when an error-level check fails.
 
 `setup` scaffolds `.github/release.yml`, a release workflow, `.outbound.json`,
 and `.github/outbound-labels.sh` without overwriting existing files unless
@@ -78,6 +81,15 @@ verification.
 
 ## Set it up
 
+For a new project, prefer the complete scaffold:
+
+```bash
+npx outbound setup
+npx outbound doctor --json
+```
+
+Use `init` when you only want the release-note categories:
+
 ```bash
 npx outbound init          # writes .github/release.yml (refuses to overwrite; --force to replace)
 npx outbound doctor --json
@@ -92,7 +104,14 @@ target repo — GitHub only uses labels that actually exist on its PRs.
 
 `gh release create "$TAG" --generate-notes` (or the Release UI's "Generate
 release notes") walks the commits between the **previous release** and the new
-tag and emits:
+tag. For a monorepo, add `--notes-start-tag <previous-package-tag>` to pin the
+range to the same package:
+
+```bash
+gh release create "$TAG" --generate-notes --notes-start-tag "$PREVIOUS_TAG"
+```
+
+It emits:
 
 - one line per **merged PR**: its title, author, and `#number`;
 - any commit **not** associated with a PR, using the commit message as a
@@ -136,10 +155,12 @@ Then releasing = bump `version`, merge. Re-merging without a bump is a no-op.
 ## Monorepo gotcha
 
 With several tools released from one repo, tag them per tool (`visual-shot-v*`,
-`outbound-v*`). GitHub picks the previous tag by **release**, so its automatic
-range can span another tool's tags and pull in unrelated PRs. When that
-mismatches, pass an explicit previous tag / use `--tag-prefix` in `outbound` to
-catch it, and curate the body with `gh release edit "$TAG" --notes-file NOTES.md`.
+`outbound-v*`). GitHub picks the previous tag by **release**, not by tag prefix,
+so its automatic range can span another tool's tags and pull in unrelated PRs.
+Use the `setup`-generated workflow, which passes `--notes-start-tag`, or add it
+to an existing workflow. `outbound doctor --tag-prefix <prefix>` warns when a
+workflow is not package-scoped. If a range still mismatches, curate the body
+with `gh release edit "$TAG" --notes-file NOTES.md`.
 
 ## Checklist for a clean release
 

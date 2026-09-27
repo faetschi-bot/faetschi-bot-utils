@@ -103,7 +103,10 @@ existing file unless `--force` is supplied.
 | `release-labels` | `gh` | a label the config references is missing on the repo, so its PRs would be dropped into "Other Changes" |
 | `pr-titles` | `gh` | a recent merged PR title is unusable (`wip`, `misc`, a branch name, …) |
 | `pr-only` | `gh` | the default branch does not require pull requests |
-| `tag-scheme` | `--tag-prefix` | no tags match `<prefix>*` |
+| `tag-prefix` | — | multiple tag families exist and no prefix was configured (warning) |
+| `tag-scheme` | configured/inferred prefix | no tags match `<prefix>*` (warning for a not-yet-released package) |
+| `package-tag` | configured package | the package version's expected tag does not exist yet (warning until release) |
+| `tag-safety` | configured tag prefix | another tag family exists and release workflows do not pin `--notes-start-tag` (warning) |
 
 When no prefix is configured, `doctor` auto-detects a single prefix from
 semantic-version tags. Multiple families (common in monorepos) produce a
@@ -111,8 +114,10 @@ warning and require an explicit `--tag-prefix` or `.outbound.json` setting.
 
 `--no-remote` skips the three `gh` checks, so `doctor` stays fully offline.
 
-`doctor` exits non-zero when a check fails, so an agent can verify a repo before
-claiming it is release-ready. With `--json`:
+`doctor` exits non-zero when an error-level check fails, so an agent can verify a
+repo before claiming it is release-ready. Warnings are reported but do not block
+`ok`; this allows a newly configured package to pass before its first release.
+With `--json`:
 
 ```json
 {
@@ -122,12 +127,12 @@ claiming it is release-ready. With `--json`:
   "checks": [
     { "name": "git-repo", "ok": true, "detail": "/abs/path", "hint": "", "skipped": false },
     { "name": "release-config", "ok": true, "detail": ".github/release.yml", "hint": "", "skipped": false, "severity": "error" },
-    { "name": "release-config-valid", "ok": true, "detail": "4 category(ies), catch-all present", "hint": "", "skipped": false },
-    { "name": "release-workflow", "ok": true, "detail": ".github/workflows/release.yml", "hint": "", "skipped": false },
-    { "name": "release-workflow-write", "ok": true, "detail": ".github/workflows/release.yml grants \"contents: write\"", "hint": "", "skipped": false },
-    { "name": "release-labels", "ok": false, "detail": "labels not on the repo: breaking-change, semver-major", "hint": "Create them so those PRs are not silently dropped into \"Other Changes\" (Settings -> Labels).", "skipped": false },
-    { "name": "pr-titles", "ok": true, "detail": "10 recent merged PR titles look usable", "hint": "", "skipped": false },
-    { "name": "pr-only", "ok": true, "detail": "gh not installed", "hint": "Install the GitHub CLI to run the remote checks.", "skipped": true }
+    { "name": "release-config-valid", "ok": true, "detail": "4 category(ies), catch-all present", "hint": "", "skipped": false, "severity": "error" },
+    { "name": "release-workflow", "ok": true, "detail": ".github/workflows/release.yml", "hint": "", "skipped": false, "severity": "error" },
+    { "name": "release-workflow-write", "ok": true, "detail": ".github/workflows/release.yml grants \"contents: write\"", "hint": "", "skipped": false, "severity": "error" },
+    { "name": "release-labels", "ok": false, "detail": "labels not on the repo: breaking-change, semver-major", "hint": "Create them so those PRs are not silently dropped into \"Other Changes\" (Settings -> Labels).", "skipped": false, "severity": "error" },
+    { "name": "pr-titles", "ok": true, "detail": "10 recent merged PR titles look usable", "hint": "", "skipped": false, "severity": "error" },
+    { "name": "pr-only", "ok": true, "detail": "gh not installed", "hint": "Install the GitHub CLI to run the remote checks.", "skipped": true, "severity": "info" }
   ]
 }
 ```
