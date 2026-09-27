@@ -13,8 +13,9 @@ message. `outbound` makes that pipeline explicit and verifiable.
 
 - **Node 20+**.
 - A git repository, ideally on GitHub.
-- `gh` (optional) — used to verify that the default branch requires pull
-  requests.
+- `gh` (optional) — used for the remote checks: whether the labels the config
+  references exist on the repo, whether recent merged PR titles read as
+  changelog lines, and whether the default branch requires pull requests.
 
 ## Install
 
@@ -50,8 +51,25 @@ outbound init [options]       write a .github/release.yml, then exit
 |------|---------|
 | `--repo <path>` | repository to check or configure (default `cwd`, resolved to the git root) |
 | `--tag-prefix <p>` | also verify tags named `<p><version>` exist |
+| `--no-remote` | skip the checks that call GitHub via `gh` |
 | `--force` | overwrite an existing release config (`init` only) |
 | `--json` | print a machine-readable result object |
+
+`doctor` runs these checks:
+
+| Check | Needs | Fails when |
+|-------|-------|------------|
+| `git-repo` | — | not inside a git work tree |
+| `release-config` | — | no `.github/release.yml` (or `.yaml`) |
+| `release-config-valid` | — | the config does not parse, a category is empty or has no labels, a label is repeated across categories, or there is no catch-all `"*"` (or it is not the last category) |
+| `release-workflow` | — | no workflow runs `gh release create --generate-notes` / `action-gh-release` |
+| `release-workflow-write` | — | that workflow does not grant `contents: write` |
+| `release-labels` | `gh` | a label the config references is missing on the repo, so its PRs would be dropped into "Other Changes" |
+| `pr-titles` | `gh` | a recent merged PR title is unusable (`wip`, `misc`, a branch name, …) |
+| `pr-only` | `gh` | the default branch does not require pull requests |
+| `tag-scheme` | `--tag-prefix` | no tags match `<prefix>*` |
+
+`--no-remote` skips the three `gh` checks, so `doctor` stays fully offline.
 
 `doctor` exits non-zero when a check fails, so an agent can verify a repo before
 claiming it is release-ready. With `--json`:
@@ -63,17 +81,21 @@ claiming it is release-ready. With `--json`:
   "skipped": 1,
   "checks": [
     { "name": "git-repo", "ok": true, "detail": "/abs/path", "hint": "", "skipped": false },
-    { "name": "release-config", "ok": false, "detail": "no .github/release.yml", "hint": "Run: outbound init", "skipped": false },
+    { "name": "release-config", "ok": true, "detail": ".github/release.yml", "hint": "", "skipped": false },
+    { "name": "release-config-valid", "ok": true, "detail": "4 category(ies), catch-all present", "hint": "", "skipped": false },
     { "name": "release-workflow", "ok": true, "detail": ".github/workflows/release.yml", "hint": "", "skipped": false },
-    { "name": "pr-only", "ok": true, "detail": "gh not installed", "hint": "Install the GitHub CLI to verify branch protection.", "skipped": true }
+    { "name": "release-workflow-write", "ok": true, "detail": ".github/workflows/release.yml grants \"contents: write\"", "hint": "", "skipped": false },
+    { "name": "release-labels", "ok": false, "detail": "labels not on the repo: breaking-change, semver-major", "hint": "Create them so those PRs are not silently dropped into \"Other Changes\" (Settings -> Labels).", "skipped": false },
+    { "name": "pr-titles", "ok": true, "detail": "10 recent merged PR titles look usable", "hint": "", "skipped": false },
+    { "name": "pr-only", "ok": true, "detail": "gh not installed", "hint": "Install the GitHub CLI to run the remote checks.", "skipped": true }
   ]
 }
 ```
 
 - `ok: false` means at least one check failed; read `hint` for the fix.
-- `skipped > 0` means some checks could not be evaluated (`pr-only` needs `gh`
-  authentication and admin access). Report that instead of claiming full
-  verification.
+- `skipped > 0` means some checks could not be evaluated (`release-labels`,
+  `pr-titles`, and `pr-only` need `gh`; `pr-only` also needs admin access). Report
+  that instead of claiming full verification.
 
 ## Configure categories
 

@@ -54,14 +54,18 @@ Always run the machine-readable check and require `"ok": true`:
 npx outbound doctor --json
 ```
 
-It reports: is this a git repo, does `.github/release.yml` exist, is there a
-workflow that creates releases, and (when `--tag-prefix` is given) do matching
-tags exist. With `gh` it also checks that the default branch requires PRs. It
-exits non-zero when a check fails.
+It checks: the repo is a git work tree; `.github/release.yml` exists and is
+valid (parseable, every category titled and labelled, one catch-all `"*"` last,
+no label reused); a workflow creates releases with `--generate-notes` and grants
+`contents: write`; and, with `gh`, that the labels the config references exist on
+the repo, that recent merged PR titles read as changelog lines, and that the
+default branch requires PRs. `--tag-prefix <p>` additionally requires tags
+`<p><version>`. It exits non-zero when a check fails.
 
-If `"skipped"` is greater than 0, some checks could not be evaluated (for
-example branch protection needs `gh` auth or admin). Say so rather than claiming
-full verification.
+Add `--no-remote` to skip every `gh` check when offline. If `"skipped"` is
+greater than 0, some checks could not be evaluated (the `gh` checks need
+authentication; `pr-only` also needs admin). Say so rather than claiming full
+verification.
 
 ## Set it up
 
@@ -132,7 +136,8 @@ catch it, and curate the body with `gh release edit "$TAG" --notes-file NOTES.md
 
 1. Default branch protected; PRs required.
 2. Every change is a PR with a clear title.
-3. Labels applied (`bug`, `enhancement`, `breaking-change`, …).
+3. Labels applied (`bug`, `enhancement`, `breaking-change`, …) and present on the
+   repo, so `release-labels` passes.
 4. `.github/release.yml` present and matching those labels.
 5. CI creates the tag and runs `gh release create … --generate-notes`.
 6. `outbound doctor --json` reports `"ok": true`.

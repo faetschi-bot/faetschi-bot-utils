@@ -1,11 +1,14 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { analyzeReleaseConfig } from './release-config.mjs';
 
 export const RELEASE_CONFIG_PATHS = ['.github/release.yml', '.github/release.yaml'];
 export const RELEASE_CONFIG_DEFAULT = '.github/release.yml';
 export const WORKFLOWS_DIR = '.github/workflows';
 export const RELEASE_MARKERS = /gh release create|action-gh-release|--generate-notes|generate_release_notes/;
+// A workflow that creates a GitHub Release needs write access to repo contents.
+const WRITE_PERMISSIONS = /contents:\s*['"]?write['"]?|permissions:\s*write-all/;
 
 export function releaseConfigTemplate() {
   return `# .github/release.yml - shapes the auto-generated GitHub Release notes.
@@ -61,15 +64,16 @@ export function findReleaseConfig(dir) {
   return null;
 }
 
-export function findReleaseWorkflow(dir) {
+export function findReleaseWorkflows(dir) {
   const wfDir = join(dir, WORKFLOWS_DIR);
-  if (!existsSync(wfDir)) return null;
+  if (!existsSync(wfDir)) return [];
   let entries;
   try {
     entries = readdirSync(wfDir);
   } catch {
-    return null;
+    return [];
   }
+  const found = [];
   for (const name of entries) {
     if (!/\.ya?ml$/.test(name)) continue;
     let text;
@@ -78,9 +82,13 @@ export function findReleaseWorkflow(dir) {
     } catch {
       continue;
     }
-    if (RELEASE_MARKERS.test(text)) return `${WORKFLOWS_DIR}/${name}`;
+    if (RELEASE_MARKERS.test(text)) found.push(`${WORKFLOWS_DIR}/${name}`);
   }
-  return null;
+  return found;
+}
+
+export function findReleaseWorkflow(dir) {
+  return findReleaseWorkflows(dir)[0] ?? null;
 }
 
 export function matchingTags(dir, prefix) {
@@ -89,68 +97,126 @@ export function matchingTags(dir, prefix) {
   return r.stdout.split('\n').map((s) => s.trim()).filter(Boolean);
 }
 
-export function checkPullRequestPolicy(dir) {
-  const version = gh(dir, ['--version']);
-  if (version.status !== 0) {
-    return {
-      ok: true,
-      skipped: true,
-      detail: 'gh not installed',
-      hint: 'Install the GitHub CLI to verify branch protection.',
-    };
+// Resolve the GitHub remote + default branch once, shared by the remote checks.
+// Mirrors the old pr-only behavior: unavailable or unauthenticated gh is not a
+// failure, it is a skip, so the tool is useful without network access.
+export function githubContext(dir) {
+  if (gh(dir, ['--version']).status !== 0) {
+    return { ok: false, detail: 'gh not installed', hint: 'Install the GitHub CLI to run the remote checks.' };
   }
   const repo = gh(dir, ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner']);
   if (repo.status !== 0) {
-    return {
-      ok: true,
-      skipped: true,
-      detail: 'no GitHub remote, or gh not authenticated',
-      hint: 'Run in a GitHub repo after: gh auth login',
-    };
+    return { ok: false, detail: 'no GitHub remote, or gh not authenticated', hint: 'Run in a GitHub repo after: gh auth login' };
   }
-  const nwo = repo.stdout.trim();
   const branchRes = gh(dir, ['repo', 'view', '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name']);
   const branch = branchRes.status === 0 && branchRes.stdout.trim() ? branchRes.stdout.trim() : 'main';
-  const protection = gh(dir, ['api', `repos/${nwo}/branches/${branch}/protection`]);
+  return { ok: true, nwo: repo.stdout.trim(), branch };
+}
+
+export function checkPullRequestPolicy(dir, context) {
+  let ctx = context;
+  if (!ctx || !ctx.ok) {
+    ctx = ctx || githubContext(dir);
+    if (!ctx.ok) return { ok: true, skipped: true, detail: ctx.detail, hint: ctx.hint };
+  }
+  const protection = gh(dir, ['api', `repos/${ctx.nwo}/branches/${ctx.branch}/protection`]);
   if (protection.status === 0) {
-    return { ok: true, skipped: false, detail: `${nwo}@${branch} is protected`, hint: '' };
+    return { ok: true, skipped: false, detail: `${ctx.nwo}@${ctx.branch} is protected`, hint: '' };
   }
   const err = `${protection.stdout}\n${protection.stderr}`;
   if (/404|branch not protected|not found/i.test(err)) {
     return {
       ok: false,
       skipped: false,
-      detail: `${nwo}@${branch} has no branch protection`,
-      hint: `Require pull requests on ${branch} so history stays PR-based.`,
+      detail: `${ctx.nwo}@${ctx.branch} has no branch protection`,
+      hint: `Require pull requests on ${ctx.branch} so history stays PR-based.`,
     };
   }
   return {
     ok: true,
     skipped: true,
     detail: 'cannot read branch protection (needs admin)',
-    hint: `Verify manually that ${branch} requires pull requests.`,
+    hint: `Verify manually that ${ctx.branch} requires pull requests.`,
   };
 }
 
-export function runChecks({ dir, tagPrefix } = {}) {
+const GENERIC_TITLES =
+  /^(wip|misc|miscellaneous|update|updates|change|changes|fix|fixes|bugfix|hotfix|cleanup|clean-up|refactor|tmp|temp|test|tests|stuff|things)\.?$/i;
+const BRANCH_NAME_TITLE = /^(feat|feature|fix|bug|chore|docs|doc|hotfix|release|refactor)\//i;
+
+// A PR title is the changelog line, so some titles are unusable by definition.
+export function isUnusablePrTitle(pr) {
+  const title = String(pr?.title ?? '').trim();
+  if (!title) return true;
+  if (/^(merge|merging)\b/i.test(title)) return true;
+  if (GENERIC_TITLES.test(title)) return true;
+  if (pr?.headRefName && title.toLowerCase() === String(pr.headRefName).toLowerCase()) return true;
+  if (BRANCH_NAME_TITLE.test(title)) return true;
+  if (/wip\.?$/i.test(title)) return true;
+  return false;
+}
+
+function readReleaseConfig(dir) {
+  const configPath = findReleaseConfig(dir);
+  if (!configPath) return { configPath: null, analysis: null };
+  let analysis;
+  try {
+    analysis = analyzeReleaseConfig(readFileSync(join(dir, configPath), 'utf8'));
+  } catch (e) {
+    analysis = { ok: false, errors: [e.message], categories: [], labels: [], excludeLabels: [] };
+  }
+  return { configPath, analysis };
+}
+
+export function runChecks({ dir, tagPrefix, noRemote = false } = {}) {
   const checks = [];
-  const add = (name, ok, detail, hint = '', skipped = false) =>
-    checks.push({ name, ok, detail, hint, skipped });
+  const add = (name, ok, detail, hint = '', skipped = false) => checks.push({ name, ok, detail, hint, skipped });
+  const skip = (name, detail, hint = '') => checks.push({ name, ok: true, detail, hint, skipped: true });
 
   const inRepo = isGitRepo(dir);
   add('git-repo', inRepo, inRepo ? dir : 'not a git work tree', 'Run outbound inside a git repository.');
   if (!inRepo) return { ok: false, checks };
 
-  const config = findReleaseConfig(dir);
-  add('release-config', Boolean(config), config || 'no .github/release.yml', 'Run: outbound init');
+  const { configPath, analysis } = readReleaseConfig(dir);
+  add('release-config', Boolean(configPath), configPath || 'no .github/release.yml', 'Run: outbound init');
+  if (configPath) {
+    add(
+      'release-config-valid',
+      analysis.ok,
+      analysis.ok ? `${analysis.categories.length} category(ies), catch-all present` : analysis.errors[0],
+      analysis.ok ? '' : analysis.errors.join(' '),
+    );
+  } else {
+    skip('release-config-valid', 'no config to validate');
+  }
 
-  const workflow = findReleaseWorkflow(dir);
+  const workflows = findReleaseWorkflows(dir);
+  const workflow = workflows[0] ?? null;
   add(
     'release-workflow',
     Boolean(workflow),
     workflow || 'no workflow that creates releases',
     'Add a workflow that runs "gh release create --generate-notes" on merge.',
   );
+  if (workflows.length > 0) {
+    const offenders = workflows.filter((p) => {
+      try {
+        return !WRITE_PERMISSIONS.test(readFileSync(join(dir, p), 'utf8'));
+      } catch {
+        return true;
+      }
+    });
+    add(
+      'release-workflow-write',
+      offenders.length === 0,
+      offenders.length
+        ? `${offenders.join(', ')} do not grant "contents: write"`
+        : `${workflows.length} release workflow(s) grant "contents: write"`,
+      offenders.length ? 'Add a "contents: write" permission so the release step can create the GitHub Release.' : '',
+    );
+  } else {
+    skip('release-workflow-write', 'no release workflow to inspect');
+  }
 
   if (tagPrefix) {
     const tags = matchingTags(dir, tagPrefix);
@@ -162,10 +228,93 @@ export function runChecks({ dir, tagPrefix } = {}) {
     );
   }
 
-  const pr = checkPullRequestPolicy(dir);
+  if (noRemote) {
+    skip('release-labels', 'disabled by --no-remote', 'Re-run without --no-remote (needs: gh auth login).');
+    skip('pr-titles', 'disabled by --no-remote', 'Re-run without --no-remote (needs: gh auth login).');
+    skip('pr-only', 'disabled by --no-remote', 'Re-run without --no-remote (needs: gh auth login).');
+    return { ok: checks.every((c) => c.ok), checks };
+  }
+
+  const ctx = githubContext(dir);
+  if (!ctx.ok) {
+    skip('release-labels', ctx.detail, ctx.hint);
+    skip('pr-titles', ctx.detail, ctx.hint);
+  } else {
+    addReleaseLabelsCheck(dir, ctx, configPath, analysis, add, skip);
+    addPrTitlesCheck(dir, ctx, add, skip);
+  }
+
+  const pr = checkPullRequestPolicy(dir, ctx);
   add('pr-only', pr.ok, pr.detail, pr.hint, pr.skipped);
 
   return { ok: checks.every((c) => c.ok), checks };
+}
+
+function addReleaseLabelsCheck(dir, ctx, configPath, analysis, add, skip) {
+  if (!configPath || !analysis || !analysis.ok) {
+    skip('release-labels', 'release config missing or invalid');
+    return;
+  }
+  const referenced = [...new Set([...analysis.labels, ...analysis.excludeLabels])].filter((l) => l && l !== '*');
+  if (referenced.length === 0) {
+    skip('release-labels', 'no labels referenced in the config');
+    return;
+  }
+  const listed = gh(dir, ['label', 'list', '-R', ctx.nwo, '--limit', '200', '--json', 'name', '-q', '.[].name']);
+  if (listed.status !== 0) {
+    skip('release-labels', 'could not list repo labels', 'Check gh authentication and access.');
+    return;
+  }
+  const have = new Set(listed.stdout.split('\n').map((s) => s.trim()).filter(Boolean));
+  const missing = referenced.filter((l) => !have.has(l));
+  add(
+    'release-labels',
+    missing.length === 0,
+    missing.length
+      ? `labels not on the repo: ${missing.join(', ')}`
+      : `${referenced.length} referenced label(s) exist on the repo`,
+    missing.length ? 'Create them so those PRs are not silently dropped into "Other Changes" (Settings -> Labels).' : '',
+  );
+}
+
+function addPrTitlesCheck(dir, ctx, add, skip) {
+  const prs = gh(dir, [
+    'pr',
+    'list',
+    '-R',
+    ctx.nwo,
+    '--state',
+    'merged',
+    '--limit',
+    '10',
+    '--json',
+    'number,title,headRefName',
+  ]);
+  if (prs.status !== 0) {
+    skip('pr-titles', 'could not list merged PRs', 'Check gh authentication and access.');
+    return;
+  }
+  let parsed = [];
+  try {
+    parsed = JSON.parse(prs.stdout);
+  } catch {
+    parsed = [];
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    add('pr-titles', true, 'no merged PRs to inspect');
+    return;
+  }
+  const bad = parsed.filter(isUnusablePrTitle);
+  add(
+    'pr-titles',
+    bad.length === 0,
+    bad.length
+      ? `${bad.length}/${parsed.length} recent merged PR titles are not changelog lines: ${bad
+          .map((p) => `#${p.number} "${p.title}"`)
+          .join(', ')}`
+      : `${parsed.length} recent merged PR titles look usable`,
+    'Write titles as the user-facing changelog line (see the one rule in AGENTS.md).',
+  );
 }
 
 export function writeReleaseConfig(dir, { force = false } = {}) {
