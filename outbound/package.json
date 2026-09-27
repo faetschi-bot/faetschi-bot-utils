@@ -1,6 +1,6 @@
 {
   "name": "outbound",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Clean, PR-based release changelogs: verify a repo's release hygiene and scaffold GitHub release categories.",
   "keywords": [
     "release",
@@ -38,7 +38,7 @@
   },
   "scripts": {
     "test": "node --test test/",
-    "prepack": "node --check bin/outbound.mjs && node --check lib/checks.mjs",
-    "prepublishOnly": "node --check bin/outbound.mjs && node --check lib/checks.mjs"
+    "prepack": "node --check bin/outbound.mjs && node --check lib/checks.mjs && node --check lib/release-config.mjs",
+    "prepublishOnly": "node --check bin/outbound.mjs && node --check lib/checks.mjs && node --check lib/release-config.mjs"
   }
 }

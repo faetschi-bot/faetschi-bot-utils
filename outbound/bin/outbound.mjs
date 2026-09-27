@@ -19,13 +19,16 @@ Usage:
 Options:
   --repo <path>        repository to check or configure (default: cwd, resolved to the git root)
   --tag-prefix <p>     also verify tags named <p><version> exist
+  --no-remote          skip the checks that call GitHub via gh
   --force              overwrite an existing release config (init only)
   --json               print a machine-readable result object
   --help               show this help
 
 outbound inspects the current repo and reports whether GitHub can produce a
-clean changelog from it: is .github/release.yml present, does a workflow create
-releases with --generate-notes, and does the default branch require PRs.
+clean changelog from it: is .github/release.yml present and valid, does a
+workflow create releases with --generate-notes and "contents: write", do the
+labels it references exist on the repo, do recent merged PR titles read as
+changelog lines, and does the default branch require PRs.
 
 Exit code is 0 when every check passes (or is skipped), 1 when any fails.`);
 }
@@ -45,6 +48,7 @@ function parse(argv) {
     };
     if (a === '--repo') o.repo = val();
     else if (a === '--tag-prefix') o.tagPrefix = val();
+    else if (a === '--no-remote') o.noRemote = true;
     else if (a === '--force') o.force = true;
     else if (a === '--json') o.json = true;
     else if (a === '--help' || a === '-h') o.help = true;
@@ -55,7 +59,7 @@ function parse(argv) {
 
 function runDoctor(opts) {
   const dir = repoRoot(resolve(opts.repo || process.cwd()));
-  const { ok, checks } = runChecks({ dir, tagPrefix: opts.tagPrefix });
+  const { ok, checks } = runChecks({ dir, tagPrefix: opts.tagPrefix, noRemote: opts.noRemote });
   const skipped = checks.filter((c) => c.skipped).length;
 
   if (opts.json) {

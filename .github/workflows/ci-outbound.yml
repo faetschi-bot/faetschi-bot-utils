@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check bin/outbound.mjs && node --check lib/checks.mjs
+        run: node --check bin/outbound.mjs && node --check lib/checks.mjs && node --check lib/release-config.mjs
       - name: Tests
         run: npm test
       - name: Pack check

@@ -101,7 +101,7 @@ test('doctor --json passes once config and release workflow exist', () => {
     mkdirSync(wf, { recursive: true });
     writeFileSync(
       join(wf, 'release.yml'),
-      'on:\n  push:\n    branches: [main]\njobs:\n  release:\n    steps:\n      - run: gh release create "$TAG" --generate-notes\n',
+      'on:\n  push:\n    branches: [main]\npermissions:\n  contents: write\njobs:\n  release:\n    steps:\n      - run: gh release create "$TAG" --generate-notes\n',
     );
     const r = run(['doctor', '--json', '--repo', dir]);
     const parsed = JSON.parse(r.stdout);
@@ -123,6 +123,75 @@ test('doctor from a subdirectory resolves to the git root', () => {
     const parsed = JSON.parse(r.stdout);
     assert.equal(realpathSync(parsed.dir), realpathSync(dir));
     assert.ok(parsed.checks.some((c) => c.name === 'release-config' && c.ok === true));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function validWorkflow(dir) {
+  const wf = join(dir, '.github/workflows');
+  mkdirSync(wf, { recursive: true });
+  writeFileSync(
+    join(wf, 'release.yml'),
+    'on:\n  push:\n    branches: [main]\npermissions:\n  contents: write\njobs:\n  release:\n    steps:\n      - run: gh release create "$TAG" --generate-notes\n',
+  );
+}
+
+test('doctor fails when release.yml is structurally invalid', () => {
+  const dir = tempRepo();
+  try {
+    run(['init', '--repo', dir]);
+    validWorkflow(dir);
+    writeFileSync(
+      join(dir, '.github/release.yml'),
+      'changelog:\n  categories:\n    - title: Features\n      labels: [enhancement]\n',
+    );
+    const r = run(['doctor', '--json', '--repo', dir]);
+    assert.equal(r.status, 1);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, false);
+    const check = parsed.checks.find((c) => c.name === 'release-config-valid');
+    assert.equal(check.ok, false);
+    assert.match(check.hint, /catch-all/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('doctor fails when the release workflow cannot write contents', () => {
+  const dir = tempRepo();
+  try {
+    run(['init', '--repo', dir]);
+    const wf = join(dir, '.github/workflows');
+    mkdirSync(wf, { recursive: true });
+    writeFileSync(
+      join(wf, 'release.yml'),
+      'on:\n  push:\n    branches: [main]\njobs:\n  release:\n    steps:\n      - run: gh release create "$TAG" --generate-notes\n',
+    );
+    const r = run(['doctor', '--json', '--repo', dir]);
+    assert.equal(r.status, 1);
+    const parsed = JSON.parse(r.stdout);
+    const check = parsed.checks.find((c) => c.name === 'release-workflow-write');
+    assert.equal(check.ok, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--no-remote skips every gh-based check', () => {
+  const dir = tempRepo();
+  try {
+    run(['init', '--repo', dir]);
+    validWorkflow(dir);
+    const r = run(['doctor', '--json', '--no-remote', '--repo', dir]);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, true);
+    for (const name of ['release-labels', 'pr-titles', 'pr-only']) {
+      const check = parsed.checks.find((c) => c.name === name);
+      assert.equal(check.skipped, true, `${name} should be skipped`);
+      assert.match(check.detail, /--no-remote/);
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
