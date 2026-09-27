@@ -15,13 +15,13 @@ import {
   WORKFLOW_DIR,
   WORKFLOW_FILE,
 } from './constants.mjs';
-import { DEFAULT_PROVIDER, getProvider, PROVIDERS } from './providers.mjs';
+import { DEFAULT_PROVIDER, getProvider, PROVIDERS, providerNames } from './providers.mjs';
 import { REPOSITORY } from './package-info.mjs';
 
 export class ConfigError extends Error {}
 
 const ENV_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 const SECRET_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Built-in defaults for a fresh install, before any config file or flags. */
@@ -81,6 +81,16 @@ export function buildConfig({ existing = null, flags = {}, reusableRepo = REPOSI
     typeof flags.provider === 'string' && flags.provider.length > 0 ? flags.provider : DEFAULT_PROVIDER;
   const base = defaultConfig({ provider: providerName, reusableRepo });
   const chosen = flags.provider ? getProvider(flags.provider) : null;
+  if (flags.provider && !chosen) {
+    const custom =
+      flags.providerEnv !== undefined && flags.providerSecret !== undefined && flags.model !== undefined;
+    if (!custom) {
+      throw new ConfigError(
+        `unknown provider "${flags.provider}"; known providers are ${providerNames().join(', ')}. ` +
+          'For a custom provider pass --provider-env, --provider-secret, and --model together.',
+      );
+    }
+  }
 
   const merged = {
     ...base,
@@ -103,8 +113,9 @@ export function buildConfig({ existing = null, flags = {}, reusableRepo = REPOSI
   if (flags.reusableRepo !== undefined) merged.workflow.reusableRepo = flags.reusableRepo;
   if (flags.standalone !== undefined) merged.standalone = flags.standalone;
 
-  // Switching provider on a fresh setup also switches the default env/secret/model.
-  if (chosen && existing === null) {
+  // An explicit --provider switches the default env/secret/model; explicit
+  // flags win, and it applies to updates too (not only fresh setups).
+  if (chosen) {
     if (flags.providerEnv === undefined) merged.provider.env = chosen.env;
     if (flags.providerSecret === undefined) merged.provider.secret = chosen.secret;
     if (flags.model === undefined) merged.model = chosen.model;
