@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { CONFIG_FILE, TOOL_NAME } from './constants.mjs';
-import { buildConfig, readConfig, validateConfig } from './config.mjs';
+import { buildConfig, readConfig, validateConfig, wantsStandalone } from './config.mjs';
 import { renderCaller, renderStandalone } from './render.mjs';
 import { gitRoot, repoSlug } from './repo.mjs';
 import { VERSION } from './package-info.mjs';
@@ -99,7 +99,7 @@ export function runChecks({ dir, flags = {}, noRemote = false }) {
   );
 
   if (existsSync(workflowPath)) {
-    const expected = (config.standalone ? renderStandalone : renderCaller)(config);
+    const expected = (wantsStandalone(config) ? renderStandalone : renderCaller)(config);
     const actual = readFileSync(workflowPath, 'utf8');
     // The first line is a version marker; compare the rest so a tool version
     // bump alone does not read as a hand edit.
@@ -157,6 +157,24 @@ export function runChecks({ dir, flags = {}, noRemote = false }) {
         : check('writes', true, WARNING, 'comment-only: the agent cannot push code'),
   );
 
+  checks.push(
+    config.restrictAgent
+      ? check('restrict-agent', true, WARNING, 'restricted agent injected: no shell, web, or env reads')
+      : check('restrict-agent', false, WARNING, 'restricted agent disabled: the agent can run shell and web', {
+          hint: 'remove --no-restrict-agent',
+        }),
+  );
+
+  if (!config.allowWrites) {
+    checks.push(check('write-gate', true, WARNING, 'not needed: the agent is comment-only'));
+  } else if (config.writeEnvironment) {
+    checks.push(check('write-gate', true, WARNING, `writes gated by environment "${config.writeEnvironment}"`));
+  } else {
+    checks.push(check('write-gate', false, WARNING, 'writes are not gated by an environment', {
+      hint: 'use --write-environment to require approval and scope the write token',
+    }));
+  }
+
   const skipped = runRemoteChecks(checks, { slug: slug?.slug ?? null, config, noRemote });
   const ok = checks.every((entry) => entry.ok || entry.severity !== ERROR);
   return { ok, dir: root, checks, skipped };
@@ -204,6 +222,28 @@ function runRemoteChecks(checks, { slug, config, noRemote }) {
         ? check('actions', true, ERROR, 'GitHub Actions is enabled')
         : check('actions', false, ERROR, 'GitHub Actions is disabled for this repository'),
     );
+  }
+
+  if (config.allowWrites && config.writeEnvironment) {
+    const name = config.writeEnvironment;
+    const environment = ghJson(['api', `repos/${slug}/environments/${name}`]);
+    if (!environment.ok) {
+      checks.push(
+        check('write-environment', false, ERROR, `environment "${name}" not found`, {
+          hint: 'create it under Settings → Environments, add required reviewers, and put the write token there',
+        }),
+      );
+    } else {
+      const envSecrets = ghJson(['api', `repos/${slug}/environments/${name}/secrets`, '--jq', '[.secrets[].name]']);
+      const missing = envSecrets.ok ? required.filter((s) => !envSecrets.value.includes(s)) : required;
+      checks.push(
+        missing.length === 0
+          ? check('write-environment', true, ERROR, `environment "${name}" exists with its secrets`)
+          : check('write-environment', true, WARNING, `environment "${name}" exists; move ${missing.join(', ')} to environment secrets`, {
+              hint: 'environment secrets are only readable after the approval rules pass',
+            }),
+      );
+    }
   }
 
   return skipped;

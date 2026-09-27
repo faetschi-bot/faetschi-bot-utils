@@ -32,6 +32,10 @@ on:
         description: "Let the agent commit and push. Off keeps the agent comment-only."
         type: boolean
         default: false
+      restrict-agent:
+        description: "Inject a restricted agent that denies shell, web, and env reads."
+        type: boolean
+        default: true
       self-login:
         description: "Login to ignore so the agent never answers itself."
         type: string
@@ -96,6 +100,21 @@ jobs:
           fetch-depth: 1
           persist-credentials: ${{ inputs.allow-writes }}
           token: ${{ inputs.identity == 'pat' && secrets.token || github.token }}
+
+      - name: Constrain the agent
+        if: inputs['restrict-agent']
+        shell: bash
+        env:
+          ALLOW_EDITS: ${{ inputs.allow-writes }}
+          CONFIG_PATH: ${{ runner.temp }}/mention-agent/opencode.jsonc
+        run: |
+          mkdir -p "$(dirname "$CONFIG_PATH")"
+          if [ "$ALLOW_EDITS" = "true" ]; then
+            printf '%s\n' '{"default_agent":"mention-agent","agents":{"build":{"permissions":[{"action":"*","resource":"*","effect":"deny"},{"action":"read","resource":"*","effect":"allow"},{"action":"glob","resource":"*","effect":"allow"},{"action":"grep","resource":"*","effect":"allow"},{"action":"edit","resource":"*","effect":"allow"},{"action":"read","resource":"*.env","effect":"deny"},{"action":"read","resource":"*.env.*","effect":"deny"}]},"mention-agent":{"mode":"primary","permissions":[{"action":"*","resource":"*","effect":"deny"},{"action":"read","resource":"*","effect":"allow"},{"action":"glob","resource":"*","effect":"allow"},{"action":"grep","resource":"*","effect":"allow"},{"action":"edit","resource":"*","effect":"allow"},{"action":"read","resource":"*.env","effect":"deny"},{"action":"read","resource":"*.env.*","effect":"deny"}]}}}' > "$CONFIG_PATH"
+          else
+            printf '%s\n' '{"default_agent":"mention-agent","agents":{"build":{"permissions":[{"action":"*","resource":"*","effect":"deny"},{"action":"read","resource":"*","effect":"allow"},{"action":"glob","resource":"*","effect":"allow"},{"action":"grep","resource":"*","effect":"allow"},{"action":"edit","resource":"*","effect":"deny"},{"action":"read","resource":"*.env","effect":"deny"},{"action":"read","resource":"*.env.*","effect":"deny"}]},"mention-agent":{"mode":"primary","permissions":[{"action":"*","resource":"*","effect":"deny"},{"action":"read","resource":"*","effect":"allow"},{"action":"glob","resource":"*","effect":"allow"},{"action":"grep","resource":"*","effect":"allow"},{"action":"edit","resource":"*","effect":"deny"},{"action":"read","resource":"*.env","effect":"deny"},{"action":"read","resource":"*.env.*","effect":"deny"}]}}}' > "$CONFIG_PATH"
+          fi
+          echo "OPENCODE_CONFIG=$CONFIG_PATH" >> "$GITHUB_ENV"
 
       - name: Run the mention agent
         uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a # github-v1.2.19

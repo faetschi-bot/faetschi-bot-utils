@@ -19,6 +19,11 @@ export const VERSION_REF = `${TOOL_NAME}-v1`;
 export const DEFAULT_TOKEN_SECRET = 'MENTION_AGENT_TOKEN';
 export const DEFAULT_AGENT = 'build';
 
+// The restricted agent injected at run time (Lever 1). It is defined in a config
+// file the workflow writes before the agent action runs, so the repository's own
+// local default is untouched.
+export const RESTRICTED_AGENT = 'mention-agent';
+
 // Third-party actions invoked by the generated workflow. The reusable workflow
 // is the single place these are named, so target repositories never carry them.
 // The agent action is pinned to a reviewed commit so a moved tag cannot change

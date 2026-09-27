@@ -7,11 +7,11 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { CONFIG_FILE } from './constants.mjs';
-import { ConfigError, buildConfig, readConfig, serializeConfig, validateConfig } from './config.mjs';
+import { ConfigError, buildConfig, readConfig, serializeConfig, validateConfig, wantsStandalone } from './config.mjs';
 import { renderCaller, renderStandalone } from './render.mjs';
 
 function renderWorkflow(config) {
-  return config.standalone ? renderStandalone(config) : renderCaller(config);
+  return wantsStandalone(config) ? renderStandalone(config) : renderCaller(config);
 }
 
 function assertValid(config) {

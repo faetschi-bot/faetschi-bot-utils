@@ -13,6 +13,7 @@ import {
   AGENT_ACTION_NOTE,
   CHECKOUT_ACTION,
   GENERATED_MARKER,
+  RESTRICTED_AGENT,
   TOOL_NAME,
 } from './constants.mjs';
 import { VERSION } from './package-info.mjs';
@@ -33,6 +34,53 @@ const exprString = (value) => `'${String(value).replace(/'/g, "''")}'`;
 // model call; the action still enforces admin/write a second time.
 const ASSOCIATIONS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
 const ASSOCIATIONS_EXPR = exprString(JSON.stringify(ASSOCIATIONS));
+
+/**
+ * The restricted agent config injected for the run (Lever 1). It removes the
+ * tools an injected prompt would need to exfiltrate secrets or act: shell,
+ * web, and subagents are denied, `.env` reads are denied, and edits are allowed
+ * only when writes are enabled. `build` is restricted too, so the fallback
+ * agent cannot escape the policy if `default_agent` is overridden.
+ */
+function restrictedAgentJson(allowEdits) {
+  const permissions = [
+    { action: '*', resource: '*', effect: 'deny' },
+    { action: 'read', resource: '*', effect: 'allow' },
+    { action: 'glob', resource: '*', effect: 'allow' },
+    { action: 'grep', resource: '*', effect: 'allow' },
+    { action: 'edit', resource: '*', effect: allowEdits ? 'allow' : 'deny' },
+    { action: 'read', resource: '*.env', effect: 'deny' },
+    { action: 'read', resource: '*.env.*', effect: 'deny' },
+  ];
+  return JSON.stringify({
+    default_agent: RESTRICTED_AGENT,
+    agents: {
+      build: { permissions },
+      [RESTRICTED_AGENT]: { mode: 'primary', permissions },
+    },
+  });
+}
+
+function constrainSteps(bind) {
+  if (!bind.constrain) return [];
+  return [
+    '      - name: Constrain the agent',
+    ...(bind.constrainIf ? [`        if: ${bind.constrainIf}`] : []),
+    '        shell: bash',
+    '        env:',
+    `          ALLOW_EDITS: ${bind.allowEditsEnv}`,
+    '          CONFIG_PATH: ${{ runner.temp }}/mention-agent/opencode.jsonc',
+    '        run: |',
+    '          mkdir -p "$(dirname "$CONFIG_PATH")"',
+    '          if [ "$ALLOW_EDITS" = "true" ]; then',
+    `            printf '%s\\n' '${restrictedAgentJson(true)}' > "$CONFIG_PATH"`,
+    '          else',
+    `            printf '%s\\n' '${restrictedAgentJson(false)}' > "$CONFIG_PATH"`,
+    '          fi',
+    '          echo "OPENCODE_CONFIG=$CONFIG_PATH" >> "$GITHUB_ENV"',
+    '',
+  ];
+}
 
 function marker() {
   return `${GENERATED_MARKER} v${VERSION} - edit ${'.mention-agent.json'} and run "mention-agent update".`;
@@ -151,6 +199,7 @@ function agentSteps(bind) {
     `          persist-credentials: ${bind.persist}`,
     `          token: ${bind.checkoutToken}`,
     '',
+    ...constrainSteps(bind),
     '      - name: Run the mention agent',
     `        uses: ${AGENT_ACTION} # ${AGENT_ACTION_NOTE}`,
     '        env:',
@@ -202,9 +251,10 @@ export function renderCaller(config) {
   lines.push('    with:');
   lines.push(`      mention: ${q(config.mention)}`);
   lines.push(`      model: ${q(config.model)}`);
-  lines.push(`      agent: ${q(config.agent)}`);
+  lines.push(`      agent: ${q(config.restrictAgent ? RESTRICTED_AGENT : config.agent)}`);
   lines.push(`      share: ${yamlBool(config.share)}`);
   lines.push(`      allow-writes: ${yamlBool(config.allowWrites)}`);
+  lines.push(`      restrict-agent: ${yamlBool(config.restrictAgent)}`);
   lines.push(`      allow-users: ${q(allowUsers)}`);
   lines.push(`      self-login: ${q(config.selfLogin)}`);
   lines.push(`      provider-env: ${q(config.provider.env)}`);
@@ -237,10 +287,13 @@ export function renderStandalone(config) {
     tokenCheck: isPat ? { emit: true, if: null } : { emit: false },
     persist: yamlBool(config.allowWrites),
     model: q(config.model),
-    agent: q(config.agent),
+    agent: q(config.restrictAgent ? RESTRICTED_AGENT : config.agent),
     mention: q(config.mention),
     share: yamlBool(config.share),
     useGithubToken: isPat ? 'true' : 'false',
+    constrain: config.restrictAgent,
+    constrainIf: null,
+    allowEditsEnv: yamlBool(config.allowWrites),
   };
   const lines = [
     marker(),
@@ -258,6 +311,9 @@ export function renderStandalone(config) {
     '    runs-on: ubuntu-latest',
     '    timeout-minutes: 30',
     ...concurrencyBlock(4),
+    ...(config.writeEnvironment
+      ? ['    environment:', `      name: ${q(config.writeEnvironment)}`]
+      : []),
     ...callerJobPermissions(config.identity),
     '    steps:',
     ...agentSteps(bind),
@@ -285,6 +341,9 @@ export function renderReusable() {
     mention: '${{ inputs.mention }}',
     share: '${{ inputs.share }}',
     useGithubToken: "${{ inputs.identity == 'pat' }}",
+    constrain: true,
+    constrainIf: "inputs['restrict-agent']",
+    allowEditsEnv: '${{ inputs.allow-writes }}',
   };
   return [
     `${GENERATED_MARKER} v${VERSION} - run "npm run sync-reusable" in mention-agent/ after editing lib/render.mjs.`,
@@ -321,6 +380,10 @@ export function renderReusable() {
     '        description: "Let the agent commit and push. Off keeps the agent comment-only."',
     '        type: boolean',
     '        default: false',
+    '      restrict-agent:',
+    '        description: "Inject a restricted agent that denies shell, web, and env reads."',
+    '        type: boolean',
+    '        default: true',
     '      self-login:',
     '        description: "Login to ignore so the agent never answers itself."',
     '        type: string',

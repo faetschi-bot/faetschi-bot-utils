@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve } from 'node:path';
 import { CONFIG_FILE, TOOL_NAME } from '../lib/constants.mjs';
-import { ConfigError } from '../lib/config.mjs';
+import { ConfigError, wantsStandalone } from '../lib/config.mjs';
 import { applyFiles, planSetup, planUpdate, resolveConfig } from '../lib/adoption.mjs';
 import { runChecks } from '../lib/checks.mjs';
 import { renderCaller, renderStandalone } from '../lib/render.mjs';
@@ -42,6 +42,8 @@ Options:
   --reusable-repo <o/r>    repo hosting the shared workflow (default: this tool's repo)
   --standalone             render a self-contained workflow instead of calling the shared one
   --allow-writes           let the agent commit and push (default: comment-only)
+  --write-environment <n>  gate writes behind environment <n> (requires --allow-writes)
+  --no-restrict-agent      do not inject the restricted agent (allows shell and web)
   --allow-any-writer       allow any write-access user to trigger (default: require --allow-users)
   --share                  publish the agent session (default: off)
   --no-share               do not publish the agent session (default)
@@ -93,6 +95,8 @@ function parse(argv) {
     else if (a === '--reusable-repo') o.reusableRepo = val();
     else if (a === '--standalone') o.standalone = true;
     else if (a === '--allow-writes') o.allowWrites = true;
+    else if (a === '--write-environment') o.writeEnvironment = val();
+    else if (a === '--no-restrict-agent') o.restrictAgent = false;
     else if (a === '--allow-any-writer') o.allowAnyWriter = true;
     else if (a === '--share') o.share = true;
     else if (a === '--no-share') o.share = false;
@@ -172,7 +176,7 @@ function runPrint(opts) {
   const base = resolve(opts.repo || process.cwd());
   const dir = gitRoot(base) || base;
   const config = resolveConfig(dir, opts);
-  process.stdout.write(config.standalone ? renderStandalone(config) : renderCaller(config));
+  process.stdout.write(wantsStandalone(config) ? renderStandalone(config) : renderCaller(config));
 }
 
 function runDoctor(opts) {
