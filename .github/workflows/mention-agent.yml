@@ -50,12 +50,35 @@ permissions:
 jobs:
   agent:
     if: >
-      github.event.comment != null && !endsWith(github.event.comment.user.login, '[bot]') && contains(github.event.comment.body, inputs.mention) && (inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login']) && (inputs['allow-users'] == '' || contains(fromJSON(inputs['allow-users']), github.event.comment.user.login))
+      github.event.comment != null && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) && !endsWith(github.event.comment.user.login, '[bot]') && contains(github.event.comment.body, inputs.mention) && (inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login']) && (inputs['allow-users'] == '' || contains(fromJSON(inputs['allow-users']), github.event.comment.user.login))
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: mention-agent-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
     steps:
+      - name: Verify provider credential
+        shell: bash
+        env:
+          PROVIDER_KEY: ${{ secrets.provider-key }}
+        run: |
+          if [ -z "$PROVIDER_KEY" ]; then
+            echo "provider credential is empty; set the provider secret"
+            exit 1
+          fi
+      - name: Verify token
+        if: inputs.identity == 'pat'
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.token }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "GitHub token is empty; set the token secret"
+            exit 1
+          fi
       - name: Export the provider credential
         shell: bash
         env:
@@ -67,10 +90,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
+          token: ${{ inputs.identity == 'pat' && secrets.token || github.token }}
 
       - name: Run the mention agent
-        uses: anomalyco/opencode/github@latest
+        uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a # github-v1.2.19
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
         with:
