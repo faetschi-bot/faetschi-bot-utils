@@ -60,6 +60,49 @@ agent** that has no shell, no web access, and cannot read `.env` files. Add
 `--allow-writes` only if you want the agent to commit, and pair it with
 `--write-environment` to require an approval.
 
+### TL;DR
+
+Install it in a repository:
+
+```bash
+npx mention-agent setup \
+  --mention @your-bot \
+  --allow-users alice,bob
+```
+
+Only `alice` and `bob` can trigger it. A user must also be a repository
+`OWNER`, `MEMBER`, or `COLLABORATOR` with GitHub write/admin access. Bots and the
+configured bot account are ignored.
+
+When an allowed user comments:
+
+```text
+@your-bot review this PR
+```
+
+the agent reads the repository and PR/issue context, uses the configured AI
+provider, and posts or updates a GitHub comment. By default it can use `read`,
+`grep`, and `glob`, but **cannot** edit files, commit, push, run shell commands,
+access web search/URLs, launch subagents, use MCP tools, or read `.env` files or
+environment variables.
+
+To enable changes and verification commands:
+
+```bash
+npx mention-agent setup \
+  --mention @your-bot \
+  --allow-users alice,bob \
+  --allow-writes \
+  --write-environment mention-agent-writes
+```
+
+Write mode allows the agent to edit files, run curated test/build/lint/package
+commands, and commit or push to a PR branch. Environment-gated writes require
+GitHub Environment approval before credentials are available.
+
+The allowlist contains actual GitHub login names, not display names or comment
+text. To change it, update `.mention-agent.json` and run `npx mention-agent update`.
+
 ### Secure setup checklist
 
 Do these before the first mention. `setup` prints the same list, tailored to
