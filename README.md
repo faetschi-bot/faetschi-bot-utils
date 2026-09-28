@@ -5,7 +5,6 @@ Small, reusable utilities by [@faetschi-bot](https://github.com/faetschi-bot).
 [![Last commit](https://img.shields.io/github/last-commit/faetschi-bot/faetschi-bot-utils?branch=main&label=last%20commit)](https://github.com/faetschi-bot/faetschi-bot-utils/commits/main)
 [![License](https://img.shields.io/github/license/faetschi-bot/faetschi-bot-utils?color=blue)](./LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-blue.svg)](./SECURITY.md)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/faetschi-bot/faetschi-bot-utils/pulls)
 [![Contributing](https://img.shields.io/badge/contributing-guide-blue.svg)](./CONTRIBUTING.md)
 [![Open issues](https://img.shields.io/github/issues/faetschi-bot/faetschi-bot-utils)](https://github.com/faetschi-bot/faetschi-bot-utils/issues)
 [![Stars](https://img.shields.io/github/stars/faetschi-bot/faetschi-bot-utils?color=eac54f)](https://github.com/faetschi-bot/faetschi-bot-utils/stargazers)
