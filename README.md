@@ -2,12 +2,28 @@
 
 Small, reusable utilities by [@faetschi-bot](https://github.com/faetschi-bot).
 
-| Utility | Description |
-|---------|-------------|
-| [`visual-shot/`](./visual-shot) | Reproducible headless-Chromium screenshots for PR review, with no-root provisioning. |
-| [`outbound/`](./outbound) | Clean, PR-based release changelogs: verify release hygiene and scaffold GitHub release categories. |
-| [`agentic-tools/`](./agentic-tools) | Reusable skills and hooks for AI coding agents (first skill: `test-audit`). |
-| [`mention-agent/`](./mention-agent) | Turn `@mentions` in issues and pull requests into AI agent runs — comment, or commit to the same PR. |
+[![Last commit](https://img.shields.io/github/last-commit/faetschi-bot/faetschi-bot-utils?branch=main&label=last%20commit)](https://github.com/faetschi-bot/faetschi-bot-utils/commits/main)
+[![License](https://img.shields.io/github/license/faetschi-bot/faetschi-bot-utils?color=blue)](./LICENSE)
+[![Security policy](https://img.shields.io/badge/security-policy-blue.svg)](./SECURITY.md)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/faetschi-bot/faetschi-bot-utils/pulls)
+[![Contributing](https://img.shields.io/badge/contributing-guide-blue.svg)](./CONTRIBUTING.md)
+[![Open issues](https://img.shields.io/github/issues/faetschi-bot/faetschi-bot-utils)](https://github.com/faetschi-bot/faetschi-bot-utils/issues)
+[![Stars](https://img.shields.io/github/stars/faetschi-bot/faetschi-bot-utils?color=eac54f)](https://github.com/faetschi-bot/faetschi-bot-utils/stargazers)
+
+> **Using an AI coding agent?** Start at [`AGENTS.md`](./AGENTS.md), which links
+> each tool's own agent guide.
+
+## Tools
+
+Each tool is versioned and released independently. The badges link to that
+tool's CI runs and release history, so the table doubles as a status board:
+
+| Utility | Description | CI | Version |
+|---------|-------------|:--:|:-------:|
+| [`visual-shot/`](./visual-shot) | Reproducible headless-Chromium screenshots for PR review, with no-root provisioning. | [![visual-shot CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-visual-shot.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-visual-shot.yml) | [![visual-shot version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fvisual-shot%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=visual-shot) |
+| [`outbound/`](./outbound) | Clean, PR-based release changelogs: verify release hygiene and scaffold GitHub release categories. | [![outbound CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-outbound.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-outbound.yml) | [![outbound version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Foutbound%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=outbound) |
+| [`agentic-tools/`](./agentic-tools) | Reusable skills and hooks for AI coding agents (first skill: `test-audit`). | [![agentic-tools CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-agentic-tools.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-agentic-tools.yml) | [![agentic-tools version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fagentic-tools%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=agentic-tools) |
+| [`mention-agent/`](./mention-agent) | Turn `@mentions` in issues and pull requests into AI agent runs — comment, or commit to the same PR. | [![mention-agent CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-mention-agent.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-mention-agent.yml) | [![mention-agent version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fmention-agent%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=mention-agent) |
 
 Each tool is self-contained. Tools are distributed as **GitHub Release
 tarballs**, so installing or publishing them needs **no npm registry account and
