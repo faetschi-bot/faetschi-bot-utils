@@ -1,0 +1,48 @@
+{
+  "name": "mention-agent",
+  "version": "0.1.0",
+  "description": "Install a GitHub Actions agent that answers @mentions by running an AI coding agent in your repository.",
+  "keywords": [
+    "github",
+    "actions",
+    "mention",
+    "bot",
+    "agent",
+    "opencode",
+    "pull-request",
+    "automation"
+  ],
+  "homepage": "https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/mention-agent#readme",
+  "bugs": {
+    "url": "https://github.com/faetschi-bot/faetschi-bot-utils/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faetschi-bot/faetschi-bot-utils.git",
+    "directory": "mention-agent"
+  },
+  "author": "faetschi-bot",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "mention-agent": "bin/mention-agent.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "sync-reusable": "node scripts/sync-reusable.mjs",
+    "self-check": "node scripts/sync-reusable.mjs --check",
+    "check": "node --check bin/mention-agent.mjs && for f in lib/*.mjs scripts/*.mjs; do node --check \"$f\" || exit 1; done",
+    "prepack": "npm run check",
+    "prepublishOnly": "npm run check"
+  }
+}

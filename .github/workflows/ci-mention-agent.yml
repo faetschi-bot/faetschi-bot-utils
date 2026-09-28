@@ -1,0 +1,57 @@
+name: CI mention-agent
+
+on:
+  pull_request:
+    paths:
+      - 'mention-agent/**'
+      - '.github/workflows/mention-agent.yml'
+      - '.github/workflows/ci-mention-agent.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'mention-agent/**'
+      - '.github/workflows/mention-agent.yml'
+      - '.github/workflows/ci-mention-agent.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mention-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check
+        run: npm run check
+      - name: Tests
+        run: npm test
+      - name: Reusable workflow is in sync
+        run: node scripts/sync-reusable.mjs --check
+      - name: Lint workflows
+        working-directory: ${{ github.workspace }}
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          curl -fsSL -o actionlint.tgz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar xzf actionlint.tgz actionlint
+          mkdir -p .lint
+          node mention-agent/bin/mention-agent.mjs print --mention '@example-bot' --allow-users alice,bob > .lint/caller-pat.yml
+          node mention-agent/bin/mention-agent.mjs print --mention '@example-bot' --identity app > .lint/caller-app.yml
+          node mention-agent/bin/mention-agent.mjs print --mention '@example-bot' --allow-users alice,bob --standalone > .lint/standalone-pat.yml
+          node mention-agent/bin/mention-agent.mjs print --mention '@example-bot' --identity app --standalone > .lint/standalone-app.yml
+          ./actionlint -color \
+            .github/workflows/mention-agent.yml \
+            .github/workflows/ci-mention-agent.yml \
+            .github/workflows/release-mention-agent.yml \
+            .lint/caller-pat.yml .lint/caller-app.yml .lint/standalone-pat.yml .lint/standalone-app.yml
+          rm -rf .lint actionlint actionlint.tgz
+      - name: Pack check
+        run: npm pack --dry-run

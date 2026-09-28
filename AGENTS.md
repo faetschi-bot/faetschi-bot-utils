@@ -11,6 +11,7 @@ its own `AGENTS.md` next to it — start there.
 | [`visual-shot/`](./visual-shot) | [`visual-shot/AGENTS.md`](./visual-shot/AGENTS.md) |
 | [`outbound/`](./outbound) | [`outbound/AGENTS.md`](./outbound/AGENTS.md) |
 | [`agentic-tools/`](./agentic-tools) | [`agentic-tools/AGENTS.md`](./agentic-tools/AGENTS.md) |
+| [`mention-agent/`](./mention-agent) | [`mention-agent/AGENTS.md`](./mention-agent/AGENTS.md) |
 
 ## Golden rules
 
@@ -42,4 +43,9 @@ npx outbound doctor --json
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz
 npx agentic-tools doctor --json
 npx agentic-tools install --all   # copy the skills into .opencode/skills/
+
+# mention-agent
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/mention-agent-latest/mention-agent.tgz
+npx mention-agent setup --mention @example-bot
+npx mention-agent doctor --json
 ```

@@ -7,6 +7,7 @@ Small, reusable utilities by [@faetschi-bot](https://github.com/faetschi-bot).
 | [`visual-shot/`](./visual-shot) | Reproducible headless-Chromium screenshots for PR review, with no-root provisioning. |
 | [`outbound/`](./outbound) | Clean, PR-based release changelogs: verify release hygiene and scaffold GitHub release categories. |
 | [`agentic-tools/`](./agentic-tools) | Reusable skills and hooks for AI coding agents (first skill: `test-audit`). |
+| [`mention-agent/`](./mention-agent) | Turn `@mentions` in issues and pull requests into AI agent runs — comment, or commit to the same PR. |
 
 Each tool is self-contained. Tools are distributed as **GitHub Release
 tarballs**, so installing or publishing them needs **no npm registry account and
@@ -25,6 +26,7 @@ newest release:
 | `visual-shot` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-latest/visual-shot.tgz` | `npx visual-shot setup` |
 | `outbound` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-latest/outbound.tgz` | `npx outbound init` |
 | `agentic-tools` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz` | `npx agentic-tools list` |
+| `mention-agent` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/mention-agent-latest/mention-agent.tgz` | `npx mention-agent setup --mention @example-bot` |
 
 - **Per project:** run the install inside that project. `-D` records it in
   `devDependencies`, so it survives reinstalls and an agent can set it up too.
