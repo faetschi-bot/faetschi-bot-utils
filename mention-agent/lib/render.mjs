@@ -139,6 +139,7 @@ function standaloneGate(config) {
     `contains(fromJSON(${ASSOCIATIONS_EXPR}), github.event.comment.author_association)`,
     "!endsWith(github.event.comment.user.login, '[bot]')",
     `contains(github.event.comment.body, ${exprString(config.mention)})`,
+    '(github.event.pull_request == null || github.event.pull_request.head.repo.fork == false)',
   ];
   if (config.selfLogin) {
     parts.push(`github.event.comment.user.login != ${exprString(config.selfLogin)}`);
@@ -163,6 +164,7 @@ function reusableGate() {
     `contains(fromJSON(${ASSOCIATIONS_EXPR}), github.event.comment.author_association)`,
     "!endsWith(github.event.comment.user.login, '[bot]')",
     'contains(github.event.comment.body, inputs.mention)',
+    '(github.event.pull_request == null || github.event.pull_request.head.repo.fork == false)',
     "(inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login'])",
     "(inputs['allow-users'] == '' || contains(fromJSON(inputs['allow-users']), github.event.comment.user.login))",
   ].join(' && ');
@@ -178,6 +180,18 @@ function reusableGate() {
 function agentSteps(bind) {
   const steps = [];
   steps.push(
+    '      - name: Reject fork pull requests',
+    '        if: github.event.issue.pull_request != null',
+    '        shell: bash',
+    '        env:',
+    '          GH_TOKEN: ${{ github.token }}',
+    '          PULL_REQUEST_URL: ${{ github.event.issue.pull_request.url }}',
+    '        run: |',
+    '          if [ "$(gh api "$PULL_REQUEST_URL" --jq .head.repo.fork)" != "false" ]; then',
+    '            echo "fork pull requests are not supported" >&2',
+    '            exit 1',
+    '          fi',
+    '',
     '      - name: Verify provider credential',
     '        shell: bash',
     '        env:',

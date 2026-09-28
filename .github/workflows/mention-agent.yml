@@ -58,7 +58,7 @@ permissions:
 jobs:
   agent:
     if: >
-      github.event.comment != null && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) && !endsWith(github.event.comment.user.login, '[bot]') && contains(github.event.comment.body, inputs.mention) && (inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login']) && (inputs['allow-users'] == '' || contains(fromJSON(inputs['allow-users']), github.event.comment.user.login))
+      github.event.comment != null && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) && !endsWith(github.event.comment.user.login, '[bot]') && contains(github.event.comment.body, inputs.mention) && (github.event.pull_request == null || github.event.pull_request.head.repo.fork == false) && (inputs['self-login'] == '' || github.event.comment.user.login != inputs['self-login']) && (inputs['allow-users'] == '' || contains(fromJSON(inputs['allow-users']), github.event.comment.user.login))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     concurrency:
@@ -68,6 +68,18 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Reject fork pull requests
+        if: github.event.issue.pull_request != null
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST_URL: ${{ github.event.issue.pull_request.url }}
+        run: |
+          if [ "$(gh api "$PULL_REQUEST_URL" --jq .head.repo.fork)" != "false" ]; then
+            echo "fork pull requests are not supported" >&2
+            exit 1
+          fi
+
       - name: Verify provider credential
         shell: bash
         env:
@@ -95,7 +107,7 @@ jobs:
         run: echo "${PROVIDER_ENV}=${PROVIDER_KEY}" >> "$GITHUB_ENV"
 
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 1
           persist-credentials: ${{ inputs.allow-writes }}

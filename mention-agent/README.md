@@ -179,7 +179,7 @@ request's branch (or opens a pull request when the mention is on an issue).
 - **`.mention-agent.json`** — the single source of truth. `update` re-renders the
   workflow from it, and `doctor` verifies the two agree.
 - **`.github/workflows/mention-agent.yml`** — a small caller that `uses:` the
-  shared reusable workflow by tag.
+  shared reusable workflow by an exact release tag.
 
 `setup` never overwrites an existing file without `--force`. `update` always
 re-renders. Both support `--dry-run`.
@@ -201,7 +201,7 @@ re-renders. Both support `--dry-run`.
 | `provider.env` | `--provider-env` | Environment variable the credential is exported as. |
 | `provider.secret` | `--provider-secret` | Repository secret holding the credential. |
 | `tokenSecret` | `--token-secret` | Repository secret holding the GitHub token (`pat`). |
-| `workflow.ref` | `--ref` | Shared workflow ref (default `mention-agent-v1`). |
+| `workflow.ref` | `--ref` | Exact immutable release tag, e.g. `mention-agent-v0.1.0`. Moving refs are rejected. |
 | `workflow.reusableRepo` | `--reusable-repo` | Repository hosting the shared workflow. |
 | `standalone` | `--standalone` | Render a self-contained workflow instead of calling the shared one. |
 
@@ -265,33 +265,29 @@ Three gates apply before any agent run, cheapest first:
   regardless. There is no sandbox around the runner's network.
 - **Fork pull requests:** pushing back to a fork usually fails, because the token
   generally has no write access to someone else's fork. Commenting still works.
-- **Supply chain:** the job runs the third-party action
-  `anomalyco/opencode/github` pinned to a reviewed commit, which itself installs
-  the latest `opencode` at run time. The shared reusable workflow is referenced
-  by the moving `mention-agent-v1` tag, which this repository force-moves on
-  merge; a compromise of the hosting repository would reach every consumer.
-  Pin `--ref` to an exact `mention-agent-vX.Y.Z` tag if you want to review each
-  update.
+- **Supply chain:** the generated workflow pins both the third-party OpenCode
+  action and `actions/checkout` to reviewed commit SHAs. New installs pin the
+  shared reusable workflow to an exact `mention-agent-vX.Y.Z` release tag; update
+  deliberately when reviewing a new release. Require full-length SHA pins in
+  the repository or organization Actions policy.
+- **Workflow review:** add a `CODEOWNERS` entry for `/.github/workflows/` owned by
+  a trusted user or team. Workflow edits are equivalent to secret-access edits.
+- **Default token:** set the repository's Actions workflow permission to
+  **read repository contents** in Settings → Actions → General. The generated
+  workflow requests only read permission from the default `GITHUB_TOKEN`.
+- **Repository scanning:** enable GitHub code scanning and secret scanning in
+  repository or organization security settings. The CLI cannot safely enable
+  those settings because they are controlled by repository administrators.
 - Runs are bounded by `timeout-minutes: 30` and serialized per issue/PR with a
   `concurrency` group so repeated mentions do not race pushes or duplicate spend.
 
-## Going further (not implemented)
+## Going further
 
 Documented so you can pick them up later:
 
 - **Short-lived identity.** `--identity app` uses GitHub App installation tokens
   (about an hour) instead of a long-lived PAT. Trade-off: comments come from the
   app bot, not your account.
-- **Pin everything.** Pin `--ref` to an exact `mention-agent-vX.Y.Z`, pin
-  `actions/checkout` to a commit SHA, and enable the repository/org policy
-  "require actions pinned to a full-length commit SHA". Add a `CODEOWNERS` entry
-  for `.github/workflows/` so workflow edits require review (a workflow edit is
-  secret access), plus code scanning and secret scanning.
-- **Read-only default token.** Set the repository's default `GITHUB_TOKEN`
-  permissions to read-only.
-- **Refuse fork PRs.** Gate the job on
-  `github.event.pull_request.head.repo.fork == false` so only same-repository
-  branches run the agent.
 - **Provider budget.** Use a project-scoped provider key with a spend limit.
 - **Run it on your own box.** Dispatch from a workflow to your hardened
   OpenChamber container over Tailscale instead of running on GitHub's runner: no
@@ -321,5 +317,6 @@ npm test                   # includes a drift test
 ```
 
 Do not tag by hand. Bump `version` in `mention-agent/package.json`, merge to
-`main`; the release workflow publishes the tarball and moves the
-`mention-agent-v1` ref so installed callers pick up the change.
+`main`; the release workflow publishes the tarball and keeps the legacy
+`mention-agent-v1` compatibility ref updated. New installs use the exact
+version tag and must be deliberately updated for a new release.

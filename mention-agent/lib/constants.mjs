@@ -10,11 +10,6 @@ export const CONFIG_FILE = '.mention-agent.json';
 export const WORKFLOW_DIR = '.github/workflows';
 export const WORKFLOW_FILE = `${TOOL_NAME}.yml`;
 
-// A moving tag the release workflow force-updates on every release, so target
-// repositories can point their caller at `@<TOOL_NAME>-v1` and pick up
-// compatible updates without editing each repo.
-export const VERSION_REF = `${TOOL_NAME}-v1`;
-
 // Generic defaults; nothing project-specific is baked in.
 export const DEFAULT_TOKEN_SECRET = 'MENTION_AGENT_TOKEN';
 export const DEFAULT_AGENT = 'build';
@@ -28,7 +23,9 @@ export const RESTRICTED_AGENT = 'mention-agent';
 // is the single place these are named, so target repositories never carry them.
 // The agent action is pinned to a reviewed commit so a moved tag cannot change
 // code that runs with a consumer's token; bump it deliberately.
-export const CHECKOUT_ACTION = 'actions/checkout@v4';
+// actions/checkout v4.2.2. Keep this pinned to a reviewed commit; a moving
+// action tag would execute new third-party code in every consumer repository.
+export const CHECKOUT_ACTION = 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683';
 export const AGENT_ACTION = 'anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a';
 export const AGENT_ACTION_NOTE = 'github-v1.2.19';
 

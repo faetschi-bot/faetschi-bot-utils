@@ -30,9 +30,7 @@ export function securityChecklist(config) {
       ? `Runs are limited to: ${config.allowUsers.join(', ')}. Keep this list short.`
       : 'Name an allowlist so only named people can trigger runs (doctor fails without one).',
   );
-  items.push(
-    'The agent reads untrusted issue and PR text and may run branch code: do not mention it on fork PRs you do not trust.',
-  );
+  items.push('Fork pull requests are rejected by the workflow; still treat issue and PR text as untrusted input.');
   items.push(
     config.restrictAgent
       ? 'The run injects a restricted agent: no shell, no web, no subagents, no .env reads. Only file edits are enabled, and only with --allow-writes.'
@@ -52,6 +50,12 @@ export function securityChecklist(config) {
       'Writes are not environment-gated: consider --write-environment to require an approval and scope the write token.',
     );
   }
+  items.push(
+    `The shared workflow is pinned to an exact release tag (${config.workflow.ref}); keep the generated checkout and agent actions pinned to reviewed commit SHAs.`,
+  );
+  items.push(
+    'Require full-length SHA-pinned Actions in repository/org policy, add a CODEOWNERS rule for /.github/workflows/, and enable code scanning and secret scanning in GitHub security settings.',
+  );
   items.push('Keep share off so the agent session is not published (default).');
   return items;
 }

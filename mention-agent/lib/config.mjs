@@ -11,18 +11,19 @@ import {
   DEFAULT_AGENT,
   DEFAULT_TOKEN_SECRET,
   TOOL_NAME,
-  VERSION_REF,
   WORKFLOW_DIR,
   WORKFLOW_FILE,
 } from './constants.mjs';
 import { DEFAULT_PROVIDER, getProvider, PROVIDERS, providerNames } from './providers.mjs';
-import { REPOSITORY } from './package-info.mjs';
+import { REPOSITORY, VERSION } from './package-info.mjs';
 
 export class ConfigError extends Error {}
 
 const ENV_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const LOGIN_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 const SECRET_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const RELEASE_REF_RE = /^mention-agent-v\d+\.\d+\.\d+$/;
+const LEGACY_REF = 'mention-agent-v1';
 
 /** Built-in defaults for a fresh install, before any config file or flags. */
 export function defaultConfig({ provider = DEFAULT_PROVIDER, reusableRepo = REPOSITORY } = {}) {
@@ -49,7 +50,8 @@ export function defaultConfig({ provider = DEFAULT_PROVIDER, reusableRepo = REPO
     workflow: {
       path: `${WORKFLOW_DIR}/${WORKFLOW_FILE}`,
       reusableRepo,
-      ref: VERSION_REF,
+      // New installs use an immutable release tag instead of the moving v1 tag.
+      ref: `${TOOL_NAME}-v${VERSION}`,
     },
     standalone: false,
   };
@@ -139,6 +141,11 @@ export function buildConfig({ existing = null, flags = {}, reusableRepo = REPOSI
   if (!merged.workflow.reusableRepo) {
     merged.workflow.reusableRepo = reusableRepo;
   }
+  // Migrate old installs that used the moving major ref when they are updated.
+  // An explicit --ref always wins and is validated below.
+  if (flags.ref === undefined && merged.workflow.ref === LEGACY_REF) {
+    merged.workflow.ref = `${TOOL_NAME}-v${VERSION}`;
+  }
   if (!Array.isArray(merged.allowUsers)) {
     merged.allowUsers = merged.allowUsers ? [String(merged.allowUsers)] : [];
   }
@@ -207,7 +214,9 @@ export function validateConfig(config) {
     errors.push('workflow.reusableRepo must be owner/repo hosting the shared workflow');
   }
   if (!config.workflow?.ref) {
-    errors.push('workflow.ref is required, e.g. mention-agent-v1');
+    errors.push(`workflow.ref is required, e.g. ${TOOL_NAME}-v${VERSION}`);
+  } else if (!RELEASE_REF_RE.test(config.workflow.ref)) {
+    errors.push('workflow.ref must be an exact release tag such as mention-agent-v0.1.0; moving refs are not allowed');
   }
   if (!config.workflow?.path) {
     errors.push('workflow.path is required');

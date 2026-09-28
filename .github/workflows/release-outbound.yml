@@ -19,8 +19,8 @@ jobs:
     if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
 
@@ -82,7 +82,7 @@ jobs:
           TAG: ${{ steps.release.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          version="${TAG#${TOOL}-v}"
+          version="${TAG#"$TOOL-v"}"
           gh release download "$TAG" -R "$REPO" -p "${TOOL}-${version}.tgz" -O "${TOOL}.tgz" --clobber
           if gh release view "${TOOL}-latest" -R "$REPO" >/dev/null 2>&1; then
             gh release upload "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" --clobber
