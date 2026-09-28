@@ -1,0 +1,3 @@
+# Workflow files can read repository secrets and must receive an explicit
+# review from the repository owner before they change.
+/.github/workflows/ @faetschi

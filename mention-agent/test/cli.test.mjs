@@ -87,11 +87,11 @@ test('setup writes config and workflow, and doctor passes', () => {
     assert.equal(config.selfLogin, 'example-bot');
     assert.deepEqual(config.allowUsers, ['alice', 'bob']);
     assert.equal(config.tokenSecret, 'EXAMPLE_TOKEN');
-    assert.equal(config.workflow.ref, 'mention-agent-v1');
+    assert.equal(config.workflow.ref, 'mention-agent-v0.1.0');
     assert.ok(!config.workflow.reusableRepo.endsWith('/'), 'reusableRepo is owner/repo');
 
     const workflow = readFileSync(join(dir, '.github/workflows/mention-agent.yml'), 'utf8');
-    assert.match(workflow, /uses: .*mention-agent\.yml@mention-agent-v1/);
+    assert.match(workflow, /uses: .*mention-agent\.yml@mention-agent-v0\.1\.0/);
     assert.match(workflow, /secrets\.EXAMPLE_TOKEN/);
 
     const { status, body } = doctor(dir);
@@ -193,7 +193,7 @@ test('print --standalone emits a self-contained workflow', () => {
     const r = run(['print', '--repo', dir, '--mention', '@example-bot', '--standalone', '--allow-users', 'alice']);
     assert.equal(r.status, 0);
     assert.match(r.stdout, /use_github_token: true/);
-    assert.match(r.stdout, /actions\/checkout@v4/);
+    assert.match(r.stdout, /actions\/checkout@[0-9a-f]{40}/);
     assert.doesNotMatch(r.stdout, /uses: .*mention-agent\.yml@/);
   } finally {
     rmSync(dir, { recursive: true, force: true });

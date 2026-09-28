@@ -62,8 +62,8 @@ git commit -m "chore: add mention-agent"
    - with `--allow-writes`: also `Contents: write`
 2. Store the provider key as a secret with only the access the agent needs.
 3. Keep `--allow-users` short; `doctor` fails without an allowlist.
-4. Never mention the agent on fork PRs you do not trust — it reads untrusted
-   text and may run branch code.
+4. Fork pull requests are rejected by the generated workflow. Still treat issue
+   and PR text as untrusted input.
 5. Keep the restricted agent on (the default): it denies web, subagents, and
    `.env` reads; comment-only mode also denies shell and edits. Write mode allows
    only curated test/build/lint commands so the agent can verify edits. Those
@@ -73,6 +73,11 @@ git commit -m "chore: add mention-agent"
    reviewers, "prevent self-review", default-branch-only deployment, and the
    token (and provider key) as environment secrets.
 7. Keep `share` off (default).
+8. Require full-length SHA-pinned Actions in repository/org policy, add a
+   `CODEOWNERS` entry for `/.github/workflows/`, and enable code scanning and
+   secret scanning in GitHub security settings.
+9. Set the repository Actions workflow permission to **read repository contents**;
+   the generated workflow requests only read access from the default token.
 
 Do not edit the generated workflow by hand. Change `.mention-agent.json` (or pass
 flags) and run `mention-agent update`.
@@ -98,7 +103,8 @@ reported as `skipped`; say so instead of claiming full verification.
 Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 `--provider`, `--provider-env`, `--provider-secret`, `--token-secret`,
 `--self-login`, `--allow-users` (required unless `--allow-any-writer`),
-`--allow-writes`, `--write-environment`, `--no-restrict-agent`, `--ref`,
+`--allow-writes`, `--write-environment`, `--no-restrict-agent`, `--ref` (exact
+`mention-agent-vX.Y.Z` release tag),
 `--reusable-repo`, `--standalone`, `--share`/`--no-share`.
 
 ## How it behaves
@@ -116,6 +122,9 @@ Key flags: `--mention` (required), `--model`, `--agent`, `--identity pat|app`,
 - Only logins in `allowUsers` (required; `doctor` errors when empty) that are
   also repository `OWNER`/`MEMBER`/`COLLABORATOR`s with `admin`/`write` can
   trigger a run. `*[bot]` and `self-login` are ignored.
+- Fork pull requests are rejected before credentials are verified. The default
+  repository `GITHUB_TOKEN` permission is read-only; PAT/App credentials are
+  passed separately only when configured.
 
 ## Security rules
 
@@ -141,4 +150,5 @@ npm test                   # includes a drift test
 
 Do not tag by hand. Bump `version` in `mention-agent/package.json`, merge to
 `main`; the release workflow publishes the tarball and moves the
-`mention-agent-v1` ref.
+the exact `mention-agent-vX.Y.Z` release tag; the legacy `mention-agent-v1` ref
+is retained only for existing installs.

@@ -38,7 +38,7 @@ Options:
   --token-secret <NAME>    repository secret holding the GitHub token (identity pat)
   --self-login <login>     login to ignore, so the agent never answers itself
   --allow-users <a,b>      logins allowed to trigger a run; empty means any user with write access
-  --ref <ref>              shared workflow ref (default: ${TOOL_NAME}-v1)
+  --ref <ref>              exact shared workflow release tag (default: ${TOOL_NAME}-v${VERSION})
   --reusable-repo <o/r>    repo hosting the shared workflow (default: this tool's repo)
   --standalone             render a self-contained workflow instead of calling the shared one
   --allow-writes           let the agent commit and push (default: comment-only)
