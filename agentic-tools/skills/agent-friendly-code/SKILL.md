@@ -23,8 +23,9 @@ fix it in [Conventions](#conventions) mode rather than silently diverging.
 - **Audit** — to find agent-hostile code in an existing area. Discovery is
   read-only and [evidence comes first](#audit); land one coherent batch per
   change.
-- **Conventions** — to set up or tune the project's agent instruction file from
-  the [template](./conventions-template.md).
+- **Conventions** — to set up or tune the project's agent instruction file.
+  Load [conventions-template.md](./conventions-template.md) only in this mode;
+  Authoring and Audit never need it.
 
 ## Authoring bar
 
