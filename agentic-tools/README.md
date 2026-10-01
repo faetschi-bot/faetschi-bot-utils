@@ -65,6 +65,7 @@ $ npx agentic-tools doctor --json
   "ok": true,
   "root": "/path/to/agentic-tools",
   "skills": [
+    { "name": "agent-friendly-code", "ok": true, "errors": [], "warnings": [] },
     { "name": "test-audit", "ok": true, "errors": [], "warnings": [] }
   ]
 }
@@ -96,7 +97,7 @@ framework conventions come from the target project's `AGENTS.md` and CI config.
 
 ### test-audit
 
-Three modes, one value bar:
+Two modes, one value bar:
 
 - **Authoring** gates every new or changed test at write time with four
   questions: what contract it protects, what regression makes it fail, why
@@ -106,8 +107,6 @@ Three modes, one value bar:
   copied fixtures, exact source greps, duplicated contracts, mocks that
   implement the asserted behavior, and similar [junk
   patterns](./skills/test-audit/SKILL.md#junk-patterns).
-- **Campaign** prunes one subsystem's whole test surface as a batch of coherent
-  PRs, with explicit authorization and recorded candidate evidence.
 
 The skill is deliberately project-agnostic: it defines the value bar, while the
 concrete test command, formatter, and review gate come from the target project's
