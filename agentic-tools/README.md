@@ -74,7 +74,25 @@ $ npx agentic-tools doctor --json
 
 | Skill | Use it when |
 |-------|-------------|
+| [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
+
+### agent-friendly-code
+
+Three modes, one cost model: the next reader is an agent, so reads truncate,
+attention degrades with context, and grep is the navigation API.
+
+- **Authoring** applies the bar to the agent's own edits: small searchable
+  units, grep-unique names, provenance comments, explicit types, flat control
+  flow, contextual errors, headless tests, injectable dependencies.
+- **Audit** sweeps an existing codebase read-only, ranks findings by navigation
+  cost, records [candidate evidence](./skills/agent-friendly-code/SKILL.md#audit),
+  and lands one coherent behavior-preserving batch at a time.
+- **Conventions** encodes the project-specific choices in `AGENTS.md` (or the
+  equivalent) from a template, without duplicating the skill.
+
+The skill is deliberately project-agnostic: the test command, formatter, and
+framework conventions come from the target project's `AGENTS.md` and CI config.
 
 ### test-audit
 

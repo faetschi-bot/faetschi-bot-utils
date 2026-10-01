@@ -98,6 +98,7 @@ npx agentic-tools list
 
 | Skill | Use it when |
 |-------|-------------|
+| [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |
 
 ## Adding a skill (maintainers)
