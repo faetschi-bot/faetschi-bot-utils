@@ -43,17 +43,18 @@ test('missing value exits 2', () => {
   assert.match(r.stderr, /Missing value/);
 });
 
-test('doctor --json validates the packaged test-audit skill', () => {
+test('doctor --json validates the packaged skills', () => {
   const r = run(['doctor', '--json', '--root', packageRoot]);
   assert.equal(r.status, 0);
   const parsed = JSON.parse(r.stdout);
   assert.equal(parsed.ok, true);
-  assert.deepEqual(parsed.skills.map((s) => s.name), ['test-audit']);
+  assert.deepEqual(parsed.skills.map((s) => s.name), ['agent-friendly-code', 'test-audit']);
 });
 
-test('list prints the packaged skill', () => {
+test('list prints the packaged skills', () => {
   const r = run(['list', '--root', packageRoot]);
   assert.equal(r.status, 0);
+  assert.match(r.stdout, /agent-friendly-code/);
   assert.match(r.stdout, /test-audit/);
 });
 
@@ -155,6 +156,10 @@ test('install --dry-run writes nothing', () => {
     assert.equal(r.status, 0);
     const parsed = JSON.parse(r.stdout);
     assert.equal(parsed.dryRun, true);
+    assert.deepEqual(
+      parsed.installed.map((s) => s.name),
+      ['agent-friendly-code', 'test-audit'],
+    );
     assert.equal(parsed.installed[0].action, 'create');
     assert.equal(existsSync(join(dest, 'test-audit')), false);
   } finally {

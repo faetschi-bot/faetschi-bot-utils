@@ -43,8 +43,9 @@ anchors resolve. It exits non-zero on any problem.
 
 ## Use a skill
 
-The fastest path is `install`, which copies one or more skill directories into
-the agent's skills directory (the `SKILL.md` plus any supporting files):
+The fastest path is `install`. Name the skills you want, or pass `--all`; each
+selected directory (the `SKILL.md` plus any supporting files) is copied into the
+agent's skills directory:
 
 ```bash
 # OpenCode project skills: <project>/.opencode/skills/<name>/
@@ -67,8 +68,10 @@ Targets (project / global):
 | `claude` | `.claude/skills` | `~/.claude/skills` |
 | `agents` | `.agents/skills` | `~/.agents/skills` |
 
-`install` validates each skill first, copies it to `<dir>/<name>`, and refuses to
-overwrite an existing skill directory unless you pass `--force`. It also supports
+`install` validates the selection and checks every destination before copying
+anything, then copies each skill to `<dir>/<name>`. It refuses to overwrite an
+existing skill directory unless you pass `--force`; if any selected destination
+exists, the whole selection is refused and nothing is copied. It also supports
 `--dry-run` and `--json`.
 
 Alternatives when you do not want to install:
@@ -98,6 +101,7 @@ npx agentic-tools list
 
 | Skill | Use it when |
 |-------|-------------|
+| [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |
 
 ## Adding a skill (maintainers)

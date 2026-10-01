@@ -13,6 +13,9 @@ a program that runs in your project.
 
 ## Install
 
+Install the pack itself. This only puts it on disk — it does **not** add any
+skill to your agent; choose skills in [Use a skill](#use-a-skill).
+
 Install the released tarball (no npm registry account needed):
 
 ```bash
@@ -65,6 +68,7 @@ $ npx agentic-tools doctor --json
   "ok": true,
   "root": "/path/to/agentic-tools",
   "skills": [
+    { "name": "agent-friendly-code", "ok": true, "errors": [], "warnings": [] },
     { "name": "test-audit", "ok": true, "errors": [], "warnings": [] }
   ]
 }
@@ -74,11 +78,29 @@ $ npx agentic-tools doctor --json
 
 | Skill | Use it when |
 |-------|-------------|
+| [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
+
+### agent-friendly-code
+
+Three modes, one cost model: the next reader is an agent, so reads truncate,
+attention degrades with context, and grep is the navigation API.
+
+- **Authoring** applies the bar to the agent's own edits: small searchable
+  units, grep-unique names, provenance comments, explicit types, flat control
+  flow, contextual errors, headless tests, injectable dependencies.
+- **Audit** sweeps an existing codebase read-only, ranks findings by navigation
+  cost, records [candidate evidence](./skills/agent-friendly-code/SKILL.md#audit),
+  and lands one coherent behavior-preserving batch at a time.
+- **Conventions** encodes the project-specific choices in `AGENTS.md` (or the
+  equivalent) from a template, without duplicating the skill.
+
+The skill is deliberately project-agnostic: the test command, formatter, and
+framework conventions come from the target project's `AGENTS.md` and CI config.
 
 ### test-audit
 
-Three modes, one value bar:
+Two modes, one value bar:
 
 - **Authoring** gates every new or changed test at write time with four
   questions: what contract it protects, what regression makes it fail, why
@@ -88,8 +110,6 @@ Three modes, one value bar:
   copied fixtures, exact source greps, duplicated contracts, mocks that
   implement the asserted behavior, and similar [junk
   patterns](./skills/test-audit/SKILL.md#junk-patterns).
-- **Campaign** prunes one subsystem's whole test surface as a batch of coherent
-  PRs, with explicit authorization and recorded candidate evidence.
 
 The skill is deliberately project-agnostic: it defines the value bar, while the
 concrete test command, formatter, and review gate come from the target project's
@@ -97,9 +117,11 @@ concrete test command, formatter, and review gate come from the target project's
 
 ## Use a skill
 
-Install the skill into your agent's skills directory so it is discovered
-automatically. `install` copies the whole skill directory — the `SKILL.md` plus
-any supporting files — and validates it first:
+`install <name...>` copies only the named skills; `install --all` copies every
+skill in the pack. List what is available with `npx agentic-tools list`. Each
+selected directory — the `SKILL.md` plus any supporting files — is validated
+first and copied into the agent's skills directory, where it is discovered
+automatically:
 
 ```bash
 # OpenCode project skills: <project>/.opencode/skills/<name>/
@@ -122,8 +144,10 @@ Targets (project / global):
 | `claude` | `.claude/skills` | `~/.claude/skills` |
 | `agents` | `.agents/skills` | `~/.agents/skills` |
 
-It refuses to overwrite an existing skill directory unless you pass `--force`,
-and supports `--dry-run` to preview and `--json` for scripting.
+It refuses to overwrite an existing skill directory unless you pass `--force`.
+Because the whole selection is checked before anything is copied, a single
+existing destination without `--force` refuses the entire batch. `install` also
+supports `--dry-run` to preview and `--json` for scripting.
 
 To copy by hand instead, OpenCode reads `.opencode/skills/`, and also auto-loads
 `.claude/skills/` and `.agents/skills/` in the project plus their
