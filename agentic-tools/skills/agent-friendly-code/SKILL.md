@@ -40,9 +40,10 @@ own diff even when the task does not mention code quality.
 2. **Names are the search index.** Prefer specific names
    (`UserRegistrationValidator`, `InvoiceLineItemTotal`) over generic stems
    (`data`, `handler`, `manager`, `service`, `utils`, `helper`, `process`). If
-   grepping the name returns mostly unrelated hits, rename it. Uniqueness
-   matters most for internal symbols; do not churn exported or cross-module
-   APIs for grep aesthetics, and ask before renaming a public surface.
+   grepping the name returns mostly unrelated hits, rename it; a useful default
+   is fewer than five grep hits. Uniqueness matters most for internal symbols;
+   do not churn exported or cross-module APIs for grep aesthetics, and ask
+   before renaming a public surface.
 
 3. **Comments carry why and provenance.** Keep the production bug, business
    constraint, ordering requirement, or upstream workaround that explains the
@@ -68,9 +69,12 @@ own diff even when the task does not mention code quality.
 6. **Tests run headless.** The project's test command is documented, creates
    its own data, needs no human setup or external secret, and prints parseable
    output. New behavior lands with a test; a bug fix lands with a regression
-   test that failed before the fix. Leave test-value judgments (duplication,
-   implementation coupling) to the project's testing guide or the `test-audit`
-   skill when available; this skill only requires that the loop be runnable.
+   test that failed before the fix. Replace external I/O (API, DB, filesystem)
+   with named fakes, not inline stubs, and keep tests F.I.R.S.T: fast,
+   independent, repeatable, self-validating, timely. Leave test-value judgments
+   (duplication, implementation coupling) to the project's testing guide or the
+   `test-audit` skill when available; this skill only requires that the loop be
+   runnable.
 
 7. **Structure is predictable.** Follow the framework's conventions and mirror
    existing paths, so the home of a new file is obvious before it is created.
@@ -92,15 +96,17 @@ own diff even when the task does not mention code quality.
     received None, expected non-empty digit string")`, not
     `ValueError("invalid input")`. Never swallow an error silently.
 
-11. **Formatting is mechanical.** Run the project formatter and accept its
+11. **Formatting is mechanical.** Run the project formatter (`cargo fmt`,
+    `gofmt`, `prettier`, `black`, `rubocop -A`, and equivalents) and accept its
     output. Do not hand-format or debate style in a change; one consistent
     style keeps pattern-based greps and token-by-token reading cheap.
 
-12. **Docs, logs, and setup serve both readers.** Keep the README and agent
-    instruction file current for shape, commands, and caveats. Use structured
-    logs (named fields or JSON) for machine readers and free text only for
-    human output. Setup must be idempotent and documented, so a fresh agent
-    reaches a working state from a clean checkout.
+12. **Docs, logs, and setup serve both readers.** Keep the README's high-level
+    architecture current (a simple diagram helps) and the agent instruction
+    file current for commands and caveats. Use structured logs (named fields or
+    JSON) for machine readers and free text only for human output. Setup must
+    be idempotent and documented, so a fresh agent reaches a working state from
+    a clean checkout.
 
 ## Audit
 
