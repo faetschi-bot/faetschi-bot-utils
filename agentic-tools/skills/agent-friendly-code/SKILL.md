@@ -145,7 +145,9 @@ Encode project-specific choices; do not paste this skill into `AGENTS.md`.
    one; keep one canonical file and point the others at it.
 2. Add only what this skill cannot know: the headless test command, lint,
    typecheck and format commands, entry points, architecture shape, generated
-   or vendored boundaries, and bootstrap steps.
+   or vendored boundaries, bootstrap steps, and the resilience patterns the
+   agent should not have to invent (timeouts, retries, rate limits,
+   fallbacks).
 3. Delete rules the language's tooling already enforces. Keep the file short
    and imperative — it is re-read every session, so each line spends context.
    Move long explanations to linked docs.

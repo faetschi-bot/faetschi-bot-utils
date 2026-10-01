@@ -33,6 +33,8 @@ each line spends context.
   libraries behind `<interface>`; read config once into `<constant>`.
 - **Control flow:** early returns and guard clauses; at most two indent levels.
 - **Errors:** include the offending value and expected shape; never swallow.
+- **Resilience:** apply `<patterns, e.g. timeouts, retries, circuit breakers,
+  fallbacks>` on external calls.
 - **Formatting:** run `<formatter>`; do not hand-format or debate style.
 - **Logs:** structured `<format>` for machine readers; no secrets or personal
   data.
