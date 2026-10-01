@@ -166,21 +166,3 @@ Encode project-specific choices; do not paste this skill into `AGENTS.md`.
 3. Run the project formatter on changed files, then `git diff --check`.
 4. Confirm the diff does not change public contracts, output formats, or
    behavior beyond the task.
-
-## Handoff
-
-Report:
-
-- mode and scope;
-- findings by category, with counts and the highest-cost offenders;
-- instruction-file changes and the commands they document;
-- edits per coherent batch and the tests that proved them safe;
-- remaining candidates and named follow-ups not attempted;
-- anything you could not verify.
-
-## Origin
-
-Distilled from Fabio Akita, "Clean Code for AI Agents"
-(https://akitaonrails.com/en/2026/04/20/clean-code-for-ai-agents/), with the
-line thresholds kept as defaults rather than laws, and secrecy, comment
-staleness, and refactor-churn rules added by this pack.
