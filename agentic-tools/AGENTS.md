@@ -43,8 +43,9 @@ anchors resolve. It exits non-zero on any problem.
 
 ## Use a skill
 
-The fastest path is `install`, which copies one or more skill directories into
-the agent's skills directory (the `SKILL.md` plus any supporting files):
+The fastest path is `install`. Name the skills you want, or pass `--all`; each
+selected directory (the `SKILL.md` plus any supporting files) is copied into the
+agent's skills directory:
 
 ```bash
 # OpenCode project skills: <project>/.opencode/skills/<name>/
@@ -67,8 +68,10 @@ Targets (project / global):
 | `claude` | `.claude/skills` | `~/.claude/skills` |
 | `agents` | `.agents/skills` | `~/.agents/skills` |
 
-`install` validates each skill first, copies it to `<dir>/<name>`, and refuses to
-overwrite an existing skill directory unless you pass `--force`. It also supports
+`install` validates the selection and checks every destination before copying
+anything, then copies each skill to `<dir>/<name>`. It refuses to overwrite an
+existing skill directory unless you pass `--force`; if any selected destination
+exists, the whole selection is refused and nothing is copied. It also supports
 `--dry-run` and `--json`.
 
 Alternatives when you do not want to install:
