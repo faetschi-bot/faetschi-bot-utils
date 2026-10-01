@@ -1,6 +1,6 @@
 ---
 name: agent-friendly-code
-description: "Invoke when writing or changing code another agent will read, when auditing a codebase for agent-hostile structure, or when setting up a project's agent instruction file. Applies the read-time cost bar to your own edits — searchable units, grep-unique names, provenance comments, explicit types, headless tests, injectable dependencies — and reports findings with evidence."
+description: "Invoke whenever you write, edit, or refactor code, so the result stays cheap for the next agent to search, load, and edit: searchable units, grep-unique names, provenance comments, explicit types, headless tests, injectable dependencies. Also invoke to audit a codebase for agent-hostile structure (findings reported with evidence), or to set up a project's agent instruction file."
 ---
 
 # Agent-Friendly Code
