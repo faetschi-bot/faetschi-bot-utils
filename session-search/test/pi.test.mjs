@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   PI_HARNESS,
+  defaultPiSessionsDir,
   extractPiTurns,
   listPiSessionFiles,
   parsePiSession,
@@ -62,8 +63,13 @@ test('extractPiTurns normalizes dialogue, reasoning, actions, and summaries', ()
   assert.equal(JSON.stringify(turns).includes('OUTPUT'), false);
 });
 
-test('listPiSessionFiles finds nested jsonl files only', () => {
-  const root = mkdtempSync(join(tmpdir(), 'session-search-pi-'));
+test('defaultPiSessionsDir honors the agent dir and session-dir overrides', () => {
+  assert.equal(defaultPiSessionsDir({ env: { PI_CODING_AGENT_DIR: '/agent' }, home: '/h' }), join('/agent', 'sessions'));
+  assert.equal(defaultPiSessionsDir({ env: { PI_CODING_AGENT_SESSION_DIR: '/sessions' }, home: '/h' }), '/sessions');
+  assert.equal(defaultPiSessionsDir({ env: {}, home: '/h' }), join('/h', '.pi', 'agent', 'sessions'));
+});
+
+test('listPiSessionFiles finds nested jsonl files only', () => {  const root = mkdtempSync(join(tmpdir(), 'session-search-pi-'));
   try {
     const nested = join(root, '--p--');
     mkdirSync(nested, { recursive: true });

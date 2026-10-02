@@ -8,7 +8,10 @@ export const PI_HARNESS = 'pi';
 const MAX_INPUT_CHARS = 4000;
 
 export function defaultPiSessionsDir({ env = process.env, home = homedir() } = {}) {
-  return env.PI_CODING_AGENT_SESSION_DIR || join(home, '.pi', 'agent', 'sessions');
+  if (env.PI_CODING_AGENT_SESSION_DIR) return env.PI_CODING_AGENT_SESSION_DIR;
+  // Pi's agent dir is configurable; its default session dir is <agent-dir>/sessions.
+  const agentDir = env.PI_CODING_AGENT_DIR || join(home, '.pi', 'agent');
+  return join(agentDir, 'sessions');
 }
 
 // Pi groups sessions per working directory by default, but a custom sessionDir is

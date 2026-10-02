@@ -24,7 +24,9 @@ export default function sessionSearch(pi: ExtensionAPI): void {
   });
 
   pi.on('agent_settled', (_event, ctx) => {
-    void pi.exec(NODE, [CLI, 'index', '--project', ctx.cwd, ...cacheArgs], {
+    const sessionDir = ctx.sessionManager?.getSessionDir?.();
+    const sessionArgs = sessionDir ? ['--pi-sessions', sessionDir] : [];
+    void pi.exec(NODE, [CLI, 'index', '--project', ctx.cwd, ...sessionArgs, ...cacheArgs], {
       cwd: ctx.cwd,
       timeout: 60_000,
     });
