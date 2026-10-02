@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { runDoctor } from '../lib/doctor.mjs';
 
 function isolatedHome() {
@@ -84,5 +86,33 @@ test('doctor warns on a stale index', async () => {
     assert.equal(result.ok, true);
   } finally {
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('doctor runs from a package copy without node_modules', () => {
+  const root = mkdtempSync(join(tmpdir(), 'session-search-bare-'));
+  const pkg = join(root, 'pkg');
+  const home = join(root, 'home');
+  try {
+    mkdirSync(pkg);
+    mkdirSync(home);
+    for (const entry of ['bin', 'lib', 'package.json']) {
+      cpSync(fileURLToPath(new URL(`../${entry}`, import.meta.url)), join(pkg, entry), { recursive: true });
+    }
+    const result = spawnSync(process.execPath, [join(pkg, 'bin', 'session-search.mjs'), 'doctor', '--json'], {
+      encoding: 'utf8',
+      env: {
+        HOME: home,
+        XDG_STATE_HOME: join(home, 'state'),
+        XDG_CACHE_HOME: join(home, 'cache'),
+        PI_CODING_AGENT_SESSION_DIR: join(home, 'pi'),
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.ok, true);
+    assert.equal(status(parsed, 'dependencies'), 'warn');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

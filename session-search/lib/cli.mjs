@@ -1,7 +1,6 @@
 import { resolve } from 'node:path';
 import { indexDir, readIndexDocs, readIndexMeta, resolveCacheRoot } from './core/cache.mjs';
 import { CliError } from './core/errors.mjs';
-import { buildIndex, searchSessions } from './core/retrieval.mjs';
 import { runDoctor } from './doctor.mjs';
 import { indexOpencode, indexPi, loadPrevious, persistIndex } from './index-run.mjs';
 import { installAdapter, mcpConfigSnippet } from './install.mjs';
@@ -54,7 +53,7 @@ export async function main(argv) {
   }
   if (opts.command === 'doctor') await runDoctorCommand(opts);
   else if (opts.command === 'index') await runIndexCommand(opts);
-  else if (opts.command === 'search') runSearchCommand(opts);
+  else if (opts.command === 'search') await runSearchCommand(opts);
   else if (opts.command === 'show') runShowCommand(opts);
   else if (opts.command === 'mcp') await runMcpCommand(opts);
   else if (opts.command === 'install') runInstallCommand(opts);
@@ -171,7 +170,13 @@ async function runMcpCommand(opts) {
   if (opts.positionals.length) throw new CliError(`mcp takes no arguments: ${opts.positionals.join(' ')}`);
   const cacheRoot = opts.cache ? resolve(opts.cache) : resolveCacheRoot();
   // Lazy so index/search/doctor run on a checkout without the MCP dependency.
-  const { serve } = await import('./mcp-server.mjs');
+  let serve;
+  try {
+    ({ serve } = await import('./mcp-server.mjs'));
+  } catch (error) {
+    if (error.code === 'ERR_MODULE_NOT_FOUND') throw new CliError('mcp requires @modelcontextprotocol/server; run `npm install`', 1);
+    throw error;
+  }
   serve({ cacheRoot, cwd: process.cwd() });
 }
 
@@ -216,27 +221,33 @@ function runSearchCommand(opts) {
   const query = opts.positionals.join(' ').trim();
   if (!query) throw new CliError('search requires a query');
   const { turns, sources, scope, project } = loadTurns(opts);
-  const index = buildIndex(turns);
-  const results = searchSessions(index, query, {
-    limit: opts.limit ?? 10,
-    includeSubagents: opts.includeSubagents,
-    recency: opts.recency ?? 0,
-  });
-
-  if (opts.json) {
-    console.log(JSON.stringify({ ok: true, query, scope, project, sources: sources.map((source) => source.harness), results }, null, 2));
-    return;
-  }
-  if (results.length === 0) {
-    console.log(`[${PACKAGE_NAME}] no matches for "${query}"`);
-    return;
-  }
-  for (const result of results) {
-    const child = result.parent ? ` (child of ${result.parent})` : '';
-    console.log(`${result.score.toFixed(2)}  ${result.title || result.session}  [${result.harness}]${child}`);
-    console.log(`    ${result.snippet}`);
-    console.log(`    session ${result.session}  ${result.match.role}/${result.match.kind}`);
-  }
+  // Lazy so doctor/index run on a checkout without the retrieval dependency.
+  return import('./core/retrieval.mjs')
+    .then(({ buildIndex, searchSessions }) => {
+      const results = searchSessions(buildIndex(turns), query, {
+        limit: opts.limit ?? 10,
+        includeSubagents: opts.includeSubagents,
+        recency: opts.recency ?? 0,
+      });
+      if (opts.json) {
+        console.log(JSON.stringify({ ok: true, query, scope, project, sources: sources.map((source) => source.harness), results }, null, 2));
+        return;
+      }
+      if (results.length === 0) {
+        console.log(`[${PACKAGE_NAME}] no matches for "${query}"`);
+        return;
+      }
+      for (const result of results) {
+        const child = result.parent ? ` (child of ${result.parent})` : '';
+        console.log(`${result.score.toFixed(2)}  ${result.title || result.session}  [${result.harness}]${child}`);
+        console.log(`    ${result.snippet}`);
+        console.log(`    session ${result.session}  ${result.match.role}/${result.match.kind}`);
+      }
+    })
+    .catch((error) => {
+      if (error.code === 'ERR_MODULE_NOT_FOUND') throw new CliError('search requires the minisearch dependency; run `npm install`', 1);
+      throw error;
+    });
 }
 
 function runShowCommand(opts) {
