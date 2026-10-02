@@ -205,9 +205,10 @@ OpenCode does not accept tarball targets in `opencode plugin add`, so the
 adapter is installed as a file (or use `--print` for the config snippet). The
 OpenCode plugin registers native `history_search`/`history_show` tools backed by
 the CLI; plugin-registered MCP servers connect but are not reliably exposed to
-the model, so the native tools are the dependable surface. Pi loads TypeScript
-directly; if a third-party extension replaced built-in MCP, use `--print` and
-configure that extension's format instead.
+the model, so the native tools are the dependable surface. The Pi extension
+registers the MCP server (which is exposed), warns if a third-party extension
+replaced built-in MCP, and can require an interactive confirmation with
+`SESSION_SEARCH_REQUIRE_UI=1`; use `--print` if built-in MCP is unavailable.
 
 ## Evaluation
 
