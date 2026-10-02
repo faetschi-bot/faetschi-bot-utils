@@ -46,6 +46,8 @@
     "prepublishOnly": "npm run check && node bin/session-search.mjs doctor"
   },
   "dependencies": {
-    "minisearch": "7.2.0"
+    "@modelcontextprotocol/server": "2.2.0",
+    "minisearch": "7.2.0",
+    "zod": "4.6.5"
   }
 }

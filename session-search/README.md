@@ -16,8 +16,8 @@ It indexes the **signal** and skips the noise:
 Tool outputs are roughly 87% of a typical history and are mostly repo noise, so
 they are never indexed.
 
-> **Status:** `index`, `search`, and `show` are implemented. The MCP server and
-> the native OpenCode/Pi adapters land in follow-ups.
+> **Status:** `index`, `search`, `show`, and the MCP server are implemented. The
+> native OpenCode/Pi adapters land next.
 
 ## Requirements
 
@@ -50,6 +50,7 @@ session-search index [options]              read session history into the cache
 session-search search "<query>" [options]   search the cached history
 session-search show <sessionID> [options]   print one session's indexed turns
 session-search doctor [options]             check Node, cache, and sources
+session-search mcp                          run the MCP stdio server
 ```
 
 | Flag | Meaning |
@@ -127,6 +128,44 @@ Session history can contain secrets, file contents, and private URLs. Therefore:
 - The cache is local-only. Nothing is uploaded.
 
 Review results before sharing them. Redaction is best-effort, not a guarantee.
+
+## MCP server
+
+Run the stdio server and point a harness at it:
+
+```bash
+npx session-search mcp
+```
+
+OpenCode (`opencode mcp add` or `opencode.json`):
+
+```jsonc
+{ "mcp": { "servers": { "session_search": {
+  "type": "local",
+  "command": ["node", "node_modules/session-search/bin/session-search.mjs", "mcp"],
+  "codemode": false
+} } } }
+```
+
+Pi (`pi mcp add` or `~/.pi/agent/mcp.json`):
+
+```json
+{ "mcpServers": { "session_search": {
+  "command": "node",
+  "args": ["node_modules/session-search/bin/session-search.mjs", "mcp"],
+  "exposure": "direct"
+} } }
+```
+
+Tools: `history_search` and `history_show`, both read-only. When OpenCode invokes
+them it sends the calling session id in `_meta`; the server uses it to scope
+results to that session's project even when the server cwd differs. Pi does not
+send it, so scope falls back to the server cwd. Gate the tools with a permission
+rule (OpenCode):
+
+```jsonc
+{ "permissions": [ { "action": "session_search_*", "resource": "*", "effect": "ask" } ] }
+```
 
 ## Evaluation
 

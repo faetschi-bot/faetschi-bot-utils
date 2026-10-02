@@ -3,6 +3,7 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -123,4 +124,25 @@ export function withLock(dir, fn) {
   } finally {
     rmSync(lock, { force: true });
   }
+}
+
+// Walk the cache root for directories that contain an index, so search/MCP can
+// find every harness+scope without knowing the keys in advance.
+export function listIndexDirs(root) {
+  const dirs = [];
+  const walk = (dir, depth) => {
+    if (depth > 4) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    if (entries.some((entry) => entry.isFile() && entry.name === META_FILE)) dirs.push(dir);
+    for (const entry of entries) {
+      if (entry.isDirectory()) walk(join(dir, entry.name), depth + 1);
+    }
+  };
+  walk(root, 0);
+  return dirs.sort();
 }

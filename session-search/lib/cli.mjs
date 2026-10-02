@@ -19,6 +19,7 @@ Usage:
   session-search search "<query>" [options]   search the cached history
   session-search show <sessionID> [options]   print one session's indexed turns
   session-search doctor [options]             check Node, cache, and sources
+  session-search mcp                          run the MCP stdio server
 Options:
   --harness <name>    opencode | pi | all (default: all)
   --project <dir>     scope to sessions under this directory (default: cwd)
@@ -51,6 +52,7 @@ export async function main(argv) {
   else if (opts.command === 'index') await runIndexCommand(opts);
   else if (opts.command === 'search') runSearchCommand(opts);
   else if (opts.command === 'show') runShowCommand(opts);
+  else if (opts.command === 'mcp') await runMcpCommand(opts);
   else console.log(usage());
 }
 
@@ -58,7 +60,7 @@ function parse(argv) {
   const opts = { command: undefined, json: false, positionals: [] };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
-    if (['index', 'search', 'show', 'doctor'].includes(token) && opts.command === undefined) {
+    if (['index', 'search', 'show', 'doctor', 'mcp'].includes(token) && opts.command === undefined) {
       opts.command = token;
       continue;
     }
@@ -147,6 +149,14 @@ async function runOne(harness, build, opts) {
   const built = await build();
   const { dir, meta, skipped } = persistIndex(built, { force: opts.force });
   return { harness, status: 'ok', skipped, turns: meta.turns, sessions: meta.sessions, dir };
+}
+
+async function runMcpCommand(opts) {
+  if (opts.positionals.length) throw new CliError(`mcp takes no arguments: ${opts.positionals.join(' ')}`);
+  const cacheRoot = opts.cache ? resolve(opts.cache) : resolveCacheRoot();
+  // Lazy so index/search/doctor run on a checkout without the MCP dependency.
+  const { serve } = await import('./mcp-server.mjs');
+  serve({ cacheRoot, cwd: process.cwd() });
 }
 
 function loadTurns(opts) {

@@ -54,13 +54,22 @@ function sourceCheck(name, probe) {
     : { name, status: 'skip', message: 'not detected on this machine' };
 }
 
-// MiniSearch is a runtime dependency; a vendored checkout without `npm install`
-// can still run doctor, but search will not work.
+// Runtime dependencies; a vendored checkout without `npm install` can still run
+// doctor, but search and the MCP server will not work.
+const REQUIRED_DEPENDENCIES = ['minisearch', '@modelcontextprotocol/server'];
+
 function dependencyCheck() {
-  try {
-    createRequire(import.meta.url).resolve('minisearch');
-    return { name: 'dependencies', status: 'ok', message: 'minisearch resolved' };
-  } catch {
-    return { name: 'dependencies', status: 'warn', message: 'minisearch not installed; run `npm install`' };
+  const require = createRequire(import.meta.url);
+  const missing = REQUIRED_DEPENDENCIES.filter((name) => {
+    try {
+      require.resolve(name);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  if (missing.length === 0) {
+    return { name: 'dependencies', status: 'ok', message: `resolved ${REQUIRED_DEPENDENCIES.join(', ')}` };
   }
+  return { name: 'dependencies', status: 'warn', message: `missing ${missing.join(', ')}; run \`npm install\`` };
 }
