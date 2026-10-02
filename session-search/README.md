@@ -79,8 +79,9 @@ $ npx session-search index --harness pi --json
 ```
 
 `doctor --json` reports `ok`, the package version, and one entry per check
-(`node`, `cache`, `opencode-source`, `pi-source`, `dependencies`). Missing
-harnesses are a `skip`; a missing dependency is a `warn`, not a failure.
+(`node`, `cache`, `opencode-source`, `pi-source`, `dependencies`, `redaction`,
+`index`). Missing harnesses are a `skip`; a missing dependency or an empty index
+is a `warn`, not a failure.
 
 ## Search
 

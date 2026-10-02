@@ -39,9 +39,11 @@ Always run the machine-readable check and require `"ok": true`:
 npx session-search doctor --json
 ```
 
-It checks Node, cache writability, and whether an OpenCode service or Pi
-sessions directory is detectable. A missing harness is reported as `skip`, not
-an error; say so rather than claiming full verification.
+It checks Node, cache writability, whether an OpenCode service or Pi sessions
+directory is detectable, that dependencies resolve, that redaction works, and
+whether an index exists. A missing harness is reported as `skip`, and a missing
+dependency or empty index as `warn`; say so rather than claiming full
+verification.
 
 ## Commands
 

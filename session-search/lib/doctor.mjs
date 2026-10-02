@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { resolveCacheRoot } from './core/cache.mjs';
+import { resolveCacheRoot, listIndexDirs, readIndexMeta } from './core/cache.mjs';
+import { redactText } from './core/redact.mjs';
 import { PACKAGE_VERSION } from './package-info.mjs';
 import { readOpencodeEndpoint } from './sources/opencode.mjs';
 import { defaultPiSessionsDir } from './sources/pi.mjs';
@@ -21,6 +22,8 @@ export function runDoctor({ env = process.env, platform = process.platform, home
       return existsSync(dir) ? `sessions at ${dir}` : undefined;
     }),
     dependencyCheck(),
+    redactionCheck(),
+    indexCheck({ env, platform, home }),
   ];
   return { ok: checks.every((check) => check.status !== 'fail'), version: PACKAGE_VERSION, checks };
 }
@@ -72,4 +75,25 @@ function dependencyCheck() {
     return { name: 'dependencies', status: 'ok', message: `resolved ${REQUIRED_DEPENDENCIES.join(', ')}` };
   }
   return { name: 'dependencies', status: 'warn', message: `missing ${missing.join(', ')}; run \`npm install\`` };
+}
+
+// A fast self-test so a broken redaction rule set fails doctor, not a leak.
+function redactionCheck() {
+  const probe = 'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
+  if (redactText(probe).includes('ghp_')) {
+    return { name: 'redaction', status: 'fail', message: 'redaction self-test failed' };
+  }
+  return { name: 'redaction', status: 'ok', message: 'secret patterns redact correctly' };
+}
+
+function indexCheck({ env, platform, home }) {
+  const root = resolveCacheRoot({ env, platform, home });
+  const dirs = listIndexDirs(root);
+  if (dirs.length === 0) return { name: 'index', status: 'warn', message: 'no index yet; run `session-search index`' };
+  const newest = dirs
+    .map((dir) => readIndexMeta(dir)?.generatedAt)
+    .filter(Boolean)
+    .sort()
+    .pop();
+  return { name: 'index', status: 'ok', message: `${dirs.length} index(es); newest ${newest ?? 'unknown'}` };
 }
