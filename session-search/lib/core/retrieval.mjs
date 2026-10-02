@@ -5,10 +5,13 @@ import { tokenize } from './tokenize.mjs';
 // BM25+ (d > 0) lower-bounds term frequency so long reasoning turns are not
 // unfairly penalized. k1/b/d are MiniSearch's BM25Params.
 const BM25 = { k: 1.2, b: 0.7, d: 0.5 };
-const FIELDS = ['title', 'text', 'tool', 'path'];
+// Per-role fields approximate BM25F: each turn's text lands in the field for its
+// role/kind, and MiniSearch multiplies that field's BM25 score by its boost.
+const CONTENT_FIELDS = ['user', 'assistant', 'reasoning', 'compaction', 'action', 'other'];
+const FIELDS = ['title', ...CONTENT_FIELDS, 'tool', 'path'];
 const STORE_FIELDS = ['harness', 'session', 'project', 'parent', 'title', 'role', 'kind', 'time', 'seq', 'chunk', 'text'];
 const SEARCH_OPTIONS = {
-  boost: { title: 3, text: 1, tool: 1, path: 1.5 },
+  boost: { title: 3, user: 2.5, assistant: 1.5, reasoning: 0.6, compaction: 1, action: 1, other: 1, tool: 1, path: 1.5 },
   prefix: true,
   fuzzy: false,
 };
@@ -104,6 +107,7 @@ export function toDocuments(turns) {
         tool: turn.tool ?? '',
         path: inputPath(turn.input),
         text: chunk,
+        [contentField(turn)]: chunk,
       });
     });
   }
@@ -194,4 +198,14 @@ function collapseSubagents(sessions) {
 function inputPath(input) {
   if (!input || typeof input !== 'object') return '';
   return input.filePath || input.path || input.file || '';
+}
+
+// Route a turn's searchable text into the field that carries its role boost.
+function contentField(turn) {
+  if (turn.kind === 'action') return 'action';
+  if (turn.role === 'user') return 'user';
+  if (turn.role === 'assistant' && turn.kind === 'reasoning') return 'reasoning';
+  if (turn.role === 'assistant') return 'assistant';
+  if (turn.role === 'compaction') return 'compaction';
+  return 'other';
 }

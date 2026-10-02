@@ -5,7 +5,7 @@
 const WORD_RE = /[A-Za-z0-9]+/g;
 const PATH_RE = /[A-Za-z0-9_.-]+(?:[\\/][A-Za-z0-9_.-]+)+/g;
 
-const DIALOGUE_FIELDS = new Set(['title', 'text']);
+const DIALOGUE_FIELDS = new Set(['title', 'user', 'assistant', 'reasoning', 'compaction', 'other']);
 
 // Unambiguous English fillers only, and only for dialogue fields; never strip
 // tokens that could be identifiers. IDF already handles rare boilerplate.

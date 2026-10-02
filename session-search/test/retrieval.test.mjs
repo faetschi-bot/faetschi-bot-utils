@@ -53,8 +53,16 @@ test('chunkText splits on paragraph boundaries before hard windows', () => {
   assert.equal(chunks.length, 2);
 });
 
-test('recency boosts a newer session of equal lexical score', () => {
-  const now = 2_000_000_000_000;
+test('role weighting ranks user text above reasoning', () => {
+  const turns = [
+    turn({ session: 'reasoning', seq: 0, role: 'assistant', kind: 'reasoning', text: 'authentication handling' }),
+    turn({ session: 'usertext', seq: 0, role: 'user', kind: 'text', text: 'authentication handling' }),
+  ];
+  const results = searchSessions(buildIndex(turns), 'authentication handling');
+  assert.equal(results[0].session, 'usertext');
+});
+
+test('recency boosts a newer session of equal lexical score', () => {  const now = 2_000_000_000_000;
   const day = 86_400_000;
   const turns = [
     turn({ session: 'old', seq: 0, time: now - 400 * day, text: 'rate limiter' }),
