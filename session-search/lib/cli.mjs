@@ -27,6 +27,7 @@ Options:
   --project <dir>     scope to sessions under this directory (default: cwd)
   --all               use every project instead of the current one
   --limit <n>         max results (search, default 10) or turns (show)
+  --recency <0..1>    weak recency boost for search (0 = off, default 0)
   --include-subagents keep child sessions instead of folding them into parents
   --pi-sessions <dir> Pi sessions directory (default: ~/.pi/agent/sessions)
   --cache <dir>       cache root (default: platform cache dir)
@@ -78,6 +79,7 @@ function parse(argv) {
     else if (token === '--pi-sessions') opts.piSessions = value();
     else if (token === '--cache') opts.cache = value();
     else if (token === '--limit') opts.limit = Number.parseInt(value(), 10);
+    else if (token === '--recency') opts.recency = Number(value());
     else if (token === '--json') opts.json = true;
     else if (token === '--all') opts.all = true;
     else if (token === '--global') opts.global = true;
@@ -97,6 +99,9 @@ function parse(argv) {
   }
   if (opts.limit !== undefined && (!Number.isInteger(opts.limit) || opts.limit < 1)) {
     throw new CliError('--limit must be a positive integer');
+  }
+  if (opts.recency !== undefined && (!Number.isFinite(opts.recency) || opts.recency < 0 || opts.recency > 1)) {
+    throw new CliError('--recency must be a number between 0 and 1');
   }
   return opts;
 }
@@ -215,6 +220,7 @@ function runSearchCommand(opts) {
   const results = searchSessions(index, query, {
     limit: opts.limit ?? 10,
     includeSubagents: opts.includeSubagents,
+    recency: opts.recency ?? 0,
   });
 
   if (opts.json) {

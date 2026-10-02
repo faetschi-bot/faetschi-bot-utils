@@ -92,8 +92,11 @@ index from the cached turns using **BM25+** (`k1=1.2`, `b=0.7`, `d=0.5`):
 - A code-aware tokenizer emits the whole token plus case/digit subtokens and
   path-suffix tokens, so `getUserById` and `user id` both match.
 - Fields are boosted: title 3×, path 1.5×, text/tool 1×.
-- Long turns are chunked (~800 chars, 200 overlap) before scoring, then chunks
-  are aggregated to sessions (sum of the top 3 chunk scores + a match bonus).
+- Long turns are chunked structure-aware (paragraph/heading boundaries, then
+  ~800 chars with 200 overlap) before scoring, then chunks are aggregated to
+  sessions (sum of the top 3 chunk scores + a match bonus).
+- An optional weak recency decay (`--recency 0..1`, default 0) nudges newer
+  sessions up without overriding lexical relevance.
 - Child/subagent sessions are folded into their parent unless they clearly
   outrank it; pass `--include-subagents` to keep them.
 
@@ -117,6 +120,11 @@ Override with `--cache` or `SESSION_SEARCH_CACHE`. Directories are created
 `0700` and index files `0600` where the platform supports POSIX modes. A
 fingerprint of the source state avoids rebuilding an unchanged index; a lock
 file prevents concurrent rebuilds.
+
+Reindexing is **incremental**: an OpenCode session whose `time.updated` is
+unchanged, or a Pi file whose size and mtime are unchanged, reuses its
+previously extracted turns instead of being fetched and parsed again. A repeat
+`index` with nothing changed is a no-op; `--progress` reports progress to stderr.
 
 ## Security
 

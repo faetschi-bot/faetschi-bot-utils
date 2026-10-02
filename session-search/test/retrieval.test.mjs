@@ -47,6 +47,24 @@ test('title boost lifts a title-only match', () => {
   assert.equal(results[0].session, 's1');
 });
 
+test('chunkText splits on paragraph boundaries before hard windows', () => {
+  const paragraph = 'x'.repeat(500);
+  const chunks = chunkText(`${paragraph}\n\n${paragraph}`, { maxChars: 800, overlapChars: 200 });
+  assert.equal(chunks.length, 2);
+});
+
+test('recency boosts a newer session of equal lexical score', () => {
+  const now = 2_000_000_000_000;
+  const day = 86_400_000;
+  const turns = [
+    turn({ session: 'old', seq: 0, time: now - 400 * day, text: 'rate limiter' }),
+    turn({ session: 'new', seq: 0, time: now - 1 * day, text: 'rate limiter' }),
+  ];
+  const index = buildIndex(turns);
+  assert.equal(searchSessions(index, 'rate limiter', { recency: 1, now })[0].session, 'new');
+  assert.equal(searchSessions(index, 'rate limiter', { now }).length, 2);
+});
+
 test('folds a child session into its parent unless it clearly wins', () => {
   const turns = [
     turn({ session: 'p', seq: 0, text: 'authentication handling overview' }),

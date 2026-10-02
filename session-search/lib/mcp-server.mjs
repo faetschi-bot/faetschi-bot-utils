@@ -36,6 +36,7 @@ export function createMcpServer({ cacheRoot = resolveCacheRoot(), cwd = process.
         scope: z.enum(['project', 'all']).optional(),
         limit: z.number().int().positive().max(MAX_LIMIT).optional(),
         includeSubagents: z.boolean().optional(),
+        recency: z.number().min(0).max(1).optional(),
       }),
       outputSchema: z.object({
         query: z.string(),
@@ -56,7 +57,7 @@ export function createMcpServer({ cacheRoot = resolveCacheRoot(), cwd = process.
       }),
       annotations: { readOnlyHint: true },
     },
-    async ({ query, scope, limit = 10, includeSubagents = false }, ctx) => {
+    async ({ query, scope, limit = 10, includeSubagents = false, recency = 0 }, ctx) => {
       const sessionID = readOpencodeSessionId(ctx);
       const resolvedScope = scope ?? 'project';
       const { turns, sources, project } = loadTurns({ cacheRoot, cwd, sessionID, scope: resolvedScope });
@@ -66,7 +67,7 @@ export function createMcpServer({ cacheRoot = resolveCacheRoot(), cwd = process.
           isError: true,
         };
       }
-      const hits = searchSessions(buildIndex(turns), query, { limit, includeSubagents });
+      const hits = searchSessions(buildIndex(turns), query, { limit, includeSubagents, recency });
       return {
         content: [{ type: 'text', text: renderHits(query, hits) }],
         structuredContent: { query, scope: resolvedScope, count: hits.length, hits },

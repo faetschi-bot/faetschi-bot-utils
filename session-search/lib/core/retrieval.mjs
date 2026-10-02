@@ -18,18 +18,70 @@ const OVERLAP_CHARS = 200;
 const CHILD_SCORE_MARGIN = 1.15;
 
 export function chunkText(text, { maxChars = MAX_CHARS, overlapChars = OVERLAP_CHARS } = {}) {
-  const clean = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : '';
+  const clean = typeof text === 'string' ? text.trim() : '';
   if (!clean) return [];
   if (clean.length <= maxChars) return [clean];
+
+  const chunks = [];
+  let current = '';
+  for (const block of splitBlocks(clean)) {
+    if (block.length > maxChars) {
+      if (current) {
+        chunks.push(current);
+        current = '';
+      }
+      chunks.push(...hardSplit(block, maxChars, overlapChars));
+      continue;
+    }
+    if (current && current.length + block.length + 1 > maxChars) {
+      chunks.push(current);
+      current = overlapTail(current, overlapChars);
+    }
+    current = current ? `${current}\n${block}` : block;
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+// Split on blank lines and markdown headings so a chunk follows the document's
+// structure; code fences are kept whole. Oversized blocks fall back to windows.
+function splitBlocks(text) {
+  const blocks = [];
+  let buffer = [];
+  let fence = false;
+  const flush = () => {
+    const block = buffer.join('\n').trim();
+    if (block) blocks.push(block);
+    buffer = [];
+  };
+  for (const line of text.split('\n')) {
+    if (/^\s*```/.test(line)) fence = !fence;
+    const heading = !fence && /^#{1,6}\s/.test(line);
+    if (!fence && (heading || line.trim() === '')) {
+      flush();
+      if (heading) buffer.push(line);
+      continue;
+    }
+    buffer.push(line);
+  }
+  flush();
+  return blocks.length ? blocks : [text.trim()];
+}
+
+function hardSplit(text, maxChars, overlapChars) {
   const chunks = [];
   let start = 0;
-  while (start < clean.length) {
-    const end = Math.min(clean.length, start + maxChars);
-    chunks.push(clean.slice(start, end));
-    if (end >= clean.length) break;
+  while (start < text.length) {
+    const end = Math.min(text.length, start + maxChars);
+    chunks.push(text.slice(start, end).trim());
+    if (end >= text.length) break;
     start = end - overlapChars;
   }
   return chunks;
+}
+
+function overlapTail(text, size) {
+  return text.length <= size ? text : text.slice(text.length - size);
 }
 
 export function toDocuments(turns) {
@@ -73,9 +125,10 @@ export function buildIndex(turns) {
 }
 
 // Rank chunks, then aggregate to sessions: sum of the top 3 chunk scores plus a
-// small bonus for matching more turns. Child sessions are folded into their
-// parent unless they clearly outrank it.
-export function searchSessions(index, query, { limit = 10, includeSubagents = false } = {}) {
+// small bonus for matching more turns. An optional weak recency decay (0 = off)
+// nudges newer sessions up. Child sessions are folded into their parent unless
+// they clearly outrank it.
+export function searchSessions(index, query, { limit = 10, includeSubagents = false, recency = 0, now = Date.now() } = {}) {
   const hits = index.search(query);
   const bySession = new Map();
   for (const hit of hits) {
@@ -99,6 +152,7 @@ export function searchSessions(index, query, { limit = 10, includeSubagents = fa
     const score = top.reduce((sum, hit) => sum + hit.score, 0) + Math.log(1 + entry.matched);
     return { ...entry, score, best: top[0] };
   });
+  if (recency > 0) applyRecency(sessions, recency, now);
   sessions.sort((a, b) => b.score - a.score);
   if (!includeSubagents) sessions = collapseSubagents(sessions);
 
@@ -113,6 +167,17 @@ export function searchSessions(index, query, { limit = 10, includeSubagents = fa
     snippet: makeSnippet(entry.best.text, query),
     match: { role: entry.best.role, kind: entry.best.kind, time: entry.best.time, seq: entry.best.seq },
   }));
+}
+
+const RECENCY_HALF_LIFE_DAYS = 180;
+
+function applyRecency(sessions, weight, now) {
+  for (const session of sessions) {
+    const time = session.best.time || now;
+    const ageDays = Math.max(0, (now - time) / 86_400_000);
+    const decay = 0.5 ** (ageDays / RECENCY_HALF_LIFE_DAYS);
+    session.score *= (1 - weight) + weight * decay;
+  }
 }
 
 function collapseSubagents(sessions) {
