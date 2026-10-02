@@ -93,7 +93,8 @@ index from the cached turns using **BM25+** (`k1=1.2`, `b=0.7`, `d=0.5`):
 
 - A code-aware tokenizer emits the whole token plus case/digit subtokens and
   path-suffix tokens, so `getUserById` and `user id` both match.
-- Fields are boosted: title 3×, path 1.5×, text/tool 1×.
+- Fields are boosted by role: title 3×, user text 2.5×, assistant text 1.5×,
+  reasoning 0.6×, path 1.5×, and actions/tools/compaction 1×.
 - Long turns are chunked structure-aware (paragraph/heading boundaries, then
   ~800 chars with 200 overlap) before scoring, then chunks are aggregated to
   sessions (sum of the top 3 chunk scores + a match bonus).
