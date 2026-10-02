@@ -199,9 +199,12 @@ npx session-search install --harness opencode --print   # MCP config instead
 | `pi` | `.pi/extensions/session-search.ts` | `~/.pi/agent/extensions/session-search.ts` |
 
 OpenCode does not accept tarball targets in `opencode plugin add`, so the
-adapter is installed as a file (or use `--print` for the config snippet). Pi
-loads TypeScript directly; if a third-party extension replaced built-in MCP, use
-`--print` and configure that extension's format instead.
+adapter is installed as a file (or use `--print` for the config snippet). The
+OpenCode plugin registers native `history_search`/`history_show` tools backed by
+the CLI; plugin-registered MCP servers connect but are not reliably exposed to
+the model, so the native tools are the dependable surface. Pi loads TypeScript
+directly; if a third-party extension replaced built-in MCP, use `--print` and
+configure that extension's format instead.
 
 ## Evaluation
 
