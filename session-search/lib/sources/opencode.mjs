@@ -85,6 +85,20 @@ export function sessionDirectory(session) {
   return session.location?.directory ?? session.directory ?? '';
 }
 
+// Probe the service so doctor can distinguish "registered" from "answering".
+export async function probeOpencode(endpoint, { fetchImpl = fetch, timeoutMs = 2000 } = {}) {
+  const authorization = `Basic ${Buffer.from(`opencode:${endpoint.password}`).toString('base64')}`;
+  try {
+    const response = await fetchImpl(new URL('/api/info', endpoint.url), {
+      headers: { authorization },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Pure: turn one OpenCode session and its message timeline into normalized
 // Turns. Tool outputs and non-content events are intentionally dropped here.
 export function extractSessionTurns(session, messages) {

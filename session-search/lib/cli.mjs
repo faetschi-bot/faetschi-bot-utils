@@ -52,7 +52,7 @@ export async function main(argv) {
     console.log(PACKAGE_VERSION);
     return;
   }
-  if (opts.command === 'doctor') runDoctorCommand(opts);
+  if (opts.command === 'doctor') await runDoctorCommand(opts);
   else if (opts.command === 'index') await runIndexCommand(opts);
   else if (opts.command === 'search') runSearchCommand(opts);
   else if (opts.command === 'show') runShowCommand(opts);
@@ -116,8 +116,8 @@ function harnessesOf(opts) {
   return opts.harness && opts.harness !== 'all' ? [opts.harness] : ALL_HARNESSES;
 }
 
-function runDoctorCommand(opts) {
-  const result = runDoctor();
+async function runDoctorCommand(opts) {
+  const result = await runDoctor();
   if (opts.json) {
     console.log(JSON.stringify(result, null, 2));
   } else {

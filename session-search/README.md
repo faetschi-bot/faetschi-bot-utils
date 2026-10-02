@@ -60,6 +60,7 @@ session-search install [options]            install the OpenCode/Pi adapter
 | `--project <dir>` | scope to sessions under this directory (default: cwd) |
 | `--all` | use every project instead of the current one |
 | `--limit <n>` | max results (search, default 10) or turns (show) |
+| `--recency <0..1>` | weak recency boost for search (0 = off, default 0) |
 | `--include-subagents` | keep child sessions instead of folding them into parents |
 | `--pi-sessions <dir>` | Pi sessions directory (default: `~/.pi/agent/sessions`) |
 | `--cache <dir>` | cache root (default: the platform cache dir) |
@@ -81,8 +82,9 @@ $ npx session-search index --harness pi --json
 
 `doctor --json` reports `ok`, the package version, and one entry per check
 (`node`, `cache`, `opencode-source`, `pi-source`, `dependencies`, `redaction`,
-`index`). Missing harnesses are a `skip`; a missing dependency or an empty index
-is a `warn`, not a failure.
+`scope`, `index`). A registered-but-unreachable OpenCode service, a missing
+dependency, an empty or stale index, or a missing harness are all non-fatal
+(`warn`/`skip`); an unsupported index schema or unwritable cache is a failure.
 
 ## Search
 
