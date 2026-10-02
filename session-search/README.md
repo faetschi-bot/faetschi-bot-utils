@@ -1,156 +1,101 @@
 # session-search
 
-Search your local AI coding-agent session history with plain lexical retrieval.
-`session-search` reads sessions from [OpenCode](https://opencode.ai) and
-[Pi](https://pi.dev) into a small, normalized local index, so an agent or a
-human can ask "where did we solve this before?" without re-reading transcripts.
+Search your own coding-agent history. `session-search` reads local
+[OpenCode](https://opencode.ai) and [Pi](https://pi.dev) sessions into a small
+local index so you or your agent can ask *"where did we solve this before?"*
 
-It indexes the **signal** and skips the noise:
+Works from the **CLI**, over **MCP**, or through a generated **OpenCode plugin /
+Pi extension**.
 
-| Tier | Content | Indexed |
-|------|---------|---------|
-| dialogue | user text, assistant text, reasoning, compaction summaries | yes |
-| actions | tool name + input (and shell commands) | yes |
-| outputs | tool results, file contents, images | **no** |
+## Quick start
 
-Tool outputs are roughly 87% of a typical history and are mostly repo noise, so
-they are never indexed.
+```bash
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/session-search-latest/session-search.tgz
+npx session-search index
+npx session-search search "database is locked"
+```
 
-> **Status:** complete: `index`, `search`, `show`, the MCP server, and the
-> OpenCode/Pi adapters. See the plan's increments in the PR history.
-
-## Requirements
-
-- **Node 20+**
-- A local OpenCode service and/or a Pi sessions directory to read (optional;
-  without either, `doctor` still passes and `index` reports a skip).
-- The `minisearch` runtime dependency, installed by `npm install` (or by
-  installing the release tarball).
+It indexes the signal — user/assistant text, reasoning, compaction summaries, and
+tool **inputs** — and skips the noise: tool **outputs**, file contents, and
+images are never indexed. Re-running `index` is incremental and cheap.
 
 ## Install
 
 ```bash
-# Released tarball (no npm registry account needed)
+# per project (recommended)
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/session-search-latest/session-search.tgz
-npx session-search doctor --json
 
-# Vendored copy
-cp -r session-search /path/to/project/tools/session-search
-node tools/session-search/bin/session-search.mjs doctor
+# globally
+npm i -g https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/session-search-latest/session-search.tgz
 
-# Git submodule
-git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faetschi-bot-utils
-node tools/faetschi-bot-utils/session-search/bin/session-search.mjs doctor
+# vendored / submodule: copy the folder, then
+cd session-search && npm install
+node bin/session-search.mjs doctor
 ```
 
-## CLI
+`session-search` has three small runtime deps (`minisearch`,
+`@modelcontextprotocol/server`, `zod`). `doctor` and `index` work without them;
+`search` and `mcp` need `npm install` once. Installing the tarball pulls them
+from npm automatically.
 
-```text
-session-search index [options]              read session history into the cache
-session-search search "<query>" [options]   search the cached history
-session-search show <sessionID> [options]   print one session's indexed turns
-session-search doctor [options]             check Node, cache, and sources
-session-search mcp                          run the MCP stdio server
-session-search install [options]            install the OpenCode/Pi adapter
-```
+## Commands
 
-| Flag | Meaning |
-|------|---------|
-| `--harness <name>` | `opencode`, `pi`, or `all` (default: `all`) |
-| `--project <dir>` | scope to sessions under this directory (default: cwd) |
-| `--all` | use every project instead of the current one |
-| `--limit <n>` | max results (search, default 10) or turns (show) |
-| `--recency <0..1>` | weak recency boost for search (0 = off, default 0) |
-| `--include-subagents` | keep child sessions instead of folding them into parents |
-| `--pi-sessions <dir>` | Pi sessions directory (default: `~/.pi/agent/sessions`) |
-| `--cache <dir>` | cache root (default: the platform cache dir) |
-| `--no-redact` | do not redact secrets before writing the index |
-| `--force` | rebuild even when the source fingerprint is unchanged |
-| `--progress` | print indexing progress to stderr |
-| `--json` | print a machine-readable result |
+| Command | Purpose |
+|---------|---------|
+| `session-search index` | read session history into the local cache |
+| `session-search search "<query>"` | search the cached history |
+| `session-search show <sessionID>` | print one session's indexed turns |
+| `session-search doctor` | check Node, cache, and detected sources |
+| `session-search mcp` | run the MCP stdio server |
+| `session-search install` | install the OpenCode/Pi adapter |
+
+Common flags: `--harness opencode|pi|all`, `--project <dir>`, `--all`,
+`--limit <n>`, `--recency <0..1>`, `--include-subagents`, `--pi-sessions <dir>`,
+`--cache <dir>`, `--force`, `--progress`, `--json`; for `install`: `--global`,
+`--skills`, `--skill-only`, `--dry-run`, `--print`. Run `session-search --help`
+for the full list. Every command exits non-zero on failure.
+
+## Examples
 
 ```bash
-$ npx session-search index --harness pi --json
-{
-  "ok": true,
-  "cacheRoot": "/home/me/.cache/session-search",
-  "scope": "project",
-  "project": "/home/me/project",
-  "results": [{ "harness": "pi", "status": "ok", "skipped": false, "turns": 812, "sessions": 14, "dir": "..." }]
-}
+# search the current project
+$ session-search search "rate limiter"
+22.46  PROMPT: add a rate limiter to the API client  [opencode]
+    …Add a RateLimiter token-bucket middleware keyed by API key; return 429 with Retry-After…
+    session ses_f077ed5f…  assistant/action
+
+# machine-readable
+$ session-search search "rate limiter" --json
+{ "ok": true, "query": "rate limiter", "scope": "project", "sources": ["opencode"],
+  "results": [ { "session": "ses_f077ed5f…", "title": "PROMPT: add a rate limiter to the API client",
+                 "score": 22.459, "snippet": "…add a rate limiter to the API client…",
+                 "match": { "role": "assistant", "kind": "reasoning" } } ] }
+
+# one session
+$ session-search show ses_f077ed5f… --limit 5
+
+# scope or tune
+session-search index --harness opencode
+session-search index --all --progress
+session-search search "CORS" --include-subagents --limit 20
+session-search search "docker image" --recency 0.3
 ```
 
-`doctor --json` reports `ok`, the package version, and one entry per check
-(`node`, `cache`, `opencode-source`, `pi-source`, `dependencies`, `redaction`,
-`scope`, `index`). A registered-but-unreachable OpenCode service, a missing
-dependency, an empty or stale index, or a missing harness are all non-fatal
-(`warn`/`skip`); an unsupported index schema or unwritable cache is a failure.
+`doctor --json` reports one entry per check (`node`, `cache`,
+`opencode-source`, `pi-source`, `dependencies`, `redaction`, `scope`, `index`);
+require `"ok": true`.
 
-## Search
-
-`search` builds an in-memory [MiniSearch](https://github.com/lucaong/minisearch)
-index from the cached turns using **BM25+** (`k1=1.2`, `b=0.7`, `d=0.5`):
-
-- A code-aware tokenizer emits the whole token plus case/digit subtokens and
-  path-suffix tokens, so `getUserById` and `user id` both match.
-- Fields are boosted: title 3×, path 1.5×, text/tool 1×.
-- Long turns are chunked structure-aware (paragraph/heading boundaries, then
-  ~800 chars with 200 overlap) before scoring, then chunks are aggregated to
-  sessions (sum of the top 3 chunk scores + a match bonus).
-- An optional weak recency decay (`--recency 0..1`, default 0) nudges newer
-  sessions up without overriding lexical relevance.
-- Child/subagent sessions are folded into their parent unless they clearly
-  outrank it; pass `--include-subagents` to keep them.
+## Use it from OpenCode
 
 ```bash
-$ npx session-search search "rate limiter" --json
-$ npx session-search search "why did the build fail" --limit 5
-$ npx session-search show ses_f077ce740ffeMvHImfodIoDlm7
+npx session-search install --harness opencode
 ```
 
-## Where the index lives
+Writes `.opencode/plugins/session-search.js`, which registers **`history_search`**
+and **`history_show`** tools, adds a **`/history`** command, and reindexes after a
+session goes idle.
 
-A rebuildable cache, never source of truth:
-
-| Platform | Default root |
-|----------|--------------|
-| Linux | `$XDG_CACHE_HOME/session-search` or `~/.cache/session-search` |
-| macOS | `~/Library/Caches/session-search` |
-| Windows | `%LOCALAPPDATA%\session-search` |
-
-Override with `--cache` or `SESSION_SEARCH_CACHE`. Directories are created
-`0700` and index files `0600` where the platform supports POSIX modes. A
-fingerprint of the source state avoids rebuilding an unchanged index; a lock
-file prevents concurrent rebuilds.
-
-Reindexing is **incremental**: an OpenCode session whose `time.updated` is
-unchanged, or a Pi file whose size and mtime are unchanged, reuses its
-previously extracted turns instead of being fetched and parsed again. A repeat
-`index` with nothing changed is a no-op; `--progress` reports progress to stderr.
-
-## Security
-
-Session history can contain secrets, file contents, and private URLs. Therefore:
-
-- **Redaction happens at index time**, not only when printing, so secrets do not
-  persist in the cache. The rule set covers common API keys, tokens, private
-  keys, `Authorization` headers, and URL credentials.
-- **Tool outputs are never indexed.**
-- The default scope is the **current project**; indexing every project requires
-  `--all`.
-- The cache is local-only. Nothing is uploaded.
-
-Review results before sharing them. Redaction is best-effort, not a guarantee.
-
-## MCP server
-
-Run the stdio server and point a harness at it:
-
-```bash
-npx session-search mcp
-```
-
-OpenCode (`opencode mcp add` or `opencode.json`):
+Prefer MCP only? Print the config with `npx session-search install --harness opencode --print`:
 
 ```jsonc
 { "mcp": { "servers": { "session_search": {
@@ -160,7 +105,22 @@ OpenCode (`opencode mcp add` or `opencode.json`):
 } } } }
 ```
 
-Pi (`pi mcp add` or `~/.pi/agent/mcp.json`):
+Optionally gate it: `{ "permissions": [ { "action": "session_search_*", "resource": "*", "effect": "ask" } ] }`.
+
+> OpenCode's `plugin add` rejects tarballs, so the plugin is installed as a file.
+> Plugin-registered MCP servers connect but are not exposed to the model in
+> v2.0.x, which is why the plugin registers native tools instead.
+
+## Use it from Pi
+
+```bash
+npx session-search install --harness pi
+```
+
+Writes `.pi/extensions/session-search.ts`, which registers the MCP server
+(`exposure: "direct"`), adds **`/history`**, and reindexes on `agent_settled`.
+
+Prefer MCP only? `npx session-search install --harness pi --print`:
 
 ```json
 { "mcpServers": { "session_search": {
@@ -170,56 +130,108 @@ Pi (`pi mcp add` or `~/.pi/agent/mcp.json`):
 } } }
 ```
 
-Tools: `history_search` and `history_show`, both read-only. When OpenCode invokes
-them it sends the calling session id in `_meta`; the server uses it to scope
-results to that session's project even when the server cwd differs. Pi does not
-send it, so scope falls back to the server cwd. Gate the tools with a permission
-rule (OpenCode):
+Pi 1.0 ships built-in MCP, so no extra extension is needed.
 
-```jsonc
-{ "permissions": [ { "action": "session_search_*", "resource": "*", "effect": "ask" } ] }
-```
+## Agent skill
 
-## Adapters
-
-`session-search install` writes a small adapter that auto-registers the MCP
-server, adds a `/history` command, and refreshes the index after a session
-settles. The absolute CLI path is baked into the generated file.
+The package ships a skill (`skills/session-search/SKILL.md`) that tells an agent
+**when** to search history — before re-implementing something, debugging a known
+failure, or when the user refers to earlier work. Install it with the adapter:
 
 ```bash
-npx session-search install --harness opencode           # project .opencode/plugins/
-npx session-search install --harness pi --global        # ~/.pi/agent/extensions/
-npx session-search install --harness all --force
-npx session-search install --harness opencode --print   # MCP config instead
+npx session-search install --harness opencode --skills   # adapter + skill
+npx session-search install --harness pi --skill-only     # skill only
 ```
 
-| Harness | Project | Global |
-|---------|---------|--------|
-| `opencode` | `.opencode/plugins/session-search.js` | `~/.config/opencode/plugins/session-search.js` |
-| `pi` | `.pi/extensions/session-search.ts` | `~/.pi/agent/extensions/session-search.ts` |
+| Harness | Project skill | Global skill |
+|---------|---------------|--------------|
+| `opencode` | `.opencode/skills/session-search/` | `~/.config/opencode/skills/session-search/` |
+| `pi` | `.pi/skills/session-search/` | `~/.pi/agent/skills/session-search/` |
 
-OpenCode does not accept tarball targets in `opencode plugin add`, so the
-adapter is installed as a file (or use `--print` for the config snippet). Pi
-loads TypeScript directly; if a third-party extension replaced built-in MCP, use
-`--print` and configure that extension's format instead.
+`doctor` validates the packaged skill, so a malformed `SKILL.md` fails CI.
+
+## MCP tools
+
+Both are read-only. Successful calls return text plus `structuredContent`; error
+paths (no index, session not found) return an `isError` text result.
+
+- `history_search({ query, scope?, limit?, includeSubagents?, recency? })` →
+  `{ count, truncated, hits: [...] }`
+- `history_show({ session, limit? })` → `{ count, truncated, turns: [...] }`
+
+When OpenCode calls a tool it sends the session id in
+`_meta["ai.opencode/sessionID"]`; the server uses it to scope results to that
+session's project. Pi scopes by cwd.
+
+## How ranking works
+
+- **BM25+** (MiniSearch, `k1=1.2 b=0.7 d=0.5`).
+- **Code-aware tokenizer**: whole token + camelCase/snake_case subtokens + path
+  suffixes, so `getUserById` and `user id` both match. No stemming.
+- **Per-role weights**: title 3×, user 2.5×, assistant 1.5×, path 1.5×,
+  reasoning 0.6×, action/tool/compaction 1×.
+- **Chunking** on paragraphs/headings (~800 chars, 200 overlap), then **session
+  aggregation** (top-3 chunks + match bonus) and **subagent collapse**.
+- Optional weak recency: `--recency 0..1` (off by default).
 
 ## Evaluation
 
-Retrieval quality is gated in CI against a frozen, committed corpus and query
-set — no network and no LLM at gate time:
+A frozen, offline corpus gates ranking quality in CI:
 
 ```bash
-npm run eval          # fail if session NDCG@10 drops >2 points vs baseline
-npm run eval:update   # rewrite eval/baseline.json after an intended change
-node eval/judge.mjs   # offline: print candidate pools for relabeling
+npm run eval          # fails if a category's NDCG@10 or Recall@10 drops >2 points
+npm run eval:update   # rewrite the baseline after an intended change
 ```
 
-`eval/corpus/turns.jsonl` is a sanitized normalized corpus; `eval/queries.jsonl`
-carries stratified queries (semantic / symbol / path / command / temporal) with
-graded session labels. Metrics are session-level NDCG@10, Recall@10, and MRR@10.
+Current baseline: **overall NDCG@10 0.9654** — symbol/path/command/temporal 1.0,
+semantic 0.9307 (16 sessions, 24 stratified queries). The one miss is a
+multi-target paraphrase query, i.e. the known semantic gap. `node eval/judge.mjs`
+prints candidate pools for relabeling.
+
+## Security & privacy
+
+- **Redaction at index time** (API keys, tokens, private keys, `Authorization`
+  headers, URL credentials), so secrets do not persist in the cache.
+- **Tool inputs capped** at 2 KB per string and dialogue text at 20 KB;
+  **tool outputs never indexed**.
+- Default scope is the **current project** (`--all` to widen). Cache is
+  **local-only**; nothing is uploaded.
+- MCP results are framed as untrusted data. Redaction is best-effort — review
+  before sharing.
+
+## Cache & environment
+
+Default cache: `~/.cache/session-search` (Linux, or `$XDG_CACHE_HOME`),
+`~/Library/Caches/session-search` (macOS), `%LOCALAPPDATA%\session-search`
+(Windows). Dirs are `0700`, files `0600` where POSIX modes exist.
+
+| Variable | Effect |
+|----------|--------|
+| `SESSION_SEARCH_CACHE` | override the cache root |
+| `PI_CODING_AGENT_SESSION_DIR` / `PI_CODING_AGENT_DIR` | Pi sessions location |
+| `XDG_STATE_HOME` | where OpenCode's `service.json` lives |
+| `SESSION_SEARCH_REQUIRE_UI=1` | Pi: require interactive confirmation for the tools |
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `no index for project:…` | run `session-search index`; check `--project`/`--all` |
+| `missing minisearch …` | run `npm install` in the tool directory |
+| `registered … but not reachable` | start OpenCode |
+| Pi sessions not found | set `--pi-sessions` or `PI_CODING_AGENT_DIR` |
+| MCP tools missing after a schema change | restart OpenCode's service (or run OpenCode with `--standalone`); it caches the MCP catalog |
+| Stale results | re-run `index`, or `--force` |
+
+## Compatibility
+
+`session-search` needs Node **≥ 20**. OpenCode **V2** (v2.0.18) is validated
+live; the Pi adapter is built against **Pi 1.0.0**'s extension API and validated
+against its session fixtures (Pi itself needs Node ≥ 22.19).
 
 ## Releasing
 
 Do not tag by hand. Bump `session-search/package.json` and merge to `main`; the
-`Release session-search` workflow creates the `session-search-v<version>` tag
-and GitHub Release, and refreshes the `session-search-latest` pointer.
+release workflow publishes the tarball and refreshes the `-latest` pointer.
+
+See [`AGENTS.md`](./AGENTS.md) for the agent-oriented guide.

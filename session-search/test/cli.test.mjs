@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PACKAGE_VERSION } from '../lib/package-info.mjs';
 
 const bin = fileURLToPath(new URL('../bin/session-search.mjs', import.meta.url));
 
@@ -46,13 +47,19 @@ test('--help prints usage and exits 0', () => {
 test('--version prints the package version', () => {
   const result = run(['--version']);
   assert.equal(result.status, 0);
-  assert.equal(result.stdout.trim(), '0.1.0');
+  assert.equal(result.stdout.trim(), PACKAGE_VERSION);
 });
 
 test('unknown option exits 2', () => {
   const result = run(['--nope']);
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Unknown option/);
+});
+
+test('unknown command exits non-zero', () => {
+  const result = run(['frobnicate']);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Unknown command/);
 });
 
 test('doctor --json is ok with no harness present', () => {

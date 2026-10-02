@@ -12,3 +12,13 @@
 {"id":"q12","category":"semantic","query":"white flash before dark mode","expected":[{"session":"sess_darkmode","grade":3}]}
 {"id":"q13","category":"semantic","query":"render a mermaid flowchart to png","expected":[{"session":"sess_mermaid","grade":3}]}
 {"id":"q14","category":"temporal","query":"what did we do about slow CI dependency installs","expected":[{"session":"sess_ci_cache","grade":3}]}
+{"id":"q15","category":"semantic","query":"why do browsers block our api calls","expected":[{"session":"sess_cors","grade":3}]}
+{"id":"q16","category":"semantic","query":"verify payment callback signatures","expected":[{"session":"sess_webhooks","grade":3}]}
+{"id":"q17","category":"symbol","query":"verifyWebhookSignature","expected":[{"session":"sess_webhooks","grade":3}]}
+{"id":"q18","category":"command","query":"docker build --no-cache","expected":[{"session":"sess_docker","grade":3}]}
+{"id":"q19","category":"path","query":"src/worker/pool.ts","expected":[{"session":"sess_memory","grade":3}]}
+{"id":"q20","category":"semantic","query":"a test fails randomly then passes when rerun","expected":[{"session":"sess_tests","grade":3}]}
+{"id":"q21","category":"semantic","query":"uploads time out for big files","expected":[{"session":"sess_upload","grade":3}]}
+{"id":"q22","category":"semantic","query":"performance problems under load","expected":[{"session":"sess_memory","grade":3},{"session":"sess_perf","grade":2}]}
+{"id":"q23","category":"temporal","query":"what did we do about the slow docker image","expected":[{"session":"sess_docker","grade":3}]}
+{"id":"q24","category":"semantic","query":"stop spoofed webhooks","expected":[{"session":"sess_webhooks","grade":3}]}

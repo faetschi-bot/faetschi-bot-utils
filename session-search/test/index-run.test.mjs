@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readIndexDocs, readIndexMeta } from '../lib/core/cache.mjs';
+import { MAX_TEXT_STRING } from '../lib/core/cap.mjs';
 import { inScope, indexOpencode, indexPi, loadPrevious, persistIndex } from '../lib/index-run.mjs';
 import { readPiSession } from '../lib/sources/pi.mjs';
 
@@ -20,6 +21,28 @@ test('inScope matches the project directory and its children, not siblings', () 
   assert.equal(inScope('/a/bc', '/a/b', 'project'), false);
   assert.equal(inScope('/elsewhere', '/a/b', 'project'), false);
   assert.equal(inScope('/elsewhere', '/a/b', 'all'), true);
+});
+
+test('inScope handles Windows separators', () => {
+  assert.equal(inScope('C:\\a\\b\\c', 'C:\\a\\b', 'project'), true);
+  assert.equal(inScope('C:\\a\\b', 'C:\\a\\b', 'project'), true);
+  assert.equal(inScope('C:\\a\\bc', 'C:\\a\\b', 'project'), false);
+});
+
+test('indexPi caps very long dialogue text', () => {
+  const base = mkdtempSync(join(tmpdir(), 'session-search-cap-'));
+  const sessionsRoot = join(base, 'sessions');
+  const cacheRoot = join(base, 'cache');
+  try {
+    writeSession(sessionsRoot, 's1', '/p', [
+      `{"type":"message","id":"e1","message":{"role":"user","content":"${'x'.repeat(MAX_TEXT_STRING + 500)}","timestamp":1}}`,
+    ]);
+    const built = indexPi({ sessionsRoot, cacheRoot, scope: 'project', project: '/p' });
+    assert.ok(built.turns[0].text.length <= MAX_TEXT_STRING + 20);
+    assert.match(built.turns[0].text, /truncated/);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 });
 
 test('indexPi extracts in-scope sessions, redacts, and persists a readable cache', () => {

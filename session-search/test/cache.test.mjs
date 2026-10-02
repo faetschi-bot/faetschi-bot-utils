@@ -10,6 +10,7 @@ import {
   readIndexDocs,
   readIndexMeta,
   resolveCacheRoot,
+  withLock,
   writeIndex,
 } from '../lib/core/cache.mjs';
 
@@ -21,6 +22,18 @@ test('resolveCacheRoot honors the override and platform defaults', () => {
 
 test('fingerprint ignores part order', () => {
   assert.equal(fingerprintFromParts(['b', 'a']), fingerprintFromParts(['a', 'b']));
+});
+
+test('withLock excludes a concurrent writer and releases', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'session-search-lock-'));
+  try {
+    withLock(dir, () => {
+      assert.throws(() => withLock(dir, () => {}), /locked/);
+    });
+    withLock(dir, () => {}); // released, so it can be acquired again
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('writeIndex round-trips meta and docs and drives freshness', () => {

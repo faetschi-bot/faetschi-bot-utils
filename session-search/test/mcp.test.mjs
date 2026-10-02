@@ -89,6 +89,7 @@ test('MCP server lists tools, reads _meta for project scope, and shows a session
     });
     assert.equal(withMeta.result.isError ?? false, false);
     historySearchOutputSchema.parse(withMeta.result.structuredContent);
+    assert.equal(typeof withMeta.result.structuredContent.truncated, 'boolean');
     assert.equal(withMeta.result.structuredContent.hits[0].session, 's1');
 
     const shown = await server.request('tools/call', { name: 'history_show', arguments: { session: 's1' } });

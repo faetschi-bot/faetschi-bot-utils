@@ -3,7 +3,7 @@ import { indexDir, readIndexDocs, readIndexMeta, resolveCacheRoot } from './core
 import { CliError } from './core/errors.mjs';
 import { runDoctor } from './doctor.mjs';
 import { indexOpencode, indexPi, loadPrevious, persistIndex } from './index-run.mjs';
-import { installAdapter, mcpConfigSnippet } from './install.mjs';
+import { installAdapter, installSkill, mcpConfigSnippet } from './install.mjs';
 import { PACKAGE_NAME, PACKAGE_VERSION } from './package-info.mjs';
 import { createOpencodeClient, readOpencodeEndpoint } from './sources/opencode.mjs';
 import { defaultPiSessionsDir } from './sources/pi.mjs';
@@ -33,6 +33,11 @@ Options:
   --no-redact         do not redact secrets before writing the index
   --force             rebuild even when the source fingerprint is unchanged
   --progress          print indexing progress to stderr
+  --global            install the adapter to the user-global location
+  --dry-run           report what install would write
+  --skills            also install the agent skill
+  --skill-only        install only the agent skill
+  --print             print an MCP config snippet instead of writing
   --json              print a machine-readable result
   --help, -h          show this help
   --version           show the version
@@ -57,6 +62,7 @@ export async function main(argv) {
   else if (opts.command === 'show') runShowCommand(opts);
   else if (opts.command === 'mcp') await runMcpCommand(opts);
   else if (opts.command === 'install') runInstallCommand(opts);
+  else if (opts.positionals.length) throw new CliError(`Unknown command: ${opts.positionals[0]}`);
   else console.log(usage());
 }
 
@@ -83,6 +89,8 @@ function parse(argv) {
     else if (token === '--all') opts.all = true;
     else if (token === '--global') opts.global = true;
     else if (token === '--dry-run') opts.dryRun = true;
+    else if (token === '--skills') opts.skills = true;
+    else if (token === '--skill-only') opts.skillOnly = true;
     else if (token === '--progress') opts.progress = true;
     else if (token === '--print') opts.print = true;
     else if (token === '--include-subagents') opts.includeSubagents = true;
@@ -116,7 +124,7 @@ function harnessesOf(opts) {
 }
 
 async function runDoctorCommand(opts) {
-  const result = await runDoctor();
+  const result = await runDoctor({ cacheRoot: opts.cache ? resolve(opts.cache) : undefined });
   if (opts.json) {
     console.log(JSON.stringify(result, null, 2));
   } else {
@@ -192,11 +200,21 @@ function runInstallCommand(opts) {
     return;
   }
 
-  const installed = harnesses.map((harness) =>
-    installAdapter(harness, { global: opts.global, cacheRoot, force: opts.force, dryRun: opts.dryRun }),
-  );
+  const installed = [];
+  const common = { global: opts.global, force: opts.force, dryRun: opts.dryRun };
+  if (!opts.skillOnly) {
+    for (const harness of harnesses) installed.push(installAdapter(harness, { ...common, cacheRoot }));
+  }
+  if (opts.skills || opts.skillOnly) {
+    for (const harness of harnesses) installed.push(installSkill(harness, common));
+  }
   if (opts.json) console.log(JSON.stringify({ ok: true, global: !!opts.global, dryRun: !!opts.dryRun, installed }, null, 2));
-  else for (const item of installed) console.log(`[${item.harness}] ${item.dryRun ? 'would install' : 'installed'} -> ${item.path}`);
+  else {
+    for (const item of installed) {
+      const verb = item.dryRun ? 'would install' : 'installed';
+      console.log(`[${item.harness}] ${verb} ${item.skill ? `skill ${item.skill}` : 'adapter'} -> ${item.path}`);
+    }
+  }
 }
 
 function loadTurns(opts) {

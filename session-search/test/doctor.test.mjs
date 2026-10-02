@@ -30,6 +30,10 @@ function status(result, name) {
   return result.checks.find((check) => check.name === name)?.status;
 }
 
+function message(result, name) {
+  return result.checks.find((check) => check.name === name)?.message;
+}
+
 test('doctor is ok with no sources and warns about an empty index', async () => {
   const { home, env } = isolatedHome();
   try {
@@ -89,6 +93,17 @@ test('doctor warns on a stale index', async () => {
   }
 });
 
+test('doctor honors an explicit cache root', async () => {
+  const { home, env } = isolatedHome();
+  try {
+    const cacheRoot = join(home, 'custom-cache');
+    const result = await runDoctor({ env, home, cacheRoot });
+    assert.match(message(result, 'cache'), /custom-cache/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('doctor runs from a package copy without node_modules', () => {
   const root = mkdtempSync(join(tmpdir(), 'session-search-bare-'));
   const pkg = join(root, 'pkg');
@@ -96,7 +111,7 @@ test('doctor runs from a package copy without node_modules', () => {
   try {
     mkdirSync(pkg);
     mkdirSync(home);
-    for (const entry of ['bin', 'lib', 'package.json']) {
+    for (const entry of ['bin', 'lib', 'skills', 'package.json']) {
       cpSync(fileURLToPath(new URL(`../${entry}`, import.meta.url)), join(pkg, entry), { recursive: true });
     }
     const result = spawnSync(process.execPath, [join(pkg, 'bin', 'session-search.mjs'), 'doctor', '--json'], {
