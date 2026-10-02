@@ -60,7 +60,7 @@ session-search install [options]            install the OpenCode/Pi adapter
 Key flags: `--harness opencode|pi|all`, `--project <dir>`, `--all`,
 `--limit <n>`, `--recency <0..1>`, `--include-subagents`, `--pi-sessions <dir>`,
 `--cache <dir>`, `--no-redact`, `--force`, `--progress`, `--json`; for `install`:
-`--global`, `--dry-run`, `--print`.
+`--global`, `--skills`, `--skill-only`, `--dry-run`, `--print`.
 
 Run `index` before `search`/`show`; the cache is keyed by harness, scope, and
 project. `search` returns session-level hits (best snippet + match location) and
@@ -102,10 +102,12 @@ lib/core/cap.mjs           input/text caps
 lib/core/tokenize.mjs      code-aware tokenizer (raw + subtokens + path suffixes)
 lib/core/retrieval.mjs     chunking, MiniSearch BM25+ index, session aggregation
 lib/core/snippet.mjs       query-centered snippets
+lib/skill.mjs              packaged-skill validation
 lib/mcp-server.mjs         stdio MCP server (history_search, history_show)
 lib/install.mjs            adapter generation + MCP config snippets
 adapters/opencode/         OpenCode plugin template
 adapters/pi/               Pi extension template
+skills/session-search/     bundled agent skill (when to search history)
 lib/sources/opencode.mjs   OpenCode HTTP API adapter
 lib/sources/pi.mjs         Pi JSONL adapter
 lib/sources/normalize.mjs  shared extraction helpers

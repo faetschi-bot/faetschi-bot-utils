@@ -51,7 +51,8 @@ from npm automatically.
 
 Common flags: `--harness opencode|pi|all`, `--project <dir>`, `--all`,
 `--limit <n>`, `--recency <0..1>`, `--include-subagents`, `--pi-sessions <dir>`,
-`--cache <dir>`, `--force`, `--progress`, `--json`. Run `session-search --help`
+`--cache <dir>`, `--force`, `--progress`, `--json`; for `install`: `--global`,
+`--skills`, `--skill-only`, `--dry-run`, `--print`. Run `session-search --help`
 for the full list. Every command exits non-zero on failure.
 
 ## Examples
@@ -130,6 +131,24 @@ Prefer MCP only? `npx session-search install --harness pi --print`:
 ```
 
 Pi 1.0 ships built-in MCP, so no extra extension is needed.
+
+## Agent skill
+
+The package ships a skill (`skills/session-search/SKILL.md`) that tells an agent
+**when** to search history — before re-implementing something, debugging a known
+failure, or when the user refers to earlier work. Install it with the adapter:
+
+```bash
+npx session-search install --harness opencode --skills   # adapter + skill
+npx session-search install --harness pi --skill-only     # skill only
+```
+
+| Harness | Project skill | Global skill |
+|---------|---------------|--------------|
+| `opencode` | `.opencode/skills/session-search/` | `~/.config/opencode/skills/session-search/` |
+| `pi` | `.pi/skills/session-search/` | `~/.pi/agent/skills/session-search/` |
+
+`doctor` validates the packaged skill, so a malformed `SKILL.md` fails CI.
 
 ## MCP tools
 

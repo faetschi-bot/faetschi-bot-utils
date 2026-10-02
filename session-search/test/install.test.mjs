@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { adapterTarget, installAdapter, mcpConfigSnippet, renderAdapter } from '../lib/install.mjs';
+import { adapterTarget, installAdapter, installSkill, mcpConfigSnippet, renderAdapter, skillTarget } from '../lib/install.mjs';
 
 test('renderAdapter substitutes the CLI path and leaves no placeholder', () => {
   const source = renderAdapter('opencode', { cliPath: '/x/bin/session-search.mjs', nodePath: '/usr/bin/node' });
@@ -57,4 +57,30 @@ test('adapterTarget honors the global location', () => {
 test('mcpConfigSnippet shapes per harness', () => {
   assert.ok(mcpConfigSnippet('opencode').mcp.servers.session_search.command);
   assert.ok(mcpConfigSnippet('pi').mcpServers.session_search.args);
+});
+
+test('installSkill copies the packaged skill and refuses overwrite', () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'session-search-install-'));
+  try {
+    const first = installSkill('opencode', { cwd });
+    assert.equal(first.skill, 'session-search');
+    assert.ok(existsSync(join(cwd, '.opencode', 'skills', 'session-search', 'SKILL.md')));
+    assert.throws(() => installSkill('opencode', { cwd }), /already exists/);
+    assert.ok(existsSync(installSkill('pi', { cwd }).path));
+    assert.ok(existsSync(join(cwd, '.pi', 'skills', 'session-search', 'SKILL.md')));
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test('skillTarget honors the global location', () => {
+  const home = mkdtempSync(join(tmpdir(), 'session-search-install-'));
+  try {
+    assert.equal(
+      skillTarget('opencode', { global: true, home }),
+      join(home, '.config', 'opencode', 'skills', 'session-search'),
+    );
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });

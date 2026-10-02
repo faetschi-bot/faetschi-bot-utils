@@ -111,7 +111,7 @@ test('doctor runs from a package copy without node_modules', () => {
   try {
     mkdirSync(pkg);
     mkdirSync(home);
-    for (const entry of ['bin', 'lib', 'package.json']) {
+    for (const entry of ['bin', 'lib', 'skills', 'package.json']) {
       cpSync(fileURLToPath(new URL(`../${entry}`, import.meta.url)), join(pkg, entry), { recursive: true });
     }
     const result = spawnSync(process.execPath, [join(pkg, 'bin', 'session-search.mjs'), 'doctor', '--json'], {

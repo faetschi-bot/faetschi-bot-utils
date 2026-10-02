@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +20,20 @@ export const ADAPTERS = {
     template: join(PACKAGE_ROOT, 'adapters', 'pi', 'extension.ts'),
     project: ['.pi', 'extensions', 'session-search.ts'],
     global: ['.pi', 'agent', 'extensions', 'session-search.ts'],
+  },
+};
+
+// The agent skill ships inside this package and can be copied into either
+// harness's skills directory.
+export const SKILL_SOURCE = join(PACKAGE_ROOT, 'skills', 'session-search');
+export const SKILL_TARGETS = {
+  opencode: {
+    project: ['.opencode', 'skills', 'session-search'],
+    global: ['.config', 'opencode', 'skills', 'session-search'],
+  },
+  pi: {
+    project: ['.pi', 'skills', 'session-search'],
+    global: ['.pi', 'agent', 'skills', 'session-search'],
   },
 };
 
@@ -48,6 +62,24 @@ export function installAdapter(harness, { global = false, cwd, home, cacheRoot =
     writeFileSync(dest, content, { mode: 0o600 });
   }
   return { harness, path: dest, action: existed ? 'overwrite' : 'create', dryRun };
+}
+
+export function skillTarget(harness, { global = false, cwd = process.cwd(), home = homedir() } = {}) {
+  const spec = SKILL_TARGETS[harness];
+  if (!spec) throw new CliError(`unknown harness: ${harness} (expected opencode or pi)`);
+  return join(global ? home : cwd, ...(global ? spec.global : spec.project));
+}
+
+export function installSkill(harness, { global = false, cwd, home, force = false, dryRun = false } = {}) {
+  const dest = skillTarget(harness, { global, cwd, home });
+  const existed = existsSync(dest);
+  if (existed && !force) throw new CliError(`destination already exists: ${dest} (use --force to overwrite)`);
+  if (!dryRun) {
+    if (existed) rmSync(dest, { recursive: true, force: true });
+    mkdirSync(dirname(dest), { recursive: true });
+    cpSync(SKILL_SOURCE, dest, { recursive: true });
+  }
+  return { harness, skill: 'session-search', path: dest, action: existed ? 'overwrite' : 'create', dryRun };
 }
 
 // A copy-pasteable MCP config snippet for users who prefer not to install the
