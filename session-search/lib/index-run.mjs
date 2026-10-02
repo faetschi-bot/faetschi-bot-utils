@@ -10,6 +10,7 @@ import {
   writeIndex,
 } from './core/cache.mjs';
 import { CliError } from './core/errors.mjs';
+import { capValue } from './core/cap.mjs';
 import { redactText, redactValue } from './core/redact.mjs';
 import { validateTurn } from './core/turn.mjs';
 import { OPENCODE_HARNESS, extractSessionTurns, sessionDirectory } from './sources/opencode.mjs';
@@ -160,5 +161,6 @@ export function loadPrevious(dir, redact) {
 }
 
 export function redactTurn(turn) {
-  return { ...turn, text: redactText(turn.text), input: turn.input === null ? null : redactValue(turn.input) };
+  const input = turn.input === null ? null : capValue(redactValue(turn.input));
+  return { ...turn, text: redactText(turn.text), input };
 }
