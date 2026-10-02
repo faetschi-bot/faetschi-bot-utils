@@ -160,7 +160,7 @@ session's project. Pi scopes by cwd.
 A frozen, offline corpus gates ranking quality in CI:
 
 ```bash
-npm run eval          # fails if a category's NDCG@10 drops >2 points
+npm run eval          # fails if a category's NDCG@10 or Recall@10 drops >2 points
 npm run eval:update   # rewrite the baseline after an intended change
 ```
 
