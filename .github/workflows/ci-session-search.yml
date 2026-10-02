@@ -1,0 +1,40 @@
+name: CI session-search
+
+on:
+  pull_request:
+    paths:
+      - 'session-search/**'
+      - '.github/workflows/ci-session-search.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'session-search/**'
+      - '.github/workflows/ci-session-search.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: session-search
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax check
+        run: npm run check
+      - name: Doctor
+        run: node bin/session-search.mjs doctor
+      - name: Tests
+        run: npm test
+      - name: Eval gate
+        run: npm run eval
+      - name: Pack check
+        run: npm pack --dry-run

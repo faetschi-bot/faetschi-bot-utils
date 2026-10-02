@@ -23,6 +23,7 @@ tool's CI runs and release history, so the table doubles as a status board:
 | [`📦 outbound`](./outbound) | Clean, PR-based release changelogs: verify release hygiene and scaffold GitHub release categories | [![outbound CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-outbound.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-outbound.yml) | [![outbound version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Foutbound%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=outbound) |
 | [`🛠️ agentic-tools`](./agentic-tools) | Reusable skills and hooks for AI coding agents | [![agentic-tools CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-agentic-tools.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-agentic-tools.yml) | [![agentic-tools version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fagentic-tools%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=agentic-tools) |
 | [`💬 mention-agent`](./mention-agent) | Turn `@mentions` in issues and pull requests into AI agent runs — comment, or commit to the same PR | [![mention-agent CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-mention-agent.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-mention-agent.yml) | [![mention-agent version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fmention-agent%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=mention-agent) |
+| [`🔎 session-search`](./session-search) | Lexical search over local AI coding-agent session history (OpenCode and Pi) | [![session-search CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-session-search.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-session-search.yml) | [![session-search version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fsession-search%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=session-search) |
 
 Each tool is self-contained. Tools are distributed as **GitHub Release
 tarballs**, so installing or publishing them needs **no npm registry account and
@@ -42,6 +43,7 @@ newest release:
 | `outbound` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/outbound-latest/outbound.tgz` | `npx outbound init` |
 | `agentic-tools` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz` | `npx agentic-tools list` |
 | `mention-agent` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/mention-agent-latest/mention-agent.tgz` | `npx mention-agent setup --mention @example-bot` |
+| `session-search` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/session-search-latest/session-search.tgz` | `npx session-search doctor --json` |
 
 - **Per project:** run the install inside that project. `-D` records it in
   `devDependencies`, so it survives reinstalls and an agent can set it up too.
@@ -94,6 +96,7 @@ To release a tool, bump its `<tool>/package.json` and merge:
 # visual-shot    -> .../releases/tag/visual-shot-v<version>
 # outbound       -> .../releases/tag/outbound-v<version>
 # agentic-tools  -> .../releases/tag/agentic-tools-v<version>
+# session-search -> .../releases/tag/session-search-v<version>
 ```
 
 ## Adding a new tool

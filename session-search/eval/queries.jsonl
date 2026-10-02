@@ -1,0 +1,14 @@
+{"id":"q01","category":"semantic","query":"how do we refresh expired oauth tokens","expected":[{"session":"sess_auth","grade":3}]}
+{"id":"q02","category":"semantic","query":"stop clients from hammering the export endpoint","expected":[{"session":"sess_ratelimit","grade":3}]}
+{"id":"q03","category":"symbol","query":"refreshAccessToken","expected":[{"session":"sess_auth","grade":3}]}
+{"id":"q04","category":"symbol","query":"RateLimiter","expected":[{"session":"sess_ratelimit","grade":3}]}
+{"id":"q05","category":"path","query":"src/auth/token.ts","expected":[{"session":"sess_auth","grade":3}]}
+{"id":"q06","category":"command","query":"playwright install-deps chromium","expected":[{"session":"sess_playwright","grade":3}]}
+{"id":"q07","category":"semantic","query":"database is locked when two writers run","expected":[{"session":"sess_sqlite","grade":3}]}
+{"id":"q08","category":"command","query":"gh release create --notes-start-tag","expected":[{"session":"sess_release","grade":3}]}
+{"id":"q09","category":"semantic","query":"dashboard is slow because of too many queries","expected":[{"session":"sess_perf","grade":3}]}
+{"id":"q10","category":"symbol","query":"Intl.DateTimeFormat","expected":[{"session":"sess_i18n","grade":3}]}
+{"id":"q11","category":"path","query":".github/workflows/ci.yml","expected":[{"session":"sess_ci_cache","grade":3}]}
+{"id":"q12","category":"semantic","query":"white flash before dark mode","expected":[{"session":"sess_darkmode","grade":3}]}
+{"id":"q13","category":"semantic","query":"render a mermaid flowchart to png","expected":[{"session":"sess_mermaid","grade":3}]}
+{"id":"q14","category":"temporal","query":"what did we do about slow CI dependency installs","expected":[{"session":"sess_ci_cache","grade":3}]}
