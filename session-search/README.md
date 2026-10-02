@@ -128,6 +128,21 @@ Session history can contain secrets, file contents, and private URLs. Therefore:
 
 Review results before sharing them. Redaction is best-effort, not a guarantee.
 
+## Evaluation
+
+Retrieval quality is gated in CI against a frozen, committed corpus and query
+set — no network and no LLM at gate time:
+
+```bash
+npm run eval          # fail if session NDCG@10 drops >2 points vs baseline
+npm run eval:update   # rewrite eval/baseline.json after an intended change
+node eval/judge.mjs   # offline: print candidate pools for relabeling
+```
+
+`eval/corpus/turns.jsonl` is a sanitized normalized corpus; `eval/queries.jsonl`
+carries stratified queries (semantic / symbol / path / command / temporal) with
+graded session labels. Metrics are session-level NDCG@10, Recall@10, and MRR@10.
+
 ## Releasing
 
 Do not tag by hand. Bump `session-search/package.json` and merge to `main`; the

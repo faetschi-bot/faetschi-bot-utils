@@ -34,5 +34,7 @@ jobs:
         run: node bin/session-search.mjs doctor
       - name: Tests
         run: npm test
+      - name: Eval gate
+        run: npm run eval
       - name: Pack check
         run: npm pack --dry-run

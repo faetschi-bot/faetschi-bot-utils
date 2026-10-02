@@ -1,0 +1,40 @@
+{
+  "overall": {
+    "queries": 14,
+    "ndcg": 1,
+    "recall": 1,
+    "mrr": 1
+  },
+  "byCategory": {
+    "semantic": {
+      "queries": 6,
+      "ndcg": 1,
+      "recall": 1,
+      "mrr": 1
+    },
+    "symbol": {
+      "queries": 3,
+      "ndcg": 1,
+      "recall": 1,
+      "mrr": 1
+    },
+    "path": {
+      "queries": 2,
+      "ndcg": 1,
+      "recall": 1,
+      "mrr": 1
+    },
+    "command": {
+      "queries": 2,
+      "ndcg": 1,
+      "recall": 1,
+      "mrr": 1
+    },
+    "temporal": {
+      "queries": 1,
+      "ndcg": 1,
+      "recall": 1,
+      "mrr": 1
+    }
+  }
+}

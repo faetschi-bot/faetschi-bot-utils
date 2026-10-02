@@ -103,12 +103,14 @@ lib/sources/normalize.mjs  shared extraction helpers
 ```bash
 npm test          # node --test test/
 npm run check     # syntax-check every .mjs
+npm run eval      # retrieval-quality gate vs eval/baseline.json
 node bin/session-search.mjs doctor
 ```
 
 Tests are headless and self-provisioning: they inject fake HTTP, fake
 filesystems, and temp directories; never read the real user history or the
-network.
+network. The eval gate is deterministic and offline; use `npm run eval:update`
+to rewrite the baseline after an intended ranking change.
 
 ## Releasing (maintainers)
 

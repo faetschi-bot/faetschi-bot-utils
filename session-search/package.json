@@ -39,7 +39,9 @@
   },
   "scripts": {
     "test": "node --test test/",
-    "check": "node --check bin/session-search.mjs && for f in lib/*.mjs lib/core/*.mjs lib/sources/*.mjs; do node --check \"$f\" || exit 1; done",
+    "check": "node --check bin/session-search.mjs && for f in lib/*.mjs lib/core/*.mjs lib/sources/*.mjs eval/*.mjs; do node --check \"$f\" || exit 1; done",
+    "eval": "node eval/run.mjs",
+    "eval:update": "node eval/run.mjs --update",
     "prepack": "npm run check && node bin/session-search.mjs doctor",
     "prepublishOnly": "npm run check && node bin/session-search.mjs doctor"
   },
