@@ -58,7 +58,7 @@ session-search install [options]            install the OpenCode/Pi adapter
 
 Key flags: `--harness opencode|pi|all`, `--project <dir>`, `--all`,
 `--limit <n>`, `--include-subagents`, `--pi-sessions <dir>`, `--cache <dir>`,
-`--no-redact`, `--force`, `--json`.
+`--no-redact`, `--force`, `--progress`, `--json`.
 
 Run `index` before `search`/`show`; the cache is keyed by harness, scope, and
 project. `search` returns session-level hits (best snippet + match location) and

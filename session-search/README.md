@@ -65,6 +65,7 @@ session-search install [options]            install the OpenCode/Pi adapter
 | `--cache <dir>` | cache root (default: the platform cache dir) |
 | `--no-redact` | do not redact secrets before writing the index |
 | `--force` | rebuild even when the source fingerprint is unchanged |
+| `--progress` | print indexing progress to stderr |
 | `--json` | print a machine-readable result |
 
 ```bash

@@ -3,7 +3,7 @@ import { indexDir, readIndexDocs, readIndexMeta, resolveCacheRoot } from './core
 import { CliError } from './core/errors.mjs';
 import { buildIndex, searchSessions } from './core/retrieval.mjs';
 import { runDoctor } from './doctor.mjs';
-import { indexOpencode, indexPi, persistIndex } from './index-run.mjs';
+import { indexOpencode, indexPi, loadPrevious, persistIndex } from './index-run.mjs';
 import { installAdapter, mcpConfigSnippet } from './install.mjs';
 import { PACKAGE_NAME, PACKAGE_VERSION } from './package-info.mjs';
 import { createOpencodeClient, readOpencodeEndpoint } from './sources/opencode.mjs';
@@ -32,6 +32,7 @@ Options:
   --cache <dir>       cache root (default: platform cache dir)
   --no-redact         do not redact secrets before writing the index
   --force             rebuild even when the source fingerprint is unchanged
+  --progress          print indexing progress to stderr
   --json              print a machine-readable result
   --help, -h          show this help
   --version           show the version
@@ -81,6 +82,7 @@ function parse(argv) {
     else if (token === '--all') opts.all = true;
     else if (token === '--global') opts.global = true;
     else if (token === '--dry-run') opts.dryRun = true;
+    else if (token === '--progress') opts.progress = true;
     else if (token === '--print') opts.print = true;
     else if (token === '--include-subagents') opts.includeSubagents = true;
     else if (token === '--no-redact') opts.redact = false;
@@ -124,9 +126,12 @@ async function runIndexCommand(opts) {
   const cacheRoot = opts.cache ? resolve(opts.cache) : resolveCacheRoot();
   const { scope, project } = scopeOf(opts);
   const redact = opts.redact !== false;
+  const onProgress = opts.progress && !opts.json ? (progress) => process.stderr.write(`[${progress.harness}] ${progress.done}/${progress.total}\n`) : undefined;
   const results = [];
 
   for (const harness of harnessesOf(opts)) {
+    const dir = indexDir(cacheRoot, harness, `${scope}:${project}`);
+    const previous = loadPrevious(dir, redact);
     if (harness === 'opencode') {
       const endpoint = readOpencodeEndpoint();
       if (!endpoint) {
@@ -134,10 +139,10 @@ async function runIndexCommand(opts) {
         continue;
       }
       const client = createOpencodeClient(endpoint);
-      results.push(await runOne(harness, () => indexOpencode({ client, cacheRoot, scope, project, redact }), opts));
+      results.push(await runOne(harness, () => indexOpencode({ client, cacheRoot, scope, project, redact, previous, onProgress }), opts));
     } else if (harness === 'pi') {
       const sessionsRoot = opts.piSessions || defaultPiSessionsDir();
-      results.push(await runOne(harness, () => indexPi({ sessionsRoot, cacheRoot, scope, project, redact }), opts));
+      results.push(await runOne(harness, () => indexPi({ sessionsRoot, cacheRoot, scope, project, redact, previous, onProgress }), opts));
     }
   }
 
