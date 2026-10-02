@@ -136,6 +136,8 @@ Session history can contain secrets, file contents, and private URLs. Therefore:
   persist in the cache. The rule set covers common API keys, tokens, private
   keys, `Authorization` headers, and URL credentials.
 - **Tool outputs are never indexed.**
+- Tool **inputs** are stored for the actions tier but every string is capped
+  (2 KB) at index time, so an `edit`/`write` argument cannot persist a whole file.
 - The default scope is the **current project**; indexing every project requires
   `--all`.
 - The cache is local-only. Nothing is uploaded.
