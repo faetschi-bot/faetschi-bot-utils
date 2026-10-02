@@ -14,6 +14,33 @@ import { PACKAGE_VERSION } from './package-info.mjs';
 export const OPENCODE_SESSION_META_KEY = 'ai.opencode/sessionID';
 const MAX_LIMIT = 50;
 
+// Strict schemas: the SDK validates structuredContent against the advertised
+// outputSchema, and OpenCode's client rejects undeclared properties.
+export const historySearchHitSchema = z.strictObject({
+  harness: z.string(),
+  session: z.string(),
+  title: z.string(),
+  project: z.string(),
+  parent: z.string().nullable(),
+  score: z.number(),
+  matched: z.number(),
+  snippet: z.string(),
+  match: z.strictObject({ role: z.string(), kind: z.string(), time: z.number(), seq: z.number() }),
+});
+
+export const historySearchOutputSchema = z.strictObject({
+  query: z.string(),
+  scope: z.string(),
+  count: z.number(),
+  hits: z.array(historySearchHitSchema),
+});
+
+export const historyShowOutputSchema = z.strictObject({
+  session: z.string(),
+  count: z.number(),
+  turns: z.array(z.strictObject({ role: z.string(), kind: z.string(), time: z.number(), text: z.string() })),
+});
+
 export function readOpencodeSessionId(ctx) {
   const value = ctx?.mcpReq?._meta?.[OPENCODE_SESSION_META_KEY];
   return typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -38,23 +65,7 @@ export function createMcpServer({ cacheRoot = resolveCacheRoot(), cwd = process.
         includeSubagents: z.boolean().optional(),
         recency: z.number().min(0).max(1).optional(),
       }),
-      outputSchema: z.object({
-        query: z.string(),
-        scope: z.string(),
-        count: z.number(),
-        hits: z.array(
-          z.object({
-            harness: z.string(),
-            session: z.string(),
-            title: z.string(),
-            project: z.string(),
-            parent: z.string().nullable(),
-            score: z.number(),
-            matched: z.number(),
-            snippet: z.string(),
-          }),
-        ),
-      }),
+      outputSchema: historySearchOutputSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ query, scope, limit = 10, includeSubagents = false, recency = 0 }, ctx) => {
@@ -84,13 +95,7 @@ export function createMcpServer({ cacheRoot = resolveCacheRoot(), cwd = process.
         session: z.string().min(1),
         limit: z.number().int().positive().max(MAX_LIMIT).optional(),
       }),
-      outputSchema: z.object({
-        session: z.string(),
-        count: z.number(),
-        turns: z.array(
-          z.object({ role: z.string(), kind: z.string(), time: z.number(), text: z.string() }),
-        ),
-      }),
+      outputSchema: historyShowOutputSchema,
       annotations: { readOnlyHint: true },
     },
     async ({ session, limit = 20 }) => {

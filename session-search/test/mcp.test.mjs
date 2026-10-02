@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { indexPi, persistIndex } from '../lib/index-run.mjs';
+import { historySearchOutputSchema, historyShowOutputSchema } from '../lib/mcp-server.mjs';
 
 const bin = fileURLToPath(new URL('../bin/session-search.mjs', import.meta.url));
 const OPENCODE_KEY = 'ai.opencode/sessionID';
@@ -87,9 +88,11 @@ test('MCP server lists tools, reads _meta for project scope, and shows a session
       _meta: { [OPENCODE_KEY]: 's1' },
     });
     assert.equal(withMeta.result.isError ?? false, false);
+    historySearchOutputSchema.parse(withMeta.result.structuredContent);
     assert.equal(withMeta.result.structuredContent.hits[0].session, 's1');
 
     const shown = await server.request('tools/call', { name: 'history_show', arguments: { session: 's1' } });
+    historyShowOutputSchema.parse(shown.result.structuredContent);
     assert.equal(shown.result.structuredContent.count, 1);
   } finally {
     await server.stop();
