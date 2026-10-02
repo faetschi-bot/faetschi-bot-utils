@@ -1,0 +1,100 @@
+name: Release session-search
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'session-search-v*'
+    paths:
+      - 'session-search/**'
+      - '.github/workflows/release-session-search.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '20'
+
+      - name: Resolve release tag
+        id: release
+        working-directory: session-search
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = "tag" ]; then
+            tag="$REF_NAME"
+            expected="session-search-v$(node -p "require('./package.json').version")"
+            if [ "$tag" != "$expected" ]; then
+              echo "tag $tag does not match package.json version ($expected)" >&2
+              exit 1
+            fi
+          else
+            tag="session-search-v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "resolved release tag: $tag"
+
+      - name: Check whether the release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "$TAG already released; nothing to do"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        if: steps.check.outputs.exists == 'false'
+        working-directory: session-search
+        run: |
+          npm pack
+          echo "TGZ=session-search/$(ls session-search-*.tgz)" >> "$GITHUB_ENV"
+
+      - name: Publish release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          TOOL: session-search
+        run: |
+          previous=$(git tag --list "${TOOL}-v*" --sort=-v:refname | grep -v "^${TAG}$" | head -n 1 || true)
+          args=("$TAG" "$TGZ" --target "$GITHUB_SHA" --title "$TAG" --generate-notes)
+          if [ -n "$previous" ]; then
+            args+=(--notes-start-tag "$previous")
+          fi
+          gh release create "${args[@]}"
+
+      - name: Update session-search-latest alias
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TOOL: session-search
+          TAG: ${{ steps.release.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          version="${TAG#"${TOOL}"-v}"
+          gh release download "$TAG" -R "$REPO" -p "${TOOL}-${version}.tgz" -O "${TOOL}.tgz" --clobber
+          if gh release view "${TOOL}-latest" -R "$REPO" >/dev/null 2>&1; then
+            gh release upload "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" --clobber
+          else
+            gh release create "${TOOL}-latest" "${TOOL}.tgz" -R "$REPO" \
+              --target "$GITHUB_SHA" \
+              --title "${TOOL}-latest" \
+              --latest=false \
+              --notes "Moving pointer to the newest ${TOOL} release. Install: https://github.com/${REPO}/releases/download/${TOOL}-latest/${TOOL}.tgz"
+          fi
+          echo "updated ${TOOL}-latest -> ${TAG}"

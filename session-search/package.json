@@ -1,0 +1,46 @@
+{
+  "name": "session-search",
+  "version": "0.1.0",
+  "description": "Lexical search over local AI coding-agent session history (OpenCode and Pi).",
+  "keywords": [
+    "session",
+    "history",
+    "search",
+    "bm25",
+    "opencode",
+    "pi",
+    "agent",
+    "memory"
+  ],
+  "homepage": "https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/session-search#readme",
+  "bugs": {
+    "url": "https://github.com/faetschi-bot/faetschi-bot-utils/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faetschi-bot/faetschi-bot-utils.git",
+    "directory": "session-search"
+  },
+  "author": "faetschi-bot",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "session-search": "bin/session-search.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "check": "node --check bin/session-search.mjs && for f in lib/*.mjs lib/core/*.mjs lib/sources/*.mjs; do node --check \"$f\" || exit 1; done",
+    "prepack": "npm run check && node bin/session-search.mjs doctor",
+    "prepublishOnly": "npm run check && node bin/session-search.mjs doctor"
+  }
+}
