@@ -16,14 +16,16 @@ It indexes the **signal** and skips the noise:
 Tool outputs are roughly 87% of a typical history and are mostly repo noise, so
 they are never indexed.
 
-> **Status:** this first increment implements ingestion (`index`) and `doctor`.
-> `search`, the MCP server, and the harness adapters land in follow-ups.
+> **Status:** `index`, `search`, and `show` are implemented. The MCP server and
+> the native OpenCode/Pi adapters land in follow-ups.
 
 ## Requirements
 
 - **Node 20+**
 - A local OpenCode service and/or a Pi sessions directory to read (optional;
   without either, `doctor` still passes and `index` reports a skip).
+- The `minisearch` runtime dependency, installed by `npm install` (or by
+  installing the release tarball).
 
 ## Install
 
@@ -44,15 +46,19 @@ node tools/faetschi-bot-utils/session-search/bin/session-search.mjs doctor
 ## CLI
 
 ```text
-session-search index [options]     read session history into the local cache
-session-search doctor [options]    check Node, cache, and detected sources
+session-search index [options]              read session history into the cache
+session-search search "<query>" [options]   search the cached history
+session-search show <sessionID> [options]   print one session's indexed turns
+session-search doctor [options]             check Node, cache, and sources
 ```
 
 | Flag | Meaning |
 |------|---------|
 | `--harness <name>` | `opencode`, `pi`, or `all` (default: `all`) |
 | `--project <dir>` | scope to sessions under this directory (default: cwd) |
-| `--all` | index every project instead of the current one |
+| `--all` | use every project instead of the current one |
+| `--limit <n>` | max results (search, default 10) or turns (show) |
+| `--include-subagents` | keep child sessions instead of folding them into parents |
 | `--pi-sessions <dir>` | Pi sessions directory (default: `~/.pi/agent/sessions`) |
 | `--cache <dir>` | cache root (default: the platform cache dir) |
 | `--no-redact` | do not redact secrets before writing the index |
@@ -71,8 +77,27 @@ $ npx session-search index --harness pi --json
 ```
 
 `doctor --json` reports `ok`, the package version, and one entry per check
-(`node`, `cache`, `opencode-source`, `pi-source`). Missing harnesses are a
-`skip`, not a failure.
+(`node`, `cache`, `opencode-source`, `pi-source`, `dependencies`). Missing
+harnesses are a `skip`; a missing dependency is a `warn`, not a failure.
+
+## Search
+
+`search` builds an in-memory [MiniSearch](https://github.com/lucaong/minisearch)
+index from the cached turns using **BM25+** (`k1=1.2`, `b=0.7`, `d=0.5`):
+
+- A code-aware tokenizer emits the whole token plus case/digit subtokens and
+  path-suffix tokens, so `getUserById` and `user id` both match.
+- Fields are boosted: title 3×, path 1.5×, text/tool 1×.
+- Long turns are chunked (~800 chars, 200 overlap) before scoring, then chunks
+  are aggregated to sessions (sum of the top 3 chunk scores + a match bonus).
+- Child/subagent sessions are folded into their parent unless they clearly
+  outrank it; pass `--include-subagents` to keep them.
+
+```bash
+$ npx session-search search "rate limiter" --json
+$ npx session-search search "why did the build fail" --limit 5
+$ npx session-search show ses_f077ce740ffeMvHImfodIoDlm7
+```
 
 ## Where the index lives
 

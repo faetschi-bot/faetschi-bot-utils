@@ -10,6 +10,7 @@ export function makeTurn({
   harness,
   project = '',
   session,
+  title = '',
   parent = null,
   seq,
   time = 0,
@@ -20,7 +21,7 @@ export function makeTurn({
   input = null,
   refs = {},
 }) {
-  return { v: TURN_SCHEMA_VERSION, harness, project, session, parent, seq, time, role, kind, text, tool, input, refs };
+  return { v: TURN_SCHEMA_VERSION, harness, project, session, title, parent, seq, time, role, kind, text, tool, input, refs };
 }
 
 // Returns a list of human-readable problems; empty means valid.
@@ -30,6 +31,7 @@ export function validateTurn(turn) {
   if (turn.v !== TURN_SCHEMA_VERSION) errors.push(`v must be ${TURN_SCHEMA_VERSION}`);
   if (typeof turn.harness !== 'string' || !turn.harness) errors.push('harness must be a non-empty string');
   if (typeof turn.project !== 'string') errors.push('project must be a string');
+  if (typeof turn.title !== 'string') errors.push('title must be a string');
   if (typeof turn.session !== 'string' || !turn.session) errors.push('session must be a non-empty string');
   if (!TURN_ROLES.includes(turn.role)) errors.push(`role must be one of ${TURN_ROLES.join(', ')}`);
   if (!TURN_KINDS.includes(turn.kind)) errors.push(`kind must be one of ${TURN_KINDS.join(', ')}`);

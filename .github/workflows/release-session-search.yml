@@ -59,6 +59,11 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install dependencies
+        if: steps.check.outputs.exists == 'false'
+        working-directory: session-search
+        run: npm ci
+
       - name: Pack
         if: steps.check.outputs.exists == 'false'
         working-directory: session-search

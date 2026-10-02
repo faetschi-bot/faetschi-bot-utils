@@ -70,6 +70,7 @@ export function extractPiTurns(header, entries) {
   const project = header.cwd ?? '';
   const session = header.id ?? '';
   const parent = header.parentSession ?? null;
+  const title = lastSessionName(entries);
   const turns = [];
   let seq = 0;
 
@@ -81,6 +82,7 @@ export function extractPiTurns(header, entries) {
         harness: PI_HARNESS,
         project,
         session,
+        title,
         parent,
         seq: seq++,
         time: extra.time ?? 0,
@@ -134,4 +136,13 @@ function emitMessage(message, emit, refs) {
     emit('shell', 'action', message.command, { time, refs });
   }
   // toolResult and system are not indexed.
+}
+
+// Pi stores the display name in a session_info entry, not the header.
+function lastSessionName(entries) {
+  let name = '';
+  for (const entry of entries) {
+    if (entry.type === 'session_info' && typeof entry.name === 'string') name = entry.name;
+  }
+  return name;
 }

@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { resolveCacheRoot } from './core/cache.mjs';
 import { PACKAGE_VERSION } from './package-info.mjs';
@@ -19,6 +20,7 @@ export function runDoctor({ env = process.env, platform = process.platform, home
       const dir = defaultPiSessionsDir({ env });
       return existsSync(dir) ? `sessions at ${dir}` : undefined;
     }),
+    dependencyCheck(),
   ];
   return { ok: checks.every((check) => check.status !== 'fail'), version: PACKAGE_VERSION, checks };
 }
@@ -50,4 +52,15 @@ function sourceCheck(name, probe) {
   return detail
     ? { name, status: 'ok', message: detail }
     : { name, status: 'skip', message: 'not detected on this machine' };
+}
+
+// MiniSearch is a runtime dependency; a vendored checkout without `npm install`
+// can still run doctor, but search will not work.
+function dependencyCheck() {
+  try {
+    createRequire(import.meta.url).resolve('minisearch');
+    return { name: 'dependencies', status: 'ok', message: 'minisearch resolved' };
+  } catch {
+    return { name: 'dependencies', status: 'warn', message: 'minisearch not installed; run `npm install`' };
+  }
 }

@@ -13,6 +13,7 @@ harness schema.
 | Capability | Why |
 |------------|-----|
 | Node 20+ | Run the CLI. |
+| `npm install` (or the release tarball) | Provides the `minisearch` runtime dependency. |
 | Read access to the OpenCode service registration or Pi sessions | To discover history. |
 | Write access to the cache directory | To build the index. |
 | Network to `127.0.0.1` (OpenCode only) | The OpenCode API is local. |
@@ -45,12 +46,19 @@ an error; say so rather than claiming full verification.
 ## Commands
 
 ```text
-session-search index [options]     read session history into the local cache
-session-search doctor [options]    check Node, cache, and detected sources
+session-search index [options]              read session history into the cache
+session-search search "<query>" [options]   search the cached history
+session-search show <sessionID> [options]   print one session's indexed turns
+session-search doctor [options]             check Node, cache, and sources
 ```
 
 Key flags: `--harness opencode|pi|all`, `--project <dir>`, `--all`,
-`--pi-sessions <dir>`, `--cache <dir>`, `--no-redact`, `--force`, `--json`.
+`--limit <n>`, `--include-subagents`, `--pi-sessions <dir>`, `--cache <dir>`,
+`--no-redact`, `--force`, `--json`.
+
+Run `index` before `search`/`show`; the cache is keyed by harness, scope, and
+project. `search` returns session-level hits (best snippet + match location) and
+folds child sessions into parents unless `--include-subagents` is passed.
 
 ## What is indexed
 
@@ -82,6 +90,9 @@ lib/doctor.mjs             health checks
 lib/core/turn.mjs          normalized Turn schema (the index's only record)
 lib/core/cache.mjs         cache location, fingerprint, locking, atomic writes
 lib/core/redact.mjs        secret redaction
+lib/core/tokenize.mjs      code-aware tokenizer (raw + subtokens + path suffixes)
+lib/core/retrieval.mjs     chunking, MiniSearch BM25+ index, session aggregation
+lib/core/snippet.mjs       query-centered snippets
 lib/sources/opencode.mjs   OpenCode HTTP API adapter
 lib/sources/pi.mjs         Pi JSONL adapter
 lib/sources/normalize.mjs  shared extraction helpers

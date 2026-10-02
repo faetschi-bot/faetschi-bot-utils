@@ -42,5 +42,8 @@
     "check": "node --check bin/session-search.mjs && for f in lib/*.mjs lib/core/*.mjs lib/sources/*.mjs; do node --check \"$f\" || exit 1; done",
     "prepack": "npm run check && node bin/session-search.mjs doctor",
     "prepublishOnly": "npm run check && node bin/session-search.mjs doctor"
+  },
+  "dependencies": {
+    "minisearch": "7.2.0"
   }
 }

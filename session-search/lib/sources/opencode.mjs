@@ -90,6 +90,7 @@ export function sessionDirectory(session) {
 export function extractSessionTurns(session, messages) {
   const project = sessionDirectory(session);
   const sessionID = session.id;
+  const title = session.title ?? '';
   const parent = session.parentID ?? null;
   const turns = [];
   let seq = 0;
@@ -102,6 +103,7 @@ export function extractSessionTurns(session, messages) {
         harness: OPENCODE_HARNESS,
         project,
         session: sessionID,
+        title,
         parent,
         seq: seq++,
         time: extra.time ?? 0,
