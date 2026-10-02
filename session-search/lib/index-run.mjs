@@ -10,7 +10,7 @@ import {
   writeIndex,
 } from './core/cache.mjs';
 import { CliError } from './core/errors.mjs';
-import { capValue } from './core/cap.mjs';
+import { capValue, MAX_TEXT_STRING } from './core/cap.mjs';
 import { redactText, redactValue } from './core/redact.mjs';
 import { validateTurn } from './core/turn.mjs';
 import { OPENCODE_HARNESS, extractSessionTurns, sessionDirectory } from './sources/opencode.mjs';
@@ -18,9 +18,10 @@ import { PI_HARNESS, extractPiTurns, listPiSessionFiles, readPiSession } from '.
 
 export function inScope(directory, project, scope) {
   if (scope === 'all' || !project) return true;
-  const dir = String(directory || '');
-  const base = project.endsWith('/') ? project : `${project}/`;
-  return dir === project || dir.startsWith(base);
+  const normalize = (value) => String(value || '').replace(/\\/g, '/').replace(/\/+$/, '');
+  const dir = normalize(directory);
+  const base = normalize(project);
+  return dir === base || dir.startsWith(`${base}/`);
 }
 
 // Indexing is incremental at the session (OpenCode) or file (Pi) level: an
@@ -162,5 +163,5 @@ export function loadPrevious(dir, redact) {
 
 export function redactTurn(turn) {
   const input = turn.input === null ? null : capValue(redactValue(turn.input));
-  return { ...turn, text: redactText(turn.text), input };
+  return { ...turn, text: capValue(redactText(turn.text), MAX_TEXT_STRING), input };
 }

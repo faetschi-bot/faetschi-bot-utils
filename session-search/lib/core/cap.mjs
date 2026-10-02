@@ -2,6 +2,9 @@
 // argument can carry a whole file. Cap stored strings so the cache stays small
 // and does not retain large file bodies.
 export const MAX_INPUT_STRING = 2000;
+// Dialogue text is the searchable content, so it gets a much larger bound than
+// tool inputs; this only trims pathological pastes.
+export const MAX_TEXT_STRING = 20000;
 const MARKER = '…[truncated]';
 
 export function capValue(value, max = MAX_INPUT_STRING) {

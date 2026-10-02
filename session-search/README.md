@@ -34,8 +34,8 @@ node bin/session-search.mjs doctor
 ```
 
 `session-search` has three small runtime deps (`minisearch`,
-`@modelcontextprotocol/server`, `zod`). `doctor` works without them; `index`,
-`search`, and `mcp` need `npm install` once. Installing the tarball pulls them
+`@modelcontextprotocol/server`, `zod`). `doctor` and `index` work without them;
+`search` and `mcp` need `npm install` once. Installing the tarball pulls them
 from npm automatically.
 
 ## Commands
@@ -133,7 +133,8 @@ Pi 1.0 ships built-in MCP, so no extra extension is needed.
 
 ## MCP tools
 
-Both are read-only and return text plus `structuredContent`.
+Both are read-only. Successful calls return text plus `structuredContent`; error
+paths (no index, session not found) return an `isError` text result.
 
 - `history_search({ query, scope?, limit?, includeSubagents?, recency? })` →
   `{ count, truncated, hits: [...] }`
@@ -165,14 +166,15 @@ npm run eval:update   # rewrite the baseline after an intended change
 
 Current baseline: **overall NDCG@10 0.9654** — symbol/path/command/temporal 1.0,
 semantic 0.9307 (16 sessions, 24 stratified queries). The one miss is a
-paraphrase-only query, i.e. the known semantic gap. `node eval/judge.mjs` prints
-candidate pools for relabeling.
+multi-target paraphrase query, i.e. the known semantic gap. `node eval/judge.mjs`
+prints candidate pools for relabeling.
 
 ## Security & privacy
 
 - **Redaction at index time** (API keys, tokens, private keys, `Authorization`
   headers, URL credentials), so secrets do not persist in the cache.
-- **Tool inputs capped** at 2 KB per string; **tool outputs never indexed**.
+- **Tool inputs capped** at 2 KB per string and dialogue text at 20 KB;
+  **tool outputs never indexed**.
 - Default scope is the **current project** (`--all` to widen). Cache is
   **local-only**; nothing is uploaded.
 - MCP results are framed as untrusted data. Redaction is best-effort — review
@@ -199,13 +201,14 @@ Default cache: `~/.cache/session-search` (Linux, or `$XDG_CACHE_HOME`),
 | `missing minisearch …` | run `npm install` in the tool directory |
 | `registered … but not reachable` | start OpenCode |
 | Pi sessions not found | set `--pi-sessions` or `PI_CODING_AGENT_DIR` |
-| MCP tools missing after a schema change | restart OpenCode's service or use `--standalone` (it caches the MCP catalog) |
+| MCP tools missing after a schema change | restart OpenCode's service (or run OpenCode with `--standalone`); it caches the MCP catalog |
 | Stale results | re-run `index`, or `--force` |
 
 ## Compatibility
 
-`session-search` needs Node **≥ 20**. Tested against OpenCode **V2** (v2.0.18)
-and Pi **1.0.0** (Pi itself needs Node ≥ 22.19).
+`session-search` needs Node **≥ 20**. OpenCode **V2** (v2.0.18) is validated
+live; the Pi adapter is built against **Pi 1.0.0**'s extension API and validated
+against its session fixtures (Pi itself needs Node ≥ 22.19).
 
 ## Releasing
 

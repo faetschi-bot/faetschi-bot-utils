@@ -11,10 +11,10 @@ const MIN_NODE_MAJOR = 20;
 const STALE_INDEX_DAYS = 30;
 const REQUIRED_DEPENDENCIES = ['minisearch', '@modelcontextprotocol/server'];
 
-export async function runDoctor({ env = process.env, platform = process.platform, home, fetchImpl = fetch, readEndpoint = readOpencodeEndpoint } = {}) {
+export async function runDoctor({ env = process.env, platform = process.platform, home, cacheRoot, fetchImpl = fetch, readEndpoint = readOpencodeEndpoint } = {}) {
   const checks = [
     nodeCheck(),
-    cacheCheck({ env, platform, home }),
+    cacheCheck({ env, platform, home, cacheRoot }),
     await opencodeSourceCheck({ env, fetchImpl, readEndpoint }),
     sourceCheck('pi-source', () => {
       const dir = defaultPiSessionsDir({ env });
@@ -23,7 +23,7 @@ export async function runDoctor({ env = process.env, platform = process.platform
     dependencyCheck(),
     redactionCheck(),
     scopeCheck(),
-    indexCheck({ env, platform, home }),
+    indexCheck({ env, platform, home, cacheRoot }),
   ];
   return { ok: checks.every((check) => check.status !== 'fail'), version: PACKAGE_VERSION, checks };
 }
@@ -36,8 +36,8 @@ function nodeCheck() {
   return { name: 'node', status: 'ok', message: `Node ${process.versions.node}` };
 }
 
-function cacheCheck({ env, platform, home }) {
-  const root = resolveCacheRoot({ env, platform, home });
+function cacheCheck({ env, platform, home, cacheRoot }) {
+  const root = cacheRoot || resolveCacheRoot({ env, platform, home });
   const probe = join(root, '.doctor-probe');
   try {
     mkdirSync(root, { recursive: true, mode: 0o700 });
@@ -89,8 +89,8 @@ function scopeCheck() {
   return { name: 'scope', status: 'ok', message: 'default scope is the current project (use --all for every project)' };
 }
 
-function indexCheck({ env, platform, home }) {
-  const root = resolveCacheRoot({ env, platform, home });
+function indexCheck({ env, platform, home, cacheRoot }) {
+  const root = cacheRoot || resolveCacheRoot({ env, platform, home });
   const dirs = listIndexDirs(root);
   if (dirs.length === 0) return { name: 'index', status: 'warn', message: 'no index yet; run `session-search index`' };
 

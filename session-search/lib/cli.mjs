@@ -33,6 +33,9 @@ Options:
   --no-redact         do not redact secrets before writing the index
   --force             rebuild even when the source fingerprint is unchanged
   --progress          print indexing progress to stderr
+  --global            install the adapter to the user-global location
+  --dry-run           report what install would write
+  --print             print an MCP config snippet instead of writing
   --json              print a machine-readable result
   --help, -h          show this help
   --version           show the version
@@ -57,6 +60,7 @@ export async function main(argv) {
   else if (opts.command === 'show') runShowCommand(opts);
   else if (opts.command === 'mcp') await runMcpCommand(opts);
   else if (opts.command === 'install') runInstallCommand(opts);
+  else if (opts.positionals.length) throw new CliError(`Unknown command: ${opts.positionals[0]}`);
   else console.log(usage());
 }
 
@@ -116,7 +120,7 @@ function harnessesOf(opts) {
 }
 
 async function runDoctorCommand(opts) {
-  const result = await runDoctor();
+  const result = await runDoctor({ cacheRoot: opts.cache ? resolve(opts.cache) : undefined });
   if (opts.json) {
     console.log(JSON.stringify(result, null, 2));
   } else {

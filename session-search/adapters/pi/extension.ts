@@ -30,7 +30,7 @@ export default function sessionSearch(pi: ExtensionAPI): void {
     if (Array.isArray(servers) && !servers.some((server) => server.name === SERVER_NAME)) {
       ctx.ui.notify(
         'session-search: MCP server not registered (another MCP extension may have replaced built-in MCP); use `session-search install --print`',
-        'warn',
+        'warning',
       );
     }
   });

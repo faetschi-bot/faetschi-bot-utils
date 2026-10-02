@@ -64,11 +64,18 @@ function compare(result, baseline) {
   const check = (label, before, after) => {
     if (before - after > MAX_DROP) failures.push(`${label}: NDCG@${K} ${after} < baseline ${before} (drop > ${MAX_DROP})`);
   };
+  const checkRecall = (label, before, after) => {
+    if (before - after > MAX_DROP) failures.push(`${label}: recall@${K} ${after} < baseline ${before} (drop > ${MAX_DROP})`);
+  };
   check('overall', baseline.overall.ndcg, result.overall.ndcg);
+  checkRecall('overall', baseline.overall.recall, result.overall.recall);
   for (const [category, before] of Object.entries(baseline.byCategory)) {
     const after = result.byCategory[category];
     if (!after) failures.push(`category ${category}: missing from the current run`);
-    else check(category, before.ndcg, after.ndcg);
+    else {
+      check(category, before.ndcg, after.ndcg);
+      checkRecall(category, before.recall, after.recall);
+    }
   }
   return failures;
 }

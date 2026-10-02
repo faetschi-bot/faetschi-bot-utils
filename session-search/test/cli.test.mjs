@@ -55,6 +55,12 @@ test('unknown option exits 2', () => {
   assert.match(result.stderr, /Unknown option/);
 });
 
+test('unknown command exits non-zero', () => {
+  const result = run(['frobnicate']);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Unknown command/);
+});
+
 test('doctor --json is ok with no harness present', () => {
   const { home, env } = isolatedEnv();
   try {
