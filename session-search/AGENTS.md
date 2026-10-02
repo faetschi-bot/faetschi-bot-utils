@@ -51,6 +51,7 @@ session-search search "<query>" [options]   search the cached history
 session-search show <sessionID> [options]   print one session's indexed turns
 session-search doctor [options]             check Node, cache, and sources
 session-search mcp                          run the MCP stdio server
+session-search install [options]            install the OpenCode/Pi adapter
 ```
 
 Key flags: `--harness opencode|pi|all`, `--project <dir>`, `--all`,
@@ -95,6 +96,9 @@ lib/core/tokenize.mjs      code-aware tokenizer (raw + subtokens + path suffixes
 lib/core/retrieval.mjs     chunking, MiniSearch BM25+ index, session aggregation
 lib/core/snippet.mjs       query-centered snippets
 lib/mcp-server.mjs         stdio MCP server (history_search, history_show)
+lib/install.mjs            adapter generation + MCP config snippets
+adapters/opencode/         OpenCode plugin template
+adapters/pi/               Pi extension template
 lib/sources/opencode.mjs   OpenCode HTTP API adapter
 lib/sources/pi.mjs         Pi JSONL adapter
 lib/sources/normalize.mjs  shared extraction helpers

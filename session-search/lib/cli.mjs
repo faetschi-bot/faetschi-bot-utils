@@ -4,6 +4,7 @@ import { CliError } from './core/errors.mjs';
 import { buildIndex, searchSessions } from './core/retrieval.mjs';
 import { runDoctor } from './doctor.mjs';
 import { indexOpencode, indexPi, persistIndex } from './index-run.mjs';
+import { installAdapter, mcpConfigSnippet } from './install.mjs';
 import { PACKAGE_NAME, PACKAGE_VERSION } from './package-info.mjs';
 import { createOpencodeClient, readOpencodeEndpoint } from './sources/opencode.mjs';
 import { defaultPiSessionsDir } from './sources/pi.mjs';
@@ -20,6 +21,7 @@ Usage:
   session-search show <sessionID> [options]   print one session's indexed turns
   session-search doctor [options]             check Node, cache, and sources
   session-search mcp                          run the MCP stdio server
+  session-search install [options]            install the OpenCode/Pi adapter
 Options:
   --harness <name>    opencode | pi | all (default: all)
   --project <dir>     scope to sessions under this directory (default: cwd)
@@ -53,6 +55,7 @@ export async function main(argv) {
   else if (opts.command === 'search') runSearchCommand(opts);
   else if (opts.command === 'show') runShowCommand(opts);
   else if (opts.command === 'mcp') await runMcpCommand(opts);
+  else if (opts.command === 'install') runInstallCommand(opts);
   else console.log(usage());
 }
 
@@ -60,7 +63,7 @@ function parse(argv) {
   const opts = { command: undefined, json: false, positionals: [] };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
-    if (['index', 'search', 'show', 'doctor', 'mcp'].includes(token) && opts.command === undefined) {
+    if (['index', 'search', 'show', 'doctor', 'mcp', 'install'].includes(token) && opts.command === undefined) {
       opts.command = token;
       continue;
     }
@@ -76,6 +79,9 @@ function parse(argv) {
     else if (token === '--limit') opts.limit = Number.parseInt(value(), 10);
     else if (token === '--json') opts.json = true;
     else if (token === '--all') opts.all = true;
+    else if (token === '--global') opts.global = true;
+    else if (token === '--dry-run') opts.dryRun = true;
+    else if (token === '--print') opts.print = true;
     else if (token === '--include-subagents') opts.includeSubagents = true;
     else if (token === '--no-redact') opts.redact = false;
     else if (token === '--force') opts.force = true;
@@ -157,6 +163,25 @@ async function runMcpCommand(opts) {
   // Lazy so index/search/doctor run on a checkout without the MCP dependency.
   const { serve } = await import('./mcp-server.mjs');
   serve({ cacheRoot, cwd: process.cwd() });
+}
+
+function runInstallCommand(opts) {
+  if (opts.positionals.length) throw new CliError(`install takes no arguments: ${opts.positionals.join(' ')}`);
+  const cacheRoot = opts.cache ? resolve(opts.cache) : '';
+  const harnesses = opts.harness === 'all' ? ['opencode', 'pi'] : [opts.harness || 'opencode'];
+
+  if (opts.print) {
+    const snippets = Object.fromEntries(harnesses.map((harness) => [harness, mcpConfigSnippet(harness, { cacheRoot })]));
+    if (opts.json) console.log(JSON.stringify({ ok: true, snippets }, null, 2));
+    else for (const harness of harnesses) console.log(`# ${harness}\n${JSON.stringify(snippets[harness], null, 2)}`);
+    return;
+  }
+
+  const installed = harnesses.map((harness) =>
+    installAdapter(harness, { global: opts.global, cacheRoot, force: opts.force, dryRun: opts.dryRun }),
+  );
+  if (opts.json) console.log(JSON.stringify({ ok: true, global: !!opts.global, dryRun: !!opts.dryRun, installed }, null, 2));
+  else for (const item of installed) console.log(`[${item.harness}] ${item.dryRun ? 'would install' : 'installed'} -> ${item.path}`);
 }
 
 function loadTurns(opts) {

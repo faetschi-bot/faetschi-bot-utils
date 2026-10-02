@@ -16,8 +16,8 @@ It indexes the **signal** and skips the noise:
 Tool outputs are roughly 87% of a typical history and are mostly repo noise, so
 they are never indexed.
 
-> **Status:** `index`, `search`, `show`, and the MCP server are implemented. The
-> native OpenCode/Pi adapters land next.
+> **Status:** complete: `index`, `search`, `show`, the MCP server, and the
+> OpenCode/Pi adapters. See the plan's increments in the PR history.
 
 ## Requirements
 
@@ -51,6 +51,7 @@ session-search search "<query>" [options]   search the cached history
 session-search show <sessionID> [options]   print one session's indexed turns
 session-search doctor [options]             check Node, cache, and sources
 session-search mcp                          run the MCP stdio server
+session-search install [options]            install the OpenCode/Pi adapter
 ```
 
 | Flag | Meaning |
@@ -166,6 +167,29 @@ rule (OpenCode):
 ```jsonc
 { "permissions": [ { "action": "session_search_*", "resource": "*", "effect": "ask" } ] }
 ```
+
+## Adapters
+
+`session-search install` writes a small adapter that auto-registers the MCP
+server, adds a `/history` command, and refreshes the index after a session
+settles. The absolute CLI path is baked into the generated file.
+
+```bash
+npx session-search install --harness opencode           # project .opencode/plugins/
+npx session-search install --harness pi --global        # ~/.pi/agent/extensions/
+npx session-search install --harness all --force
+npx session-search install --harness opencode --print   # MCP config instead
+```
+
+| Harness | Project | Global |
+|---------|---------|--------|
+| `opencode` | `.opencode/plugins/session-search.js` | `~/.config/opencode/plugins/session-search.js` |
+| `pi` | `.pi/extensions/session-search.ts` | `~/.pi/agent/extensions/session-search.ts` |
+
+OpenCode does not accept tarball targets in `opencode plugin add`, so the
+adapter is installed as a file (or use `--print` for the config snippet). Pi
+loads TypeScript directly; if a third-party extension replaced built-in MCP, use
+`--print` and configure that extension's format instead.
 
 ## Evaluation
 
