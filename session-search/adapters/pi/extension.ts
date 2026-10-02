@@ -5,6 +5,7 @@
 // settles, and exposes a /history command. Pi loads TypeScript directly.
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 
+const NODE = '__SESSION_SEARCH_NODE__';
 const CLI = '__SESSION_SEARCH_BIN__';
 const CACHE = '__SESSION_SEARCH_CACHE__';
 
@@ -13,7 +14,7 @@ export default function sessionSearch(pi: ExtensionAPI): void {
 
   pi.on('session_start', (_event, ctx) => {
     pi.registerMcpServer('session_search', {
-      command: process.execPath,
+      command: NODE,
       args: [CLI, 'mcp', ...cacheArgs],
       cwd: ctx.cwd,
       exposure: 'direct',
@@ -23,7 +24,7 @@ export default function sessionSearch(pi: ExtensionAPI): void {
   });
 
   pi.on('agent_settled', (_event, ctx) => {
-    void pi.exec(process.execPath, [CLI, 'index', '--project', ctx.cwd, ...cacheArgs], {
+    void pi.exec(NODE, [CLI, 'index', '--project', ctx.cwd, ...cacheArgs], {
       cwd: ctx.cwd,
       timeout: 60_000,
     });
@@ -32,7 +33,7 @@ export default function sessionSearch(pi: ExtensionAPI): void {
   pi.registerCommand('history', {
     description: 'Search past sessions',
     handler: async (input, ctx) => {
-      const result = await pi.exec(process.execPath, [CLI, 'search', input, ...cacheArgs], {
+      const result = await pi.exec(NODE, [CLI, 'search', input, ...cacheArgs], {
         cwd: ctx.cwd,
         timeout: 30_000,
       });

@@ -7,9 +7,11 @@ import { join } from 'node:path';
 import { adapterTarget, installAdapter, mcpConfigSnippet, renderAdapter } from '../lib/install.mjs';
 
 test('renderAdapter substitutes the CLI path and leaves no placeholder', () => {
-  const source = renderAdapter('opencode', { cliPath: '/x/bin/session-search.mjs' });
+  const source = renderAdapter('opencode', { cliPath: '/x/bin/session-search.mjs', nodePath: '/usr/bin/node' });
   assert.match(source, /\/x\/bin\/session-search\.mjs/);
+  assert.match(source, /\/usr\/bin\/node/);
   assert.equal(source.includes('__SESSION_SEARCH_BIN__'), false);
+  assert.equal(source.includes('__SESSION_SEARCH_NODE__'), false);
 });
 
 test('the generated OpenCode adapter is valid JavaScript', () => {

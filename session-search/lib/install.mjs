@@ -23,10 +23,11 @@ export const ADAPTERS = {
   },
 };
 
-export function renderAdapter(harness, { cliPath = CLI_PATH, cacheRoot = '' } = {}) {
+export function renderAdapter(harness, { cliPath = CLI_PATH, cacheRoot = '', nodePath = process.execPath } = {}) {
   const spec = ADAPTERS[harness];
   if (!spec) throw new CliError(`unknown harness: ${harness} (expected opencode or pi)`);
   return readFileSync(spec.template, 'utf8')
+    .replaceAll('__SESSION_SEARCH_NODE__', nodePath)
     .replaceAll('__SESSION_SEARCH_BIN__', cliPath)
     .replaceAll('__SESSION_SEARCH_CACHE__', cacheRoot);
 }
@@ -51,18 +52,18 @@ export function installAdapter(harness, { global = false, cwd, home, cacheRoot =
 
 // A copy-pasteable MCP config snippet for users who prefer not to install the
 // adapter (for example when a third-party Pi MCP extension replaced built-in MCP).
-export function mcpConfigSnippet(harness, { cliPath = CLI_PATH, cacheRoot = '' } = {}) {
+export function mcpConfigSnippet(harness, { cliPath = CLI_PATH, cacheRoot = '', nodePath = process.execPath } = {}) {
   const args = ['mcp'];
   if (cacheRoot) args.push('--cache', cacheRoot);
   if (harness === 'opencode') {
     return {
-      mcp: { servers: { session_search: { type: 'local', command: [process.execPath, cliPath, ...args], codemode: false } } },
+      mcp: { servers: { session_search: { type: 'local', command: [nodePath, cliPath, ...args], codemode: false } } },
     };
   }
   return {
     mcpServers: {
       session_search: {
-        command: process.execPath,
+        command: nodePath,
         args: [cliPath, ...args],
         exposure: 'direct',
         description: 'Search local coding-agent session history',

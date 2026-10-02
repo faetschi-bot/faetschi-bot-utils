@@ -5,6 +5,7 @@
 // command, and refreshes the index after a session settles.
 import { spawnSync } from 'node:child_process';
 
+const NODE = '__SESSION_SEARCH_NODE__';
 const CLI = '__SESSION_SEARCH_BIN__';
 const CACHE = '__SESSION_SEARCH_CACHE__';
 
@@ -16,7 +17,7 @@ export default {
     await ctx.mcp.transform((editor) => {
       editor.set('session_search', {
         type: 'local',
-        command: [process.execPath, CLI, 'mcp', ...cacheArgs],
+        command: [NODE, CLI, 'mcp', ...cacheArgs],
         codemode: false,
         environment: CACHE ? { SESSION_SEARCH_CACHE: CACHE } : {},
       });
@@ -27,7 +28,7 @@ export default {
         name: 'history',
         description: 'Search local coding-agent session history',
         execute: async ({ sessionID, prompt, delivery }) => {
-          const result = spawnSync(process.execPath, [CLI, 'search', prompt.text, '--json', ...cacheArgs], {
+          const result = spawnSync(NODE, [CLI, 'search', prompt.text, '--json', ...cacheArgs], {
             encoding: 'utf8',
           });
           await ctx.session.prompt({
@@ -35,6 +36,48 @@ export default {
             text: result.stdout || result.stderr || '(no output)',
             delivery,
           });
+        },
+      });
+    });
+
+    // Plugin-registered MCP servers connect but are not reliably exposed to the
+    // model, so also register native tools backed by the same CLI.
+    await ctx.tool.transform((editor) => {
+      editor.namespace({ name: 'history', description: 'Search local coding-agent session history' });
+      editor.add({
+        name: 'search',
+        description: 'Search past coding sessions. Returns session-level hits with a snippet.',
+        input: {
+          type: 'object',
+          properties: { query: { type: 'string' }, limit: { type: 'number' } },
+          required: ['query'],
+          additionalProperties: false,
+        },
+        options: { namespace: 'history', codemode: true },
+        execute: async (input) => {
+          const result = spawnSync(
+            NODE,
+            [CLI, 'search', String(input.query), '--json', '--limit', String(input.limit ?? 10), ...cacheArgs],
+            { encoding: 'utf8' },
+          );
+          return { content: result.stdout || result.stderr || '(no output)' };
+        },
+      });
+      editor.add({
+        name: 'show',
+        description: 'Print the indexed turns of one session by id.',
+        input: {
+          type: 'object',
+          properties: { session: { type: 'string' }, limit: { type: 'number' } },
+          required: ['session'],
+          additionalProperties: false,
+        },
+        options: { namespace: 'history', codemode: true },
+        execute: async (input) => {
+          const result = spawnSync(NODE, [CLI, 'show', String(input.session), '--json', ...cacheArgs], {
+            encoding: 'utf8',
+          });
+          return { content: result.stdout || result.stderr || '(no output)' };
         },
       });
     });
@@ -47,7 +90,7 @@ export default {
         if (!idle) continue;
         clearTimeout(timer);
         timer = setTimeout(() => {
-          spawnSync(process.execPath, [CLI, 'index', '--project', ctx.location.directory, ...cacheArgs], {
+          spawnSync(NODE, [CLI, 'index', '--project', ctx.location.directory, ...cacheArgs], {
             encoding: 'utf8',
           });
         }, 1500);
