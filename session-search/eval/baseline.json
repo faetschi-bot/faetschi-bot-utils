@@ -1,37 +1,37 @@
 {
   "overall": {
-    "queries": 14,
-    "ndcg": 1,
-    "recall": 1,
-    "mrr": 1
+    "queries": 24,
+    "ndcg": 0.9654,
+    "recall": 0.9792,
+    "mrr": 0.9722
   },
   "byCategory": {
     "semantic": {
-      "queries": 6,
-      "ndcg": 1,
-      "recall": 1,
-      "mrr": 1
+      "queries": 12,
+      "ndcg": 0.9307,
+      "recall": 0.9583,
+      "mrr": 0.9444
     },
     "symbol": {
-      "queries": 3,
+      "queries": 4,
       "ndcg": 1,
       "recall": 1,
       "mrr": 1
     },
     "path": {
-      "queries": 2,
+      "queries": 3,
       "ndcg": 1,
       "recall": 1,
       "mrr": 1
     },
     "command": {
-      "queries": 2,
+      "queries": 3,
       "ndcg": 1,
       "recall": 1,
       "mrr": 1
     },
     "temporal": {
-      "queries": 1,
+      "queries": 2,
       "ndcg": 1,
       "recall": 1,
       "mrr": 1

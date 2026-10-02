@@ -220,9 +220,13 @@ npm run eval:update   # rewrite eval/baseline.json after an intended change
 node eval/judge.mjs   # offline: print candidate pools for relabeling
 ```
 
-`eval/corpus/turns.jsonl` is a sanitized normalized corpus; `eval/queries.jsonl`
-carries stratified queries (semantic / symbol / path / command / temporal) with
-graded session labels. Metrics are session-level NDCG@10, Recall@10, and MRR@10.
+`eval/corpus/turns.jsonl` is a sanitized normalized corpus (16 sessions);
+`eval/queries.jsonl` carries 24 stratified queries (semantic / symbol / path /
+command / temporal) with graded, occasionally multi-relevant session labels.
+Metrics are session-level NDCG@10, Recall@10, and MRR@10. The committed baseline
+is ~0.97 overall (symbol/path/command/temporal at 1.0, semantic ~0.93): the gate
+therefore measures a real regression signal, including a known semantic gap on
+paraphrase-only queries.
 
 ## Releasing
 
