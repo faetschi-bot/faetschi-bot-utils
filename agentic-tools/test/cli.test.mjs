@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,7 +48,13 @@ test('doctor --json validates the packaged skills', () => {
   assert.equal(r.status, 0);
   const parsed = JSON.parse(r.stdout);
   assert.equal(parsed.ok, true);
-  assert.deepEqual(parsed.skills.map((s) => s.name), ['agent-friendly-code', 'test-audit', 'unsnooze']);
+  // Assert every packaged skill validates and the known skills survive, without
+  // pinning the exact inventory (adding a skill should not break this test).
+  assert.ok(parsed.skills.every((s) => s.ok));
+  const names = parsed.skills.map((s) => s.name);
+  for (const expected of ['agent-friendly-code', 'test-audit', 'visual-recap', 'unsnooze']) {
+    assert.ok(names.includes(expected), `expected packaged skill ${expected}`);
+  }
 });
 
 test('list prints the packaged skills', () => {
@@ -56,6 +62,8 @@ test('list prints the packaged skills', () => {
   assert.equal(r.status, 0);
   assert.match(r.stdout, /agent-friendly-code/);
   assert.match(r.stdout, /test-audit/);
+  assert.match(r.stdout, /visual-recap/);
+  assert.match(r.stdout, /unsnooze/);
 });
 
 test('doctor fails on a skill missing a description', () => {
@@ -156,12 +164,10 @@ test('install --dry-run writes nothing', () => {
     assert.equal(r.status, 0);
     const parsed = JSON.parse(r.stdout);
     assert.equal(parsed.dryRun, true);
-    assert.deepEqual(
-      parsed.installed.map((s) => s.name),
-      ['agent-friendly-code', 'test-audit', 'unsnooze'],
-    );
-    assert.equal(parsed.installed[0].action, 'create');
-    assert.equal(existsSync(join(dest, 'test-audit')), false);
+    assert.ok(parsed.installed.length > 0);
+    assert.ok(parsed.installed.every((s) => s.action === 'create'));
+    // The contract is "writes nothing": the destination stays empty.
+    assert.deepEqual(readdirSync(dest), []);
   } finally {
     rmSync(dest, { recursive: true, force: true });
   }

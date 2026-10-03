@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -162,5 +163,60 @@ export async function downloadFile(url, dest) {
   const buf = Buffer.from(await res.arrayBuffer());
   ensureDir(dest);
   writeFileSync(dest, buf);
+  return dest;
+}
+
+export function sha256File(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+// True when the file matches the expected digest. A null/undefined expected
+// digest means "no pin" (a version overridden via env), which always passes.
+// Any read error is a failed check so callers re-download rather than trust it.
+export function verifyFileSha256(path, expected) {
+  if (!expected) return true;
+  try {
+    return sha256File(path) === expected;
+  } catch {
+    return false;
+  }
+}
+
+// Download an asset and only publish it to `dest` when its SHA-256 matches the
+// pin. A tampered or corrupted response must never reach the cache, so an
+// explicit `expectedSha256` fails closed; a null pin (custom version) skips the
+// check but still downloads. On any failure the partial file is removed.
+export async function downloadVerified(url, dest, expectedSha256, what = 'asset') {
+  let buf;
+  try {
+    const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    buf = Buffer.from(await res.arrayBuffer());
+  } catch (e) {
+    throw new CliError(`failed to download ${what} from ${url}: ${e.message}`, 1);
+  }
+
+  if (expectedSha256) {
+    const actual = createHash('sha256').update(buf).digest('hex');
+    if (actual !== expectedSha256) {
+      throw new CliError(
+        `${what} from ${url} failed SHA-256 verification `
+          + `(expected ${expectedSha256}, got ${actual}); refusing to use it`,
+        1,
+      );
+    }
+  }
+
+  ensureDir(dest);
+  try {
+    writeFileSync(dest, buf);
+  } catch (e) {
+    try {
+      rmSync(dest, { force: true });
+    } catch {
+      /* best-effort cleanup of the partial file */
+    }
+    throw new CliError(`failed to write ${what} to ${dest}: ${e.message}`, 1);
+  }
   return dest;
 }

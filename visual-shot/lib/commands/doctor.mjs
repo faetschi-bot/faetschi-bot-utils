@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { mermaidVersion } from '../config.mjs';
+import { highlightAssetPath } from '../highlight.mjs';
+import { mermaidAssetPath } from '../mermaid.mjs';
 import { CliError } from '../errors.mjs';
 import { findFile, loadPlaywright } from '../shared.mjs';
 
@@ -52,12 +53,21 @@ export async function run(opts, ctx) {
   const pw = loadPlaywright(cache);
   add('playwright', Boolean(pw), pw ? 'resolvable' : 'not found', 'Run: visual-shot setup');
 
-  const mermaidPath = join(cache, 'mermaid', `mermaid-${mermaidVersion()}.min.js`);
+  const mermaidPath = mermaidAssetPath(cache);
   add(
     'mermaid',
     existsSync(mermaidPath),
     existsSync(mermaidPath) ? mermaidPath : 'not fetched (optional; fetched on first diagram render)',
     'Run: visual-shot diagram <file> to fetch it.',
+    false,
+  );
+
+  const highlightPath = highlightAssetPath(cache);
+  add(
+    'highlight',
+    existsSync(highlightPath),
+    existsSync(highlightPath) ? highlightPath : 'not fetched (optional; fetched on first recap render)',
+    'Run: visual-shot recap <input> to fetch it.',
     false,
   );
 
