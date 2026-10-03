@@ -119,6 +119,77 @@ code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consola
 .mermaid-slot svg { max-width: 100%; height: auto; }
 .diagram-frame { border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; }
 
+/* wireframe: author HTML/CSS renders inside a sandboxed srcdoc iframe
+   (.wf-body) so it cannot restyle the report; the frame chrome stays CSS-only. */
+.wf { max-width: 100%; }
+.wf-frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg); }
+.wf-bar { background: var(--card); border-bottom: 1px solid var(--border); }
+.wf-body { display: block; width: 100%; border: 0; background: #fff; }
+.wf-caption { font-size: 12px; margin-top: 6px; }
+/* Surface widths; JS only picks the class, never sets a width. */
+.wf-browser, .wf-desktop { width: 100%; }
+.wf-tablet, .wf-mobile, .wf-popover, .wf-panel { margin-left: auto; margin-right: auto; }
+.wf-tablet { width: 768px; }
+.wf-mobile { width: 375px; }
+.wf-popover { width: 360px; }
+.wf-panel { width: 420px; }
+/* CSS-only chrome per surface. */
+.wf-browser .wf-bar { height: 28px; }
+.wf-browser .wf-bar::before {
+  content: "";
+  display: block;
+  width: 9px; height: 9px;
+  margin: 9px 0 0 12px;
+  border-radius: 50%;
+  background: var(--rem-fg);
+  box-shadow: 16px 0 0 var(--muted), 32px 0 0 var(--add-fg);
+}
+.wf-desktop .wf-bar { height: 26px; }
+.wf-desktop .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+.wf-tablet .wf-bar { height: 18px; }
+.wf-tablet .wf-bar::before {
+  content: "";
+  display: block;
+  width: 6px; height: 6px;
+  margin: 5px auto 0;
+  border-radius: 50%;
+  background: var(--border);
+}
+.wf-mobile .wf-bar { height: 22px; }
+.wf-mobile .wf-bar::before {
+  content: "";
+  display: block;
+  width: 90px; height: 8px;
+  margin: 6px auto 0;
+  border-radius: 6px;
+  background: var(--border);
+}
+.wf-popover .wf-bar { height: 16px; }
+.wf-popover .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40px; height: 4px;
+  margin: 6px auto 0;
+  border-radius: 3px;
+  background: var(--border);
+}
+.wf-panel .wf-bar { height: 26px; }
+.wf-panel .wf-bar::before {
+  content: "";
+  display: block;
+  width: 55%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+
 /* data model */
 .data-model { display: flex; flex-wrap: wrap; gap: 14px; }
 .entity { border: 1px solid var(--border); border-radius: 8px; min-width: 240px; background: var(--card); overflow: hidden; }
@@ -139,6 +210,31 @@ code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consola
 .endpoint .body { padding: 10px 12px; }
 .endpoint table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
 .endpoint th, .endpoint td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+/* A removed endpoint is outlined red and its path struck through. */
+.endpoint.removed { border-color: var(--rem-fg); }
+.endpoint.removed .head { background: var(--rem-bg); }
+.endpoint.removed code { text-decoration: line-through; }
+
+/* json explorer */
+.json-title { font-weight: 700; margin-bottom: 6px; }
+.json-tree {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  padding: 10px 12px; overflow: auto; font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.jv-node > summary { cursor: pointer; list-style: none; }
+.jv-node > summary::-webkit-details-marker { display: none; }
+.jv-node > summary::before { content: "\\25B8"; display: inline-block; width: 12px; color: var(--muted); }
+.jv-node[open] > summary::before { content: "\\25BE"; }
+.jv-children { margin-left: 14px; padding-left: 10px; border-left: 1px solid var(--border); }
+.jv-row { padding: 1px 0; }
+.jv-key { color: var(--muted); }
+.jv-index { color: var(--muted); }
+.jv-punct { color: var(--muted); }
+.jv-string { color: var(--add-fg); }
+.jv-number { color: var(--accent); }
+.jv-bool { color: var(--rem-fg); }
+.jv-null { color: var(--muted); font-style: italic; }
 
 /* callout */
 .callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 14px; border-radius: 0 8px 8px 0; }
