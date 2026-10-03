@@ -81,6 +81,7 @@ $ npx agentic-tools doctor --json
 | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
 | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
+| [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
 
 ### agent-friendly-code
 
@@ -138,6 +139,16 @@ diagrams, schema/API summaries, and real before/after screenshots.
 The split is deliberate: the agent supplies judgment (what changed and why), and
 a deterministic renderer supplies the artifact, so a recap can be reproduced and
 diffed like any other file.
+
+### unsnooze
+
+A short install-and-configure guide for the third-party
+[unsnooze](https://unsnooze.dev/docs/) CLI, scoped to **Claude Code and Codex
+CLI**: `npm install -g unsnooze && unsnooze setup`, then verify with
+`unsnooze doctor`. It covers the wrappers/hook that `setup` installs, the handful
+of `config set` keys worth knowing, day-to-day commands, and the trust caveats
+(it types into your terminal; it is not an auto-approver). The pack does not ship
+or vendor unsnooze — the skill just points at upstream.
 
 ## Use a skill
 
