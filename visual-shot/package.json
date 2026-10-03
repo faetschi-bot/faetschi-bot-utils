@@ -1,7 +1,7 @@
 {
   "name": "visual-shot",
-  "version": "0.5.0",
-  "description": "Reproducible headless-Chromium screenshots for PR review, with no-root provisioning.",
+  "version": "0.6.0",
+  "description": "Reproducible headless-Chromium visual artifacts for PR review: screenshots, image diffs, terminal captures, diagrams, and visual recaps.",
   "keywords": [
     "screenshot",
     "playwright",
@@ -41,7 +41,7 @@
   "scripts": {
     "setup": "bash scripts/provision.sh",
     "test": "node --test test/",
-    "check": "node --check bin/visual-shot.mjs && for f in lib/*.mjs lib/commands/*.mjs; do node --check \"$f\" || exit 1; done",
+    "check": "node --check bin/visual-shot.mjs && for f in lib/*.mjs lib/recap/*.mjs lib/commands/*.mjs; do node --check \"$f\" || exit 1; done",
     "lint:sh": "bash -n scripts/provision.sh && bash -n scripts/provision-sysroot.sh",
     "prepack": "npm run check",
     "prepublishOnly": "npm run check"
