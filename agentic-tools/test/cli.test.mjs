@@ -48,7 +48,7 @@ test('doctor --json validates the packaged skills', () => {
   assert.equal(r.status, 0);
   const parsed = JSON.parse(r.stdout);
   assert.equal(parsed.ok, true);
-  assert.deepEqual(parsed.skills.map((s) => s.name), ['agent-friendly-code', 'test-audit']);
+  assert.deepEqual(parsed.skills.map((s) => s.name), ['agent-friendly-code', 'test-audit', 'unsnooze']);
 });
 
 test('list prints the packaged skills', () => {
@@ -158,7 +158,7 @@ test('install --dry-run writes nothing', () => {
     assert.equal(parsed.dryRun, true);
     assert.deepEqual(
       parsed.installed.map((s) => s.name),
-      ['agent-friendly-code', 'test-audit'],
+      ['agent-friendly-code', 'test-audit', 'unsnooze'],
     );
     assert.equal(parsed.installed[0].action, 'create');
     assert.equal(existsSync(join(dest, 'test-audit')), false);

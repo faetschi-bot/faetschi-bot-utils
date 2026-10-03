@@ -80,6 +80,7 @@ $ npx agentic-tools doctor --json
 |-------|-------------|
 | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
+| [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
 
 ### agent-friendly-code
 
@@ -114,6 +115,16 @@ Two modes, one value bar:
 The skill is deliberately project-agnostic: it defines the value bar, while the
 concrete test command, formatter, and review gate come from the target project's
 `AGENTS.md` and CI config.
+
+### unsnooze
+
+A short install-and-configure guide for the third-party
+[unsnooze](https://unsnooze.dev/docs/) CLI, scoped to **Claude Code and Codex
+CLI**: `npm install -g unsnooze && unsnooze setup`, then verify with
+`unsnooze doctor`. It covers the wrappers/hook that `setup` installs, the handful
+of `config set` keys worth knowing, day-to-day commands, and the trust caveats
+(it types into your terminal; it is not an auto-approver). The pack does not ship
+or vendor unsnooze — the skill just points at upstream.
 
 ## Use a skill
 
