@@ -28,6 +28,14 @@ export const DEFAULT_DIAGRAM_FORMAT = 'png';
 export const DEFAULT_MERMAID_VERSION = '11.4.1';
 export const DEFAULT_DIAGRAM_SCALE = 2;
 
+// recap
+export const DEFAULT_RECAP_THEME = 'light';
+export const DEFAULT_RECAP_WIDTH = 1100;
+export const DEFAULT_RECAP_SCALE = 2;
+export const MAX_RECAP_PATCH_FILES = 25;
+export const MAX_RECAP_PATCH_BYTES = 400000;
+export const DEFAULT_HIGHLIGHT_VERSION = '11.10.0';
+
 export function cacheDir(env = process.env) {
   return env.VISUAL_SHOT_CACHE
     || env.BRUTAL_VISUAL_CACHE
@@ -44,4 +52,8 @@ export function mermaidVersion(env = process.env) {
   return env.VISUAL_SHOT_MERMAID_VERSION
     || env.BRUTAL_MERMAID_VERSION
     || DEFAULT_MERMAID_VERSION;
+}
+
+export function highlightVersion(env = process.env) {
+  return env.VISUAL_SHOT_HIGHLIGHT_VERSION || DEFAULT_HIGHLIGHT_VERSION;
 }

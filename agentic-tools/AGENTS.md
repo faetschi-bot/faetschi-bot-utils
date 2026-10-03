@@ -103,6 +103,7 @@ npx agentic-tools list
 |-------|-------------|
 | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |
+| [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a large, multi-file, UI/schema/API/architecture change into a visual recap. Authors the `recap.json` that `visual-shot recap` renders. |
 
 ## Adding a skill (maintainers)
 

@@ -1,9 +1,10 @@
 # visual-shot
 
 Reproducible headless-Chromium visual artifacts for pull requests: screenshots,
-image diffs, terminal captures, and Mermaid diagrams. One command opens your
-running app (or renders a file) and writes a PNG you can commit and embed in a PR
-— including on machines with **no root and no browser installed**.
+image diffs, terminal captures, Mermaid diagrams, and visual recaps. One command
+opens your running app (or renders a file) and writes a PNG — or a
+self-contained HTML report — you can commit and embed in a PR, including on
+machines with **no root and no browser installed**.
 
 It is generic: point it at a URL, and it works for any web project. The heavy
 assets (Chromium, missing shared libraries, the pinned Playwright package) live
@@ -65,14 +66,15 @@ visual-shot capture [options]        screenshot a URL to a PNG (default command)
 visual-shot diff <before> <after>    compare two images and write a diff PNG
 visual-shot term -- <command...>     render a command's output as a PNG
 visual-shot diagram <input>          render Mermaid diagrams to PNG or SVG
+visual-shot recap --from <json>      render a visual recap to HTML (and PNG)
 visual-shot setup                    provision Chromium + libraries, then exit
 visual-shot doctor [--json]          check the environment, then exit
 ```
 
 `visual-shot [options]` without a command is the same as `visual-shot capture`.
-`doctor` reports Node, cache, Chromium, Playwright, Mermaid, and — when `--url` is
-given — whether the dev server responds. It exits non-zero when a required check
-fails, so an agent can verify setup before capturing.
+`doctor` reports Node, cache, Chromium, Playwright, Mermaid, highlight.js, and —
+when `--url` is given — whether the dev server responds. It exits non-zero when a
+required check fails, so an agent can verify setup before capturing.
 
 ### Capture options
 
@@ -202,6 +204,53 @@ Mermaid itself is **not** an npm dependency: a pinned `mermaid.min.js` is
 downloaded once into the cache (`$VISUAL_SHOT_CACHE/mermaid/`) on first use, so
 later renders work offline. Override the pin with `VISUAL_SHOT_MERMAID_VERSION`.
 
+### Render a visual recap (recap)
+
+`recap` turns a diff into a self-contained HTML report — file map, annotated
+diffs, diagrams, schema/API summaries, real before/after screenshots, and review
+notes — and optionally a PNG of the whole report. It renders a structured
+`recap.json` and can fold in a git diff for the mechanical parts:
+
+```bash
+# From an agent-authored recap.json
+npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png
+
+# From a git range only (file map + raw patches)
+npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png --json
+
+# Combine both: the JSON supplies the rich blocks, --diff appends the patches
+npx visual-shot recap --from recap.json --diff main...HEAD --png
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--from <file\|->` | recap JSON to render (`-` reads stdin) |
+| `--diff <range>` | git range (e.g. `main...HEAD`) to add a file map + patches |
+| `--repo <dir>` | repository for `--diff` (default: cwd) |
+| `--out <path>` | output HTML (default `$VISUAL_OUT_DIR/recap.html`) |
+| `--png` / `--png-out <path>` | also write a PNG of the report |
+| `--title <text>` | override the recap title |
+| `--theme <light\|dark>` | report theme (default `light`) |
+| `--width <px>` / `--scale <n>` | page width / PNG scale (defaults `1100` / `2`) |
+| `--no-highlight` | skip highlight.js (code stays uncolored) |
+| `--json` | print `{ ok, html, png, theme, blocks, mermaid, highlight, warnings }` |
+
+The HTML is the primary artifact and is **self-contained**: local images are
+inlined as data URIs, and Mermaid SVG + syntax highlighting are baked into the
+markup, so it opens offline. The HTML-only path (no `--png`, no Mermaid, no
+code blocks) does not need Chromium at all. Syntax highlighting and Mermaid are
+pinned assets fetched into the cache on first use, like `diagram`; set
+`VISUAL_SHOT_HIGHLIGHT_VERSION` / `VISUAL_SHOT_MERMAID_VERSION` to repin.
+
+`recap.json` is a small, versioned contract: `{ version: 1, title, brief?, meta?,
+blocks: [...] }`. Block types: `file-tree`, `diff`, `patch`, `image`,
+`image-pair`, `mermaid`, `diagram`, `data-model`, `api-endpoint`, `callout`,
+`table`, `checklist`, `notes`, `code`, `annotated-code`, and the `columns` /
+`tabs` containers. Inspect the schema and validation errors from
+[`lib/recap/schema.mjs`](./lib/recap/schema.mjs); an agent authors this JSON by
+following the companion **`visual-recap`** skill in
+[`agentic-tools`](../agentic-tools).
+
 ## Environment variables
 
 | Variable | Meaning |
@@ -210,7 +259,8 @@ later renders work offline. Override the pin with `VISUAL_SHOT_MERMAID_VERSION`.
 | `VISUAL_OUT_DIR` | default output directory (default `tmp/images/PRs`) |
 | `VISUAL_SHOT_CACHE` | persistent cache dir (default `$XDG_DATA_HOME/visual-shot`, i.e. `~/.local/share/visual-shot`) |
 | `VISUAL_SHOT_PLAYWRIGHT_VERSION` | pinned Playwright version (default `1.49.1`) |
-| `VISUAL_SHOT_MERMAID_VERSION` | pinned Mermaid version for `diagram` (default `11.4.1`) |
+| `VISUAL_SHOT_MERMAID_VERSION` | pinned Mermaid version for `diagram`/`recap` (default `11.4.1`) |
+| `VISUAL_SHOT_HIGHLIGHT_VERSION` | pinned highlight.js version for `recap` (default `11.10.0`) |
 
 ## How it works
 
@@ -219,7 +269,8 @@ $VISUAL_SHOT_CACHE/
   browsers/   Chromium            (PLAYWRIGHT_BROWSERS_PATH)
   sysroot/    unpacked .debs      (missing libs + fonts, no root)
   pw/         pinned playwright   (self-provisioned if not installed)
-  mermaid/    pinned mermaid.min.js (diagram, fetched on first use)
+  mermaid/    pinned mermaid.min.js (diagram/recap, fetched on first use)
+  highlight/  pinned highlight.js   (recap, fetched on first use)
   env.sh, fonts.conf, .provisioned
 ```
 

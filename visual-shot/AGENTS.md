@@ -1,9 +1,10 @@
 # visual-shot — agent guide
 
 Reproducible headless-Chromium visual artifacts for PR review: screenshots,
-image diffs, terminal captures, and Mermaid diagrams. Point it at a running web
-app (any language, any framework) or a file and it writes a PNG/SVG. This file is
-the canonical recipe; prefer it and `visual-shot --help` over reading the source.
+image diffs, terminal captures, Mermaid diagrams, and visual recaps. Point it at
+a running web app (any language, any framework) or a file and it writes a PNG/SVG
+(or a self-contained HTML report). This file is the canonical recipe; prefer it
+and `visual-shot --help` over reading the source.
 
 ## What an agent needs
 
@@ -151,6 +152,41 @@ background). A pinned `mermaid.min.js` is fetched once into
 `$VISUAL_SHOT_CACHE/mermaid/` on first use (network required only then).
 `doctor` reports it as an optional check. `--md-out <file>` rewrites a Markdown
 copy with image links, each written as `![diagram](<relative/path>)`.
+
+## Render a visual recap (recap)
+
+`recap` renders a self-contained HTML report (file map, annotated diffs,
+diagrams, schema/API summaries, real before/after screenshots, review notes) and
+optionally a PNG of it. It is the **rendering** half of a visual recap: you (the
+agent) author the content as `recap.json`, `visual-shot` renders it
+deterministically. The companion **`visual-recap`** skill in
+[`agentic-tools`](../agentic-tools) is the authoring recipe — install it and
+follow it before writing `recap.json`.
+
+```bash
+# Render an authored recap (HTML, plus a PNG of the whole report)
+npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png
+
+# Mechanical recap straight from a git range (file map + raw patches)
+npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png --json
+```
+
+The JSON contract is `{ version: 1, title, brief?, meta?, blocks: [...] }`; block
+types are `file-tree`, `diff`, `patch`, `image`, `image-pair`, `mermaid`,
+`diagram`, `data-model`, `api-endpoint`, `callout`, `table`, `checklist`,
+`notes`, `code`, `annotated-code`, and the `columns`/`tabs` containers. `--diff`
+adds a `file-tree` (unless the JSON already has one) and one `patch` per changed
+file. Validation errors name the exact block path (`blocks[2].after`) and exit 2
+without rendering.
+
+- The HTML is the primary artifact and is offline-capable: local images become
+  data URIs, and Mermaid SVG + syntax highlighting are baked in.
+- The HTML-only path (no `--png`, no Mermaid, no code) needs **no** Chromium and
+  does not provision. `--png`, Mermaid, or code highlighting provision lazily.
+- `--json` returns `{ ok, html, png, theme, blocks, mermaid, highlight, warnings }`.
+  A failed PNG screenshot is a `warning` (HTML is still written), not a failure.
+- Syntax highlighting and Mermaid are pinned cache assets; if a download fails,
+  the recap renders unhighlighted with a warning instead of failing.
 
 ## Parse the result
 

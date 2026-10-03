@@ -8,7 +8,8 @@ import {
   mermaidVersion,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
-import { downloadFile, ensureDir, launchBrowser, positive } from '../shared.mjs';
+import { ensureMermaid } from '../mermaid.mjs';
+import { ensureDir, launchBrowser, positive } from '../shared.mjs';
 
 export const name = 'diagram';
 export const aliases = ['mermaid', 'diagram-shot'];
@@ -194,30 +195,6 @@ export function validate(opts) {
     mdOut: opts.mdOut ? resolve(opts.mdOut) : null,
     json: Boolean(opts.json),
   };
-}
-
-function mermaidAssetPath(cache) {
-  return join(cache, 'mermaid', `mermaid-${mermaidVersion()}.min.js`);
-}
-
-const MIN_MERMAID_BYTES = 1000;
-
-async function ensureMermaid(cache) {
-  const asset = mermaidAssetPath(cache);
-  if (existsSync(asset)) {
-    try {
-      if (statSync(asset).size >= MIN_MERMAID_BYTES) return asset;
-    } catch {
-      /* unreadable cache entry: fall through and re-download */
-    }
-  }
-  const url = `https://cdn.jsdelivr.net/npm/mermaid@${mermaidVersion()}/dist/mermaid.min.js`;
-  try {
-    await downloadFile(url, asset);
-  } catch (e) {
-    throw new CliError(`failed to download Mermaid ${mermaidVersion()} from ${url}: ${e.message}`, 1);
-  }
-  return asset;
 }
 
 function diagramId(base, index, definition) {

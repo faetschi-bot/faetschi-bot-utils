@@ -80,6 +80,7 @@ $ npx agentic-tools doctor --json
 |-------|-------------|
 | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
+| [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
 
 ### agent-friendly-code
 
@@ -114,6 +115,29 @@ Two modes, one value bar:
 The skill is deliberately project-agnostic: it defines the value bar, while the
 concrete test command, formatter, and review gate come from the target project's
 `AGENTS.md` and CI config.
+
+### visual-recap
+
+Turns a change that already exists into a reviewable visual artifact — a
+self-contained HTML report (optionally a PNG) with a file map, annotated diffs,
+diagrams, schema/API summaries, and real before/after screenshots.
+
+- The skill is the **authoring** half: read the diff, decide what matters, and
+  write a strict, versioned `recap.json` (file map, `diff`, `data-model`,
+  `api-endpoint`, `callout`, `image-pair`, `mermaid`, `tabs`, and more).
+- Rendering is the **`visual-shot` CLI's** `recap` command, which validates every
+  block and bakes Mermaid SVG + syntax highlighting into an offline HTML file:
+
+  ```bash
+  npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png --json
+  ```
+
+- Pair it with real UI captures for the strongest review: `visual-shot --url …`
+  before and after, referenced from an `image-pair` block.
+
+The split is deliberate: the agent supplies judgment (what changed and why), and
+a deterministic renderer supplies the artifact, so a recap can be reproduced and
+diffed like any other file.
 
 ## Use a skill
 
