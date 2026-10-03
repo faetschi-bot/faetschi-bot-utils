@@ -167,6 +167,9 @@ follow it before writing `recap.json`.
 # Render an authored recap (HTML, plus a PNG of the whole report)
 npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png
 
+# Confine local image reads to an explicit directory
+npx visual-shot recap --from recap.json --asset-root docs/screenshots --png
+
 # Mechanical recap straight from a git range (file map + raw patches)
 npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png --json
 ```
@@ -187,6 +190,24 @@ without rendering.
   A failed PNG screenshot is a `warning` (HTML is still written), not a failure.
 - Syntax highlighting and Mermaid are pinned cache assets; if a download fails,
   the recap renders unhighlighted with a warning instead of failing.
+- `--png` reveals every tab panel in the screenshot; the HTML keeps interactive
+  tabs.
+
+### Recap trust boundaries (the JSON is untrusted)
+
+- `diagram` `html`/`css` is embedded **raw** and runs as HTML in the artifact.
+  Treat it as trusted author content; never interpolate diff text into it.
+- Local `image`/`image-pair` `src` is confined to `--asset-root` (default: the
+  `--from` file's directory, else cwd). Only real files with an allowlisted
+  image extension and `<= MAX_RECAP_IMAGE_BYTES` (10 MiB) are inlined; anything
+  else is dropped with a warning.
+- Remote `https:` image URLs stay in the markup and are fetched when the
+  artifact is opened — a recap with remote images is not strictly offline.
+- The final file carries a CSP that blocks scripts and external egress, and the
+  render pass only loads inline/local/about: URLs, so a crafted block cannot
+  beacon or SSRF during rendering.
+- `--width`/`--scale` are bounded (`320`–`4000` / `1`–`4`) and `--from` is
+  capped at 8 MiB; out-of-range input exits 2.
 
 ## Parse the result
 

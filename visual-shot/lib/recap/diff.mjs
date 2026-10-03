@@ -1,3 +1,4 @@
+import { MAX_RECAP_ANNOTATION_LINES } from '../config.mjs';
 import { CliError } from '../errors.mjs';
 
 // Line-oriented diffing for recap blocks. Deterministic and dependency-free:
@@ -111,15 +112,23 @@ export function computeLineDiff(beforeText, afterText) {
   return { rows: rowsFromOps(ops), unified: unifiedFromOps(ops) };
 }
 
-// "4" -> [4]; "2-5" -> [2,3,4,5]. Malformed specs yield an empty list.
+// "4" -> [4]; "2-5" -> [2,3,4,5]. Malformed specs yield an empty list. Ranges
+// are bounded by MAX_RECAP_ANNOTATION_LINES so a hostile "1-999999999" cannot
+// allocate a billion entries; an oversized (or non-finite) range yields [].
 export function parseLineRange(spec) {
   const text = String(spec ?? '').trim();
   const single = text.match(/^(\d+)$/);
-  if (single) return [Number(single[1])];
+  if (single) {
+    const only = Number(single[1]);
+    return Number.isFinite(only) ? [only] : [];
+  }
   const range = text.match(/^(\d+)\s*-\s*(\d+)$/);
   if (!range) return [];
-  const [start, end] = [Number(range[1]), Number(range[2])];
+  const start = Number(range[1]);
+  const end = Number(range[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return [];
   if (end < start) return [];
+  if (end - start + 1 > MAX_RECAP_ANNOTATION_LINES) return [];
   const out = [];
   for (let n = start; n <= end; n++) out.push(n);
   return out;

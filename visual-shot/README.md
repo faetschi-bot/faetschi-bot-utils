@@ -227,11 +227,12 @@ npx visual-shot recap --from recap.json --diff main...HEAD --png
 | `--from <file\|->` | recap JSON to render (`-` reads stdin) |
 | `--diff <range>` | git range (e.g. `main...HEAD`) to add a file map + patches |
 | `--repo <dir>` | repository for `--diff` (default: cwd) |
+| `--asset-root <dir>` | root confining local image reads (default: the `--from` file's directory, else cwd) |
 | `--out <path>` | output HTML (default `$VISUAL_OUT_DIR/recap.html`) |
-| `--png` / `--png-out <path>` | also write a PNG of the report |
+| `--png` / `--png-out <path>` | also write a PNG of the report (the PNG reveals every tab panel; the HTML keeps interactive tabs) |
 | `--title <text>` | override the recap title |
 | `--theme <light\|dark>` | report theme (default `light`) |
-| `--width <px>` / `--scale <n>` | page width / PNG scale (defaults `1100` / `2`) |
+| `--width <px>` / `--scale <n>` | page width, `320`–`4000` / PNG scale, `1`–`4` (defaults `1100` / `2`) |
 | `--no-highlight` | skip highlight.js (code stays uncolored) |
 | `--json` | print `{ ok, html, png, theme, blocks, mermaid, highlight, warnings }` |
 
@@ -241,6 +242,30 @@ markup, so it opens offline. The HTML-only path (no `--png`, no Mermaid, no
 code blocks) does not need Chromium at all. Syntax highlighting and Mermaid are
 pinned assets fetched into the cache on first use, like `diagram`; set
 `VISUAL_SHOT_HIGHLIGHT_VERSION` / `VISUAL_SHOT_MERMAID_VERSION` to repin.
+
+`--png` screenshots the whole report with every tab panel revealed
+(`TABS_PRINT_CSS`); the saved HTML keeps its interactive tabs.
+
+#### Render trust boundaries
+
+The recap JSON is **untrusted input**, so the renderer enforces a few limits:
+
+- `diagram` blocks embed author-supplied `html`/`css` verbatim and it runs as
+  HTML in the artifact. Treat that content as trusted author content and never
+  interpolate diff text into it.
+- Local `image`/`image-pair` sources are confined to `--asset-root` (the
+  `--from` file's directory by default). Only regular files with an allowlisted
+  image extension and at most `MAX_RECAP_IMAGE_BYTES` (10 MiB) are inlined;
+  anything else is dropped with a warning and renders as "image not found".
+- Remote `https:` image URLs are left as-is and are **fetched when the artifact
+  is opened**, so a report containing them is not strictly offline.
+- The written file carries a CSP (`RECAP_CSP`) that blocks scripts and external
+  egress, and the render pass itself only loads inline (`data:`), local
+  (`file:`), and about: URLs — a crafted `diagram` or markdown `<img>` cannot
+  beacon or SSRF while `recap` renders.
+- `--width` / `--scale` are bounded (`320`–`4000` / `1`–`4`) and a `--from` file
+  is capped at `MAX_RECAP_SOURCE_BYTES` (8 MiB); out-of-range values fail with
+  exit 2.
 
 `recap.json` is a small, versioned contract: `{ version: 1, title, brief?, meta?,
 blocks: [...] }`. Block types: `file-tree`, `diff`, `patch`, `image`,

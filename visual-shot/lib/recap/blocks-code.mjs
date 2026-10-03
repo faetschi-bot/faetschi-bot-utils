@@ -4,6 +4,12 @@ import { codeClass, escapeHtml } from './html.mjs';
 // Rendering for everything that shows code or a literal change: full-file
 // before/after diffs, raw unified patches, code snippets, and annotated code.
 
+// Keeps rendered code deterministic regardless of the source file's line
+// endings; mirrors the normalization splitLines applies in diff.mjs.
+function normalizeNewlines(value) {
+  return String(value ?? '').replace(/\r\n?/g, '\n');
+}
+
 function annotationLines(block, side) {
   const set = new Set();
   for (const a of block.annotations ?? []) {
@@ -47,7 +53,7 @@ function renderSplit(rows, language, beforeSet, afterSet) {
     + `<div class="diff-col"><div class="col-title">After</div>${right}</div></div>`;
 }
 
-function renderUnified(unified, language) {
+function renderUnified(unified, language, beforeSet, afterSet) {
   const cls = codeClass(language);
   const lines = unified
     .map((l) => {
@@ -55,7 +61,9 @@ function renderUnified(unified, language) {
       const sign = l.kind === 'added' ? '+' : l.kind === 'removed' ? '-' : ' ';
       const text = l.text === '' ? '&nbsp;' : escapeHtml(l.text);
       const inner = cls ? `<code${cls}>${text}</code>` : text;
-      return `<div class="line ${kind}"><span class="ln">${sign}${l.n}</span><span class="code">${inner}</span></div>`;
+      const set = l.kind === 'removed' ? beforeSet : afterSet;
+      const mark = set.has(l.n) ? '<span class="mark">&#9679;</span>' : '';
+      return `<div class="line ${kind}"><span class="ln">${sign}${l.n}</span><span class="code">${mark}${inner}</span></div>`;
     })
     .join('');
   return `<div class="diff-col">${lines}</div>`;
@@ -70,7 +78,7 @@ function diffHead(block, defaultLabel) {
 export function renderDiff(block) {
   const { rows, unified } = computeLineDiff(block.before, block.after);
   const body = block.mode === 'unified'
-    ? renderUnified(unified, block.language)
+    ? renderUnified(unified, block.language, annotationLines(block, 'left'), annotationLines(block, 'right'))
     : renderSplit(rows, block.language, annotationLines(block, 'left'), annotationLines(block, 'right'));
   return `<div class="blk"><div class="diff">${diffHead(block, 'diff')}${body}</div>${renderAnnotations(block.annotations)}</div>`;
 }
@@ -92,11 +100,11 @@ export function renderPatch(block) {
 export function renderCode(block) {
   const caption = block.caption ? `<div class="muted">${escapeHtml(block.caption)}</div>` : '';
   return `<div class="blk">${diffHead(block, 'code')}`
-    + `<pre class="code-block"><code${codeClass(block.language)}>${escapeHtml(block.code)}</code></pre>${caption}</div>`;
+    + `<pre class="code-block"><code${codeClass(block.language)}>${escapeHtml(normalizeNewlines(block.code))}</code></pre>${caption}</div>`;
 }
 
 export function renderAnnotatedCode(block) {
-  const lines = splitLines(block.code);
+  const lines = splitLines(normalizeNewlines(block.code));
   const marked = new Set();
   for (const a of block.annotations ?? []) {
     for (const n of parseLineRange(a?.lines)) marked.add(n);

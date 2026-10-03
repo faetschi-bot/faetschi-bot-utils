@@ -5,11 +5,20 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  cacheDir,
+  MAX_RECAP_ANNOTATION_LINES,
+  MAX_RECAP_BLOCKS,
+  MAX_RECAP_IMAGE_BYTES,
+  MAX_RECAP_SOURCE_BYTES,
+} from '../lib/config.mjs';
+import { highlightAssetPath } from '../lib/highlight.mjs';
+import { mermaidAssetPath } from '../lib/mermaid.mjs';
 import { assembleRecap } from '../lib/recap/assemble.mjs';
 import { classifyPatchLine, computeLineDiff, parseLineRange } from '../lib/recap/diff.mjs';
-import { parseNameStatus } from '../lib/recap/git.mjs';
+import { assertValidRange, parseNameStatus, truncatePatch } from '../lib/recap/git.mjs';
 import { escapeHtml, renderMarkdown } from '../lib/recap/html.mjs';
-import { buildRecap } from '../lib/recap/render.mjs';
+import { buildRecap, recapCss, TABS_PRINT_CSS } from '../lib/recap/render.mjs';
 import { validateRecap } from '../lib/recap/schema.mjs';
 
 const bin = fileURLToPath(new URL('../bin/visual-shot.mjs', import.meta.url));
@@ -68,6 +77,18 @@ test('validateRecap descends into columns and tabs blocks', () => {
   });
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((e) => e.includes('blocks[0].tabs[0].blocks[0].body')));
+});
+
+test('validateRecap rejects a recap nested beyond the depth limit without throwing', () => {
+  // Build columns nested far past the guard so recursion would otherwise
+  // overflow the call stack; expect a normal validation error, not a RangeError.
+  let block = { type: 'notes', markdown: 'leaf' };
+  for (let i = 0; i < 40; i++) {
+    block = { type: 'columns', columns: [{ blocks: [block] }] };
+  }
+  const result = validateRecap({ version: 1, title: 'T', blocks: [block] });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => e.includes('exceeds maximum nesting depth')));
 });
 
 test('validateRecap requires a title and a non-empty blocks array', () => {
@@ -218,7 +239,7 @@ test('buildRecap inlines a local image and warns on a missing one', () => {
         { type: 'image', src: png },
         { type: 'image', src: join(dir, 'missing.png') },
       ],
-    });
+    }, { assetRoot: dir, maxImageBytes: MAX_RECAP_IMAGE_BYTES });
     assert.match(html, /data:image\/png;base64,/);
     assert.ok(warnings.some((w) => w.includes('missing.png')));
   } finally {
@@ -244,6 +265,23 @@ test('recap with a missing recap file exits 2', () => {
   const r = run(['recap', '--from', '/nonexistent/recap.json']);
   assert.equal(r.status, 2);
   assert.match(r.stderr, /cannot read recap JSON/);
+});
+
+test('recap --from rejects a non-regular file and exits 2', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-nonfile-'));
+  try {
+    // A directory is the portable case; a character device like /dev/null
+    // reproduces the /dev/zero/FIFO bypass on Linux when present.
+    const targets = [dir];
+    if (existsSync('/dev/null')) targets.push('/dev/null');
+    for (const target of targets) {
+      const r = run(['recap', '--from', target]);
+      assert.equal(r.status, 2, `expected exit 2 for ${target}`);
+      assert.match(r.stderr, /--from must be a regular file:/);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('recap --json reports invalid JSON without provisioning', () => {
@@ -313,5 +351,294 @@ test('recap --diff renders a file map and inline patches from git', () => {
     rmSync(repo, { recursive: true, force: true });
     rmSync(outDir, { recursive: true, force: true });
     rmSync(cache, { recursive: true, force: true });
+  }
+});
+
+// --- security regressions ---------------------------------------------------
+
+// A recap JSON is untrusted. An out-of-enum `change` must render inert: no
+// attribute break-out, no injected tag, and no badge class — while a valid value
+// still gets its badge.
+test('buildRecap neutralizes a data-model change payload and still badges valid changes', () => {
+  const payload = 'x"><img src=y onerror=alert(1)>';
+  const { html } = buildRecap({
+    version: 1,
+    title: 'T',
+    blocks: [{
+      type: 'data-model',
+      entities: [{ name: 'users', fields: [{ name: 'id', type: 'uuid', change: payload }] }],
+    }],
+  });
+  assert.doesNotMatch(html, /<img/);
+  assert.doesNotMatch(html, /class="chg/);
+  assert.doesNotMatch(html, /onerror/);
+
+  const valid = buildRecap({
+    version: 1,
+    title: 'T',
+    blocks: [{
+      type: 'data-model',
+      entities: [{ name: 'users', fields: [{ name: 'id', type: 'uuid', change: 'added' }] }],
+    }],
+  }).html;
+  assert.match(valid, /<span class="chg added">added<\/span>/);
+});
+
+// Own-property badge lookup: `__proto__`/`constructor` must not resolve to an
+// inherited value or leak into a class attribute.
+test('buildRecap treats an unknown file-tree change as modified without prototype lookup', () => {
+  const { html } = buildRecap({
+    version: 1,
+    title: 'T',
+    blocks: [{
+      type: 'file-tree',
+      entries: [
+        { path: 'a.ts', change: '__proto__' },
+        { path: 'b.ts', change: 'constructor' },
+      ],
+    }],
+  });
+  assert.equal((html.match(/class="badge modified"/g) ?? []).length, 2);
+  assert.doesNotMatch(html, /class="badge (__proto__|constructor)"/);
+  assert.doesNotMatch(html, /__proto__/);
+});
+
+test('buildRecap inlines only images inside the asset root and rejects oversize/non-image files', () => {
+  const root = mkdtempSync(join(tmpdir(), 'visual-shot-recap-root-'));
+  const outside = mkdtempSync(join(tmpdir(), 'visual-shot-recap-outside-'));
+  try {
+    const pngBytes = Buffer.from('89504e470d0a1a0a', 'hex');
+    writeFileSync(join(root, 'ok.png'), pngBytes);
+    writeFileSync(join(outside, 'secret.png'), pngBytes);
+    writeFileSync(join(root, 'big.png'), Buffer.alloc(64));
+    writeFileSync(join(root, 'notes.txt'), 'hello');
+    const relativeEscape = join('..', outside.slice(outside.lastIndexOf('/') + 1), 'secret.png');
+
+    const inline = (src, options) => buildRecap(
+      { version: 1, title: 'T', blocks: [{ type: 'image', src }] },
+      { assetRoot: root, maxImageBytes: MAX_RECAP_IMAGE_BYTES, ...options },
+    );
+
+    const inside = inline('ok.png');
+    assert.match(inside.html, /data:image\/png;base64,/);
+
+    const absolute = inline(join(outside, 'secret.png'));
+    assert.doesNotMatch(absolute.html, /data:image/);
+    assert.ok(absolute.warnings.some((w) => w.includes('outside the asset root')));
+
+    const relative = inline(relativeEscape);
+    assert.doesNotMatch(relative.html, /data:image/);
+    assert.ok(relative.warnings.some((w) => w.includes('outside the asset root')));
+
+    const oversize = inline('big.png', { maxImageBytes: 8 });
+    assert.doesNotMatch(oversize.html, /data:image/);
+    assert.ok(oversize.warnings.some((w) => w.includes('too large')));
+
+    const wrongType = inline('notes.txt');
+    assert.doesNotMatch(wrongType.html, /data:image/);
+    assert.ok(wrongType.warnings.some((w) => w.includes('unsupported image type')));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+// --- tab rendering ----------------------------------------------------------
+
+test('recapCss emits a rule for maxTabs and buildRecap counts nested tabs', () => {
+  assert.match(recapCss({ maxTabs: 13 }), /nth-of-type\(13\)/);
+
+  const tabs = Array.from({ length: 13 }, (_, i) => ({
+    label: `Tab ${i + 1}`,
+    blocks: [{ type: 'notes', markdown: 'x' }],
+  }));
+  const { html, maxTabs } = buildRecap({
+    version: 1,
+    title: 'T',
+    blocks: [{ type: 'columns', columns: [{ blocks: [{ type: 'tabs', tabs }] }] }],
+  });
+  assert.equal(maxTabs, 13);
+  assert.match(html, /data-label=/);
+});
+
+test('TABS_PRINT_CSS reveals every tab panel in the PNG pass', () => {
+  assert.equal(typeof TABS_PRINT_CSS, 'string');
+  assert.ok(TABS_PRINT_CSS.length > 0);
+  assert.match(TABS_PRINT_CSS, /\.tab-panels[^}]*\.panel[^}]*display:\s*block/);
+});
+
+// --- content regressions ----------------------------------------------------
+
+test('buildRecap strips CRLF from code blocks', () => {
+  const { html } = buildRecap({
+    version: 1,
+    title: 'T',
+    blocks: [{ type: 'code', language: 'js', code: 'const a = 1;\r\nconst b = 2;\r\n' }],
+  });
+  assert.doesNotMatch(html, /\r/);
+  assert.match(html, /const a = 1;/);
+});
+
+test('buildRecap marks annotated lines in a unified diff', () => {
+  const { html } = buildRecap({
+    version: 1,
+    title: 'T',
+    blocks: [{
+      type: 'diff',
+      mode: 'unified',
+      before: 'old\n',
+      after: 'new\n',
+      annotations: [{ lines: '1', side: 'after' }],
+    }],
+  });
+  assert.match(html, /class="mark"/);
+});
+
+test('buildRecap grounds a data-model field note and foreign-key target', () => {
+  const { html } = buildRecap({
+    version: 1,
+    title: 'T',
+    blocks: [{
+      type: 'data-model',
+      entities: [{
+        name: 'orders',
+        fields: [{ name: 'user_id', type: 'uuid', fk: 'users.id', note: 'indexed for lookups' }],
+      }],
+    }],
+  });
+  assert.match(html, /indexed for lookups/);
+  assert.match(html, /FK &rarr; users\.id/);
+});
+
+// --- validation limits ------------------------------------------------------
+
+test('validateRecap rejects out-of-enum values and oversized annotations/blocks', () => {
+  const base = (blocks) => ({ version: 1, title: 'T', blocks });
+
+  const badChange = validateRecap(base([{ type: 'file-tree', entries: [{ path: 'a', change: 'bogus' }] }]));
+  assert.equal(badChange.ok, false);
+  assert.ok(badChange.errors.some((e) => e.includes('change must be one of')));
+
+  const badTone = validateRecap(base([{ type: 'callout', body: 'x', tone: 'loud' }]));
+  assert.equal(badTone.ok, false);
+  assert.ok(badTone.errors.some((e) => e.includes('tone must be one of')));
+
+  const badMode = validateRecap(base([{ type: 'diff', before: '', after: '', mode: 'sideways' }]));
+  assert.equal(badMode.ok, false);
+  assert.ok(badMode.errors.some((e) => e.includes('mode must be')));
+
+  const badSide = validateRecap(base([{
+    type: 'diff',
+    before: '',
+    after: '',
+    annotations: [{ lines: '1', side: 'middle' }],
+  }]));
+  assert.equal(badSide.ok, false);
+  assert.ok(badSide.errors.some((e) => e.includes('side must be')));
+
+  const tooManyLines = validateRecap(base([{
+    type: 'diff',
+    before: '',
+    after: '',
+    annotations: [{ lines: `1-${MAX_RECAP_ANNOTATION_LINES + 1}` }],
+  }]));
+  assert.equal(tooManyLines.ok, false);
+  assert.ok(tooManyLines.errors.some((e) => e.includes('exceeds')));
+
+  const tooManyBlocks = validateRecap(base(
+    Array.from({ length: MAX_RECAP_BLOCKS + 1 }, () => ({ type: 'notes', markdown: 'x' })),
+  ));
+  assert.equal(tooManyBlocks.ok, false);
+  assert.ok(tooManyBlocks.errors.some((e) => e.includes('at most')));
+});
+
+// --- git guards -------------------------------------------------------------
+
+test('assertValidRange rejects option-like ranges and truncatePatch keeps UTF-8 on a boundary', () => {
+  assert.throws(() => assertValidRange('--output=/tmp/x'), /invalid --diff range/);
+  assert.equal(assertValidRange('main...HEAD'), 'main...HEAD');
+  assert.throws(() => assertValidRange('main HEAD'), /whitespace/);
+
+  const suffix = '\n… truncated\n';
+  const text = `${'é'.repeat(64)}\nsecond line\n`;
+  const maxBytes = 9;
+  const out = truncatePatch(text, maxBytes);
+  assert.doesNotMatch(out, /\uFFFD/);
+  assert.ok(out.endsWith('truncated\n'));
+  assert.ok(Buffer.byteLength(out, 'utf8') <= maxBytes + Buffer.byteLength(suffix, 'utf8'));
+
+  assert.equal(truncatePatch('tiny', 100), 'tiny');
+});
+
+// --- assemble ---------------------------------------------------------------
+
+test('assembleRecap lets --title override --from and warns on an empty diff', () => {
+  const from = { version: 1, title: 'Original', blocks: [{ type: 'notes', markdown: 'x' }] };
+  const overridden = assembleRecap({ from, title: 'From CLI' });
+  assert.equal(overridden.recap.title, 'From CLI');
+
+  const empty = assembleRecap({
+    range: 'main...HEAD',
+    gitData: { entries: [], patches: new Map(), total: 0, truncated: false },
+  });
+  assert.ok(empty.warnings.some((w) => w.includes('no changes')));
+  assert.equal(empty.recap.blocks.some((b) => b.type === 'file-tree' || b.type === 'tabs'), false);
+});
+
+// --- CLI limits -------------------------------------------------------------
+
+test('recap rejects out-of-range width/scale and an oversized --from file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-limits-'));
+  try {
+    const file = writeJson(dir, { version: 1, title: 'T', blocks: [{ type: 'notes', markdown: 'x' }] });
+
+    const wide = run(['recap', '--from', file, '--width', '99999']);
+    assert.equal(wide.status, 2);
+    assert.match(wide.stderr, /--width must be between/);
+
+    const scaled = run(['recap', '--from', file, '--scale', '0']);
+    assert.equal(scaled.status, 2);
+    assert.match(scaled.stderr, /--scale must be between/);
+
+    const big = join(dir, 'big.json');
+    writeFileSync(big, Buffer.alloc(MAX_RECAP_SOURCE_BYTES + 1, 0x20));
+    const oversize = run(['recap', '--from', big]);
+    assert.equal(oversize.status, 2);
+    assert.match(oversize.stderr, /too large/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- browser integration (gated: no network, no provisioning) ---------------
+
+const sharedCache = cacheDir();
+const browserAssetsReady = existsSync(join(sharedCache, '.provisioned'))
+  && existsSync(mermaidAssetPath(sharedCache))
+  && existsSync(highlightAssetPath(sharedCache));
+
+test('recap --png bakes mermaid and highlight into the HTML', { skip: browserAssetsReady ? false : 'assets not provisioned' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-png-'));
+  try {
+    const file = writeJson(dir, {
+      version: 1,
+      title: 'Browser recap',
+      blocks: [
+        { type: 'mermaid', source: 'graph TD; A-->B' },
+        { type: 'code', language: 'js', code: 'const x = 1;\n' },
+      ],
+    });
+    const out = join(dir, 'out.html');
+    const r = run(['recap', '--from', file, '--png', '--out', out, '--json'], { cache: sharedCache });
+    assert.equal(r.status, 0, r.stderr);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, true);
+    assert.ok(parsed.png);
+    assert.equal(existsSync(parsed.png), true);
+    const html = readFileSync(parsed.html, 'utf8');
+    assert.match(html, /<svg/);
+    assert.match(html, /hljs-/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

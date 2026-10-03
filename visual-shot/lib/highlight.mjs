@@ -1,8 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { highlightVersion } from './config.mjs';
-import { CliError } from './errors.mjs';
-import { downloadFile } from './shared.mjs';
+import { assetSha256, highlightVersion } from './config.mjs';
+import { downloadVerified, verifyFileSha256 } from './shared.mjs';
 
 // highlight.js is pinned and cached like mermaid: fetched once into
 // $VISUAL_SHOT_CACHE/highlight/, then offline. The browser bundle carries the
@@ -23,21 +22,25 @@ export function highlightCssPath(cache, theme) {
 
 const MIN_ASSET_BYTES = 1000;
 
-function cached(file) {
+// A cached asset is usable only when it clears the size floor and still matches
+// the pinned digest. A tampered or corrupted entry is discarded by
+// re-downloading instead of being trusted.
+function usableCached(file, expectedSha256) {
   try {
-    return existsSync(file) && statSync(file).size >= MIN_ASSET_BYTES;
+    if (!existsSync(file) || statSync(file).size < MIN_ASSET_BYTES) return false;
   } catch {
     return false;
   }
+  if (expectedSha256 && !verifyFileSha256(file, expectedSha256)) return false;
+  return true;
 }
 
+// Downloads only when the cache misses or fails verification, so the command
+// falls back to unhighlighted code via a CliError from downloadVerified.
 async function fetchAsset(url, dest, what) {
-  if (cached(dest)) return;
-  try {
-    await downloadFile(url, dest);
-  } catch (e) {
-    throw new CliError(`failed to download ${what} from ${url}: ${e.message}`, 1);
-  }
+  const expected = assetSha256(url);
+  if (usableCached(dest, expected)) return;
+  await downloadVerified(url, dest, expected, what);
 }
 
 // Returns { script, css } as file contents for the requested theme. Throws a

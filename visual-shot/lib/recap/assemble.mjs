@@ -7,8 +7,17 @@ export function assembleRecap({ from, gitData, title, range } = {}) {
     ? structuredClone(from)
     : { version: 1, title: title || (range ? `Changes in ${range}` : 'Changes'), blocks: [] };
 
+  // A non-empty CLI --title always wins, whether or not a recap JSON was given.
+  if (typeof title === 'string' && title.length > 0) recap.title = title;
+
   if (gitData) {
-    if (!recap.blocks.some((block) => block.type === 'file-tree')) {
+    // An empty range (e.g. `main...HEAD` with no commits) must not add a
+    // file-tree with no entries — the schema rejects that and the report would
+    // claim changes that are not there. Just warn about the empty range.
+    if (gitData.entries.length === 0) {
+      warnings.push(range ? `no changes in ${range}` : 'no changes in the given range');
+    }
+    if (gitData.entries.length > 0 && !recap.blocks.some((block) => block.type === 'file-tree')) {
       recap.blocks.unshift({
         type: 'file-tree',
         title: 'Files changed',

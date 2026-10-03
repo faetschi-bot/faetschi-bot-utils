@@ -1,20 +1,26 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { readFileSync, readSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import {
   DEFAULT_OUT_DIR,
   DEFAULT_RECAP_SCALE,
   DEFAULT_RECAP_THEME,
   DEFAULT_RECAP_WIDTH,
+  MAX_RECAP_IMAGE_BYTES,
+  MAX_RECAP_PNG_HEIGHT,
+  MAX_RECAP_SCALE,
+  MAX_RECAP_SOURCE_BYTES,
+  MAX_RECAP_WIDTH,
+  MIN_RECAP_WIDTH,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
 import { ensureHighlight } from '../highlight.mjs';
 import { ensureMermaid } from '../mermaid.mjs';
 import { assembleRecap } from '../recap/assemble.mjs';
 import { collectGitDiff } from '../recap/git.mjs';
-import { buildRecap, renderDocument } from '../recap/render.mjs';
+import { RECAP_CSP, TABS_PRINT_CSS, buildRecap, renderDocument } from '../recap/render.mjs';
 import { validateRecap } from '../recap/schema.mjs';
 import { normalizeTheme } from '../recap/theme.mjs';
-import { applyEnvFile, ensureDir, ensureProvisioned, launchBrowser, loadPlaywright, positive } from '../shared.mjs';
+import { applyEnvFile, ensureDir, ensureProvisioned, launchBrowser, loadPlaywright } from '../shared.mjs';
 
 export const name = 'recap';
 export const summary = 'Render a visual recap (diff + fixtures) to HTML/PNG';
@@ -33,13 +39,15 @@ Options:
   --from <file|->       recap JSON to render ("-" reads stdin)
   --diff <range>        git range (e.g. main...HEAD) to add a file map + patches
   --repo <dir>          repository for --diff (default: cwd)
+  --asset-root <dir>    root confining local image reads (default: the --from
+                        file's directory, else cwd for stdin/--diff-only)
   --out <path>          output HTML (default: $VISUAL_OUT_DIR/recap.html)
   --png                 also write a PNG of the report
   --png-out <path>      explicit PNG path (default: alongside --out)
   --title <text>        override the recap title
   --theme <light|dark>  report theme (default: ${DEFAULT_RECAP_THEME})
-  --width <px>          page width (default: ${DEFAULT_RECAP_WIDTH})
-  --scale <n>           device scale factor for the PNG (default: ${DEFAULT_RECAP_SCALE})
+  --width <px>          page width, ${MIN_RECAP_WIDTH}-${MAX_RECAP_WIDTH} (default: ${DEFAULT_RECAP_WIDTH})
+  --scale <n>           device scale factor for the PNG, 1-${MAX_RECAP_SCALE} (default: ${DEFAULT_RECAP_SCALE})
   --no-highlight        skip highlight.js (code stays uncolored)
   --json                print a machine-readable result object
   --help                show this help`;
@@ -57,6 +65,7 @@ export function parse(argv) {
     if (a === '--from') o.from = val();
     else if (a === '--diff') o.diff = val();
     else if (a === '--repo') o.repo = val();
+    else if (a === '--asset-root') o.assetRoot = val();
     else if (a === '--out') o.out = val();
     else if (a === '--png-out') o.pngOut = val();
     else if (a === '--png') o.png = true;
@@ -72,11 +81,66 @@ export function parse(argv) {
   return o;
 }
 
+// Bounded range check for numeric flags: rejects NaN and anything outside
+// [min, max] with a message that names the flag and the accepted range.
+function boundedNumber(value, fallback, min, max, flag) {
+  if (value === undefined) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || n > max) {
+    throw new CliError(`--${flag} must be between ${min} and ${max} (got ${value})`);
+  }
+  return n;
+}
+
+const STDIN_CHUNK = 64 * 1024;
+
+// Read stdin without loading an unbounded amount into memory: pull fixed-size
+// chunks until EOF and bail once the cap is passed. readFileSync(0) would read
+// all of a hostile stream before the size check could run.
+function readStdinBounded(maxBytes, what) {
+  const chunks = [];
+  let total = 0;
+  const buf = Buffer.allocUnsafe(STDIN_CHUNK);
+  for (;;) {
+    let n;
+    try {
+      n = readSync(0, buf, 0, buf.length, null);
+    } catch (e) {
+      if (e.code === 'EAGAIN') continue;
+      throw new CliError(`cannot read ${what} from stdin: ${e.message}`);
+    }
+    if (n === 0) break;
+    total += n;
+    if (total > maxBytes) {
+      throw new CliError(`${what} on stdin exceeds ${maxBytes} bytes`);
+    }
+    chunks.push(Buffer.from(buf.subarray(0, n)));
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 function readRecapJson(source) {
   let text;
   if (source === '-') {
-    text = readFileSync(0, 'utf8');
+    text = readStdinBounded(MAX_RECAP_SOURCE_BYTES, 'recap JSON');
   } else {
+    let stat;
+    try {
+      stat = statSync(source);
+    } catch (e) {
+      throw new CliError(`cannot read recap JSON ${source}: ${e.message}`);
+    }
+    // A character device (/dev/zero), FIFO, or directory would otherwise bypass
+    // the size cap (or read unbounded), so require a regular file first.
+    if (!stat.isFile()) {
+      throw new CliError(`--from must be a regular file: ${source}`);
+    }
+    const size = stat.size;
+    if (size > MAX_RECAP_SOURCE_BYTES) {
+      throw new CliError(
+        `recap JSON ${source} is too large (${size} > ${MAX_RECAP_SOURCE_BYTES} bytes)`,
+      );
+    }
     try {
       text = readFileSync(source, 'utf8');
     } catch (e) {
@@ -110,17 +174,28 @@ export function validate(opts) {
   const from = opts.from ? readRecapJson(opts.from) : null;
   const gitData = opts.diff ? collectGitDiff({ repo: opts.repo, range: opts.diff }) : null;
 
+  // Local image reads are confined to this root. The recap JSON's own directory
+  // is the natural root when reading a file; stdin/--diff-only reports anchor on
+  // cwd (or an explicit --asset-root).
+  const fromPath = opts.from && opts.from !== '-' ? resolve(opts.from) : null;
+  const assetRoot = opts.assetRoot
+    ? resolve(opts.assetRoot)
+    : fromPath
+      ? dirname(fromPath)
+      : process.cwd();
+
   return {
     from,
     gitData,
     range: opts.diff || null,
     title: opts.title || null,
+    assetRoot,
     out,
     png: Boolean(opts.png),
     pngOut,
     theme,
-    width: positive(opts.width, DEFAULT_RECAP_WIDTH, 'width'),
-    scale: positive(opts.scale, DEFAULT_RECAP_SCALE, 'scale'),
+    width: boundedNumber(opts.width, DEFAULT_RECAP_WIDTH, MIN_RECAP_WIDTH, MAX_RECAP_WIDTH, 'width'),
+    scale: boundedNumber(opts.scale, DEFAULT_RECAP_SCALE, 1, MAX_RECAP_SCALE, 'scale'),
     highlight: !opts.noHighlight,
     json: Boolean(opts.json),
   };
@@ -153,6 +228,18 @@ async function renderInBrowser(plan, built, highlightAsset) {
       viewport: { width: plan.width + 40, height: 900 },
       deviceScaleFactor: plan.scale,
     });
+
+    // The render pass must not egress: the recap JSON is untrusted, so a crafted
+    // diagram/markdown <img> could beacon or SSRF from the headless browser.
+    // Allow only inline (data:), navigation (about:), and local (file:) URLs and
+    // abort everything else. The saved artifact still keeps remote <img> URLs —
+    // that is a static-file concern, not a render-time one.
+    await page.route('**/*', (route) => {
+      const url = route.request().url();
+      if (/^(data:|about:|file:)/i.test(url)) return route.continue();
+      return route.abort();
+    });
+
     await page.setContent(built.html, { waitUntil: 'load' });
 
     if (built.mermaid.length > 0) {
@@ -197,20 +284,35 @@ async function renderInBrowser(plan, built, highlightAsset) {
     // renderer, which must not cost us the HTML artifact.
     const content = await page.evaluate(() => document.getElementById('recap').innerHTML);
     let pngError = null;
+    let pngWritten = false;
     if (plan.png) {
       try {
+        // Reveal every tab panel only for the screenshot, after serializing, so
+        // the .html file keeps working tabs while the PNG holds all panels.
+        await page.addStyleTag({ content: TABS_PRINT_CSS });
         const size = await page.evaluate(() => {
           const rect = document.getElementById('recap').getBoundingClientRect();
           return { width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
         });
-        await page.setViewportSize({ width: Math.max(1, size.width), height: Math.max(1, size.height) });
-        ensureDir(plan.pngOut);
-        await page.locator('#recap').screenshot({ path: plan.pngOut });
+        // The screenshot is captured at deviceScaleFactor = plan.scale, so the
+        // emitted PNG has scale× the CSS-pixel height. Cap the device-pixel
+        // height, otherwise --scale 4 could still emit a ~4× oversized image.
+        const deviceHeight = Math.ceil(size.height * plan.scale);
+        if (deviceHeight > MAX_RECAP_PNG_HEIGHT) {
+          built.warnings.push(
+            `PNG skipped: report too tall (${deviceHeight}px at scale ${plan.scale} > ${MAX_RECAP_PNG_HEIGHT}px)`,
+          );
+        } else {
+          await page.setViewportSize({ width: Math.max(1, size.width), height: Math.max(1, size.height) });
+          ensureDir(plan.pngOut);
+          await page.locator('#recap').screenshot({ path: plan.pngOut });
+          pngWritten = true;
+        }
       } catch (e) {
         pngError = e.message;
       }
     }
-    return { content, pngError };
+    return { content, pngError, pngWritten };
   } finally {
     await browser.close();
   }
@@ -237,24 +339,41 @@ export async function run(plan, ctx) {
     theme: plan.theme,
     width: plan.width,
     extraCss: highlightAsset ? highlightAsset.css : '',
+    assetRoot: plan.assetRoot,
+    maxImageBytes: MAX_RECAP_IMAGE_BYTES,
   });
-  warnings.push(...built.warnings);
 
   const needBrowser = plan.png || built.mermaid.length > 0 || Boolean(highlightAsset);
-  let finalHtml = built.html;
+  let finalHtml;
   let pngOk = false;
   if (needBrowser) {
-    const { content, pngError } = await renderInBrowser(plan, built, highlightAsset);
+    const { content, pngError, pngWritten } = await renderInBrowser(plan, built, highlightAsset);
     if (pngError) warnings.push(`PNG screenshot failed (HTML still written): ${pngError}`);
-    else pngOk = plan.png;
+    pngOk = pngWritten;
     finalHtml = renderDocument({
       bodyHtml: content,
       css: built.css,
       theme: plan.theme,
       width: plan.width,
       title: recap.title,
+      csp: RECAP_CSP,
+    });
+  } else {
+    // No browser pass: the built body is already final, but the saved file must
+    // still carry the CSP. The initial render shell (built.html) intentionally
+    // has none because the browser pass injects inline scripts.
+    finalHtml = renderDocument({
+      bodyHtml: built.body,
+      css: built.css,
+      theme: plan.theme,
+      width: plan.width,
+      title: recap.title,
+      csp: RECAP_CSP,
     });
   }
+  // built.warnings also collects render-pass findings (mermaid failures, a
+  // skipped oversized PNG, rejected images), so merge after the browser pass.
+  warnings.push(...built.warnings);
 
   try {
     ensureDir(plan.out);

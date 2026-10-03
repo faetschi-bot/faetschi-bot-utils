@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { extname, resolve } from 'node:path';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { extname, resolve, sep } from 'node:path';
 
 // Low-level HTML helpers shared by the block renderers. Kept free of block
 // knowledge so renderers can import them without a cycle.
@@ -104,16 +104,68 @@ export function renderMarkdown(markdown) {
 }
 
 // Local images are inlined as data URIs so the recap HTML stays self-contained
-// and offline; remote URLs are left as-is. A missing file yields null and a
-// warning instead of a broken report.
-export function imageHref(src, warnings) {
+// and offline; remote URLs and data URIs are left as-is. The recap JSON is
+// untrusted, so a local path is only read when it realpaths to a regular file
+// inside the caller-provided asset root, has an allowlisted extension, and fits
+// the size budget. Every rejection returns null and pushes a reason onto the
+// warning list instead of breaking the report.
+export function imageHref(src, ctx) {
   const value = String(src ?? '');
   if (/^(https?:|data:)/i.test(value)) return value;
-  const abs = resolve(value);
-  if (!existsSync(abs)) {
-    warnings.push(`image not found: ${value}`);
+
+  const warnings = ctx?.warnings ?? [];
+  const reject = (reason) => {
+    warnings.push(`image rejected (${value}): ${reason}`);
     return null;
+  };
+
+  if (!value) return reject('empty path');
+  const assetRoot = ctx?.assetRoot;
+  if (!assetRoot) return reject('no asset root configured');
+
+  let root;
+  try {
+    root = realpathSync(assetRoot);
+  } catch {
+    return reject(`asset root not found: ${assetRoot}`);
   }
-  const mime = MIME_BY_EXT[extname(abs).toLowerCase()] || 'image/png';
-  return `data:${mime};base64,${readFileSync(abs).toString('base64')}`;
+
+  // Resolve through realpath so symlinks cannot point outside the root, then
+  // confirm containment before stat/read touch the target.
+  let real;
+  try {
+    real = realpathSync(resolve(root, value));
+  } catch {
+    return reject('file not found');
+  }
+  if (real !== root && !real.startsWith(root + sep)) {
+    return reject('path outside the asset root');
+  }
+
+  let stat;
+  try {
+    stat = statSync(real);
+  } catch {
+    return reject('cannot stat file');
+  }
+  if (!stat.isFile()) return reject('not a regular file');
+
+  const ext = extname(real).toLowerCase();
+  if (!Object.hasOwn(MIME_BY_EXT, ext)) {
+    return reject(`unsupported image type: ${ext || '(none)'}`);
+  }
+
+  const maxBytes = ctx?.maxImageBytes;
+  if (typeof maxBytes !== 'number' || !Number.isFinite(maxBytes) || maxBytes <= 0) {
+    return reject('no image size limit configured');
+  }
+  if (stat.size > maxBytes) {
+    return reject(`file too large (${stat.size} > ${maxBytes} bytes)`);
+  }
+
+  try {
+    return `data:${MIME_BY_EXT[ext]};base64,${readFileSync(real).toString('base64')}`;
+  } catch (e) {
+    return reject(`cannot read file: ${e.message}`);
+  }
 }

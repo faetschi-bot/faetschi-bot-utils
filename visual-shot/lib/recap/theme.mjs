@@ -14,18 +14,31 @@ const HIGHLIGHT_TINTS = `
   .hljs { background: transparent; padding: 0; }
 `;
 
-const MAX_TAB_RULES = 8;
+// Tab groups render as radio inputs + labels + panels, so the stylesheet needs
+// one `:checked` rule per possible tab index. The real maximum is computed from
+// the document at build time (see createRenderContext/buildRecap), so there is
+// no fixed-low cap; the ceiling only guards against an absurd tab count turning
+// into a giant stylesheet.
+export const DEFAULT_MAX_TABS = 8;
+const MAX_TAB_RULES = 512;
 
-function tabRules() {
+function clampTabCount(value) {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, MAX_TAB_RULES);
+}
+
+export function tabRules(maxTabs = DEFAULT_MAX_TABS) {
+  const count = clampTabCount(maxTabs);
   let css = '';
-  for (let k = 1; k <= MAX_TAB_RULES; k++) {
+  for (let k = 1; k <= count; k++) {
     css += `.tabs > input:nth-of-type(${k}):checked ~ .tab-panels > .panel:nth-child(${k}) { display: block; }\n`;
     css += `.tabs > input:nth-of-type(${k}):checked ~ .tabbar > label:nth-child(${k}) { color: var(--fg); border-color: var(--accent); background: var(--card); }\n`;
   }
   return css;
 }
 
-export function baseCss() {
+export function baseCss({ maxTabs = DEFAULT_MAX_TABS } = {}) {
   return `
 :root {
   --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --border: #d1d9e0;
@@ -154,7 +167,7 @@ table.grid th { background: var(--card); }
 .tabbar label { padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; }
 .tab-panels { padding: 12px; }
 .tab-panels > .panel { display: none; }
-${tabRules()}
+${tabRules(maxTabs)}
 ${HIGHLIGHT_TINTS}
 `.trim();
 }

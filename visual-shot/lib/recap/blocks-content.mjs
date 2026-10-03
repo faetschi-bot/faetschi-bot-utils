@@ -1,17 +1,25 @@
 import { escapeAttr, escapeHtml, imageHref, renderMarkdown } from './html.mjs';
+import { CHANGE_VALUES } from './schema.mjs';
 
 // Rendering for structural and reference blocks: file maps, images, diagrams,
 // schemas, endpoints, prose, and simple data displays.
 
 const FILE_BADGE = { added: 'A', removed: 'D', modified: 'M', renamed: 'R' };
 
+function changeBadge(change) {
+  if (!CHANGE_VALUES.has(change)) return '';
+  return `<span class="chg ${escapeAttr(change)}">${escapeHtml(change)}</span>`;
+}
+
 export function renderFileTree(block) {
   const title = block.title ? `<div class="muted">${escapeHtml(block.title)}</div>` : '';
   const items = block.entries
     .map((entry) => {
-      const change = FILE_BADGE[entry.change] ? entry.change : 'modified';
+      // Own-property lookup: `__proto__`/`constructor` must not resolve to an
+      // inherited value, and only a known change gets badge styling.
+      const change = Object.hasOwn(FILE_BADGE, entry.change) ? entry.change : 'modified';
       const note = entry.note ? `<span class="note">${escapeHtml(entry.note)}</span>` : '';
-      return `<li><span class="badge ${change}" title="${change}">${FILE_BADGE[change]}</span>`
+      return `<li><span class="badge ${escapeAttr(change)}" title="${escapeAttr(change)}">${escapeHtml(FILE_BADGE[change])}</span>`
         + `<span class="path">${escapeHtml(entry.path)}</span>${note}</li>`;
     })
     .join('');
@@ -27,17 +35,17 @@ function figure(href, alt, caption) {
 }
 
 export function renderImage(block, ctx) {
-  const href = imageHref(block.src, ctx.warnings);
-  return `<div class="blk"><div class="img-single">${figure(href, block.alt, block.caption)}</div></div>`;
+  const href = imageHref(block.src, ctx);
+  return `<div class="blk"><div class="img-single">${figure(href, block.alt ?? '', block.caption)}</div></div>`;
 }
 
 export function renderImagePair(block, ctx) {
-  const before = imageHref(block.before, ctx.warnings);
-  const after = imageHref(block.after, ctx.warnings);
+  const before = imageHref(block.before, ctx);
+  const after = imageHref(block.after, ctx);
   const caption = block.caption ? `<div class="muted">${escapeHtml(block.caption)}</div>` : '';
   return `<div class="blk"><div class="img-pair">`
-    + figure(before, block.captionBefore || 'Before', block.captionBefore || 'Before')
-    + figure(after, block.captionAfter || 'After', block.captionAfter || 'After')
+    + figure(before, '', block.captionBefore)
+    + figure(after, '', block.captionAfter)
     + `</div>${caption}</div>`;
 }
 
@@ -54,19 +62,27 @@ export function renderDiagram(block) {
   return `<div class="blk">${style}<div class="diagram-frame">${block.html}</div>${caption}</div>`;
 }
 
+function dataModelKey(field) {
+  if (field.pk) return 'PK';
+  if (typeof field.fk === 'string' && field.fk) return `FK &rarr; ${escapeHtml(field.fk)}`;
+  if (field.fk) return 'FK';
+  return '';
+}
+
 export function renderDataModel(block) {
   const entities = block.entities
     .map((entity) => {
       const fields = entity.fields
         .map((field) => {
-          const key = field.pk ? 'PK' : field.fk ? 'FK' : '';
-          const change = field.change ? `<span class="chg ${field.change}">${field.change}</span>` : '';
+          const key = dataModelKey(field);
+          const change = changeBadge(field.change);
           const was = field.was ? `<span class="muted"> (was ${escapeHtml(String(field.was))})</span>` : '';
-          return `<tr><td class="key">${key}</td><td>${escapeHtml(field.name)}${change}${was}</td>`
+          const note = field.note ? `<span class="muted"> ${escapeHtml(field.note)}</span>` : '';
+          return `<tr><td class="key">${key}</td><td>${escapeHtml(field.name)}${change}${was}${note}</td>`
             + `<td class="type">${escapeHtml(field.type)}</td></tr>`;
         })
         .join('');
-      return `<div class="entity"><div class="name">${escapeHtml(entity.name)}</div><table>${fields}</table></div>`;
+      return `<div class="entity"><div class="name">${escapeHtml(entity.name)}${changeBadge(entity.change)}</div><table>${fields}</table></div>`;
     })
     .join('');
   const relations = block.relations?.length
@@ -111,10 +127,24 @@ export function renderCallout(block) {
   return `<div class="blk"><div class="callout ${tone}">${title}${renderMarkdown(block.body)}</div></div>`;
 }
 
+// Table cells are untrusted and may be any JSON value. Render text as-is,
+// null/undefined as empty, and structured values as JSON so a cell never
+// collapses to "[object Object]".
+function cellText(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  try {
+    const json = JSON.stringify(value);
+    return json === undefined ? String(value) : json;
+  } catch {
+    return String(value);
+  }
+}
+
 export function renderTable(block) {
-  const head = block.columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('');
+  const head = block.columns.map((c) => `<th>${escapeHtml(cellText(c))}</th>`).join('');
   const rows = (block.rows ?? [])
-    .map((row) => `<tr>${(Array.isArray(row) ? row : [row]).map((c) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`)
+    .map((row) => `<tr>${(Array.isArray(row) ? row : [row]).map((c) => `<td>${escapeHtml(cellText(c))}</td>`).join('')}</tr>`)
     .join('');
   return `<div class="blk"><table class="grid"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }

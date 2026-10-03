@@ -157,6 +157,19 @@ Annotations on `diff`/`annotated-code` are `{ lines: "4" | "2-5", side?:
 - Recaps can expose unreleased schema and internal endpoints; treat the artifact
   like the source it summarizes.
 
+## Render trust boundaries
+
+- **`diagram` `html`/`css` is raw.** That field is embedded verbatim and runs as
+  HTML in the artifact. Treat it as trusted author content and never interpolate
+  diff text, file contents, or user input into it.
+- **`image`/`image-pair` `src` must be a real image file inside the recap's
+  directory** (the render's asset root; `--asset-root` overrides it). Only files
+  with an allowlisted image extension and under the size cap are inlined as data
+  URIs — anything else is dropped with a warning. Never point an image path at a
+  secret, an env file, or anything outside the recap directory.
+- **Remote image URLs are fetched when the artifact is opened**, not at render
+  time, so a recap that references `https:` images is not strictly offline.
+
 ## Verify before reporting success
 
 ```bash
