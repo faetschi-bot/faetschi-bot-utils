@@ -290,6 +290,12 @@ async function renderInBrowser(plan, built, highlightAsset) {
         // Reveal every tab panel only for the screenshot, after serializing, so
         // the .html file keeps working tabs while the PNG holds all panels.
         await page.addStyleTag({ content: TABS_PRINT_CSS });
+        // A collapsed JSON tree would screenshot as a row of `{...}` stubs, so
+        // open every <details> for the capture only; the serialized .html keeps
+        // the author's collapsedDepth.
+        await page.evaluate(() => {
+          document.querySelectorAll('#recap details').forEach((d) => { d.open = true; });
+        });
         const size = await page.evaluate(() => {
           const rect = document.getElementById('recap').getBoundingClientRect();
           return { width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
