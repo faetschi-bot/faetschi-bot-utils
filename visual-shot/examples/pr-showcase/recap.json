@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "title": "Add per-token rate limiting to the public API",
+  "brief": "Wraps `POST /v1/messages` in a **sliding-window limiter** keyed by API token, adds a `429` response with `Retry-After`, and surfaces the limit in the settings UI.",
+  "meta": "Demo recap · visual-shot 0.8.0 · generated from this file",
+  "blocks": [
+    {
+      "type": "callout",
+      "tone": "risk",
+      "title": "Breaking-ish",
+      "body": "Clients that burst above 60 rpm now receive `429` instead of being queued. The limit is per token and configurable per plan."
+    },
+    {
+      "type": "file-tree",
+      "title": "Files changed",
+      "entries": [
+        { "path": "server/rate-limit.ts", "change": "added", "note": "sliding-window limiter" },
+        { "path": "server/routes/messages.ts", "change": "modified", "note": "gate the handler" },
+        { "path": "server/schema.ts", "change": "modified", "note": "add token_rpm column" },
+        { "path": "server/legacy-limiter.ts", "change": "removed" },
+        { "path": "web/Settings.tsx", "change": "renamed", "note": "from SettingsPage.tsx" }
+      ]
+    },
+    {
+      "type": "columns",
+      "columns": [
+        {
+          "label": "Before",
+          "blocks": [
+            {
+              "type": "wireframe",
+              "surface": "panel",
+              "height": 190,
+              "caption": "Settings had no rate-limit control.",
+              "html": "<div class='s'><h3>API settings</h3><label class='r'><span>API access</span><input type='checkbox' checked></label><label class='r'><span>Webhooks</span><input type='checkbox' checked></label><p class='m'>Plan: Pro</p></div>",
+              "css": ".s{font:13px system-ui;padding:10px}.r{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid #eaeef2}.m{color:#59636e;font-size:12px}"
+            }
+          ]
+        },
+        {
+          "label": "After",
+          "blocks": [
+            {
+              "type": "wireframe",
+              "surface": "panel",
+              "height": 190,
+              "caption": "A rate-limit field with the plan default.",
+              "html": "<div class='s'><h3>API settings</h3><label class='r'><span>API access</span><input type='checkbox' checked></label><label class='r'><span>Requests per minute</span><input class='n' value='60'></label><p class='m'>Pro default: 60 rpm. Changes apply on save.</p></div>",
+              "css": ".s{font:13px system-ui;padding:10px}.r{display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px solid #eaeef2}.n{width:64px;padding:4px 6px;border:1px solid #d1d9e0;border-radius:6px;text-align:right}.m{color:#59636e;font-size:12px}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "diff",
+      "filename": "server/routes/messages.ts",
+      "language": "ts",
+      "summary": "Gate the handler and return 429 with Retry-After.",
+      "before": "export async function postMessages(req, res) {\n  const body = await req.json();\n  return sendMessages(body);\n}\n",
+      "after": "export async function postMessages(req, res) {\n  const body = await req.json();\n  const decision = await limit(req.token, body.model);\n  if (!decision.allowed) {\n    res.setHeader('Retry-After', decision.retryAfter);\n    return res.status(429).json({ error: 'rate_limited' });\n  }\n  return sendMessages(body);\n}\n",
+      "annotations": [
+        { "lines": "3", "label": "Gate", "note": "Check before doing any model work." },
+        { "lines": "5-6", "side": "after", "note": "Tell clients when to retry." }
+      ]
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "label": "server/rate-limit.ts",
+          "blocks": [
+            {
+              "type": "annotated-code",
+              "filename": "server/rate-limit.ts",
+              "language": "ts",
+              "code": "export async function limit(token, model) {\n  const key = `rl:${token}:${model}`;\n  const now = Date.now();\n  const hits = await store.zRangeByScore(key, now - WINDOW, now);\n  const allowed = hits.length < rpmFor(model);\n  if (allowed) await store.zAdd(key, now, `${now}`);\n  return { allowed, retryAfter: Math.ceil(WINDOW / 1000) };\n}\n",
+              "annotations": [
+                { "lines": "2", "label": "Key", "note": "Per token and model." },
+                { "lines": "4-6", "note": "Sliding window over recent hits." }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "429 response",
+          "blocks": [
+            {
+              "type": "json",
+              "title": "POST /v1/messages → 429",
+              "data": { "error": "rate_limited", "limit": 60, "remaining": 0, "retry_after": 12 }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "data-model",
+      "entities": [
+        {
+          "name": "tokens",
+          "fields": [
+            { "name": "id", "type": "uuid", "pk": true },
+            { "name": "token_rpm", "type": "integer", "change": "added", "note": "requests per minute" },
+            { "name": "plan", "type": "text", "change": "modified", "was": "varchar(32)" }
+          ]
+        },
+        {
+          "name": "rate_limit_hits",
+          "fields": [
+            { "name": "token_id", "type": "uuid", "fk": "tokens.id" },
+            { "name": "at", "type": "timestamptz" }
+          ]
+        }
+      ],
+      "relations": [{ "from": "rate_limit_hits", "to": "tokens", "kind": "n-1" }]
+    },
+    {
+      "type": "api-endpoint",
+      "method": "POST",
+      "path": "/v1/messages",
+      "change": "modified",
+      "summary": "Now rate limited per token.",
+      "description": "Returns 429 when the token exceeds its per-minute limit.",
+      "params": [
+        { "name": "model", "in": "body", "type": "string", "required": true, "change": "modified", "was": "model_id" },
+        { "name": "stream", "in": "body", "type": "boolean", "required": false, "change": "added" }
+      ],
+      "responses": [
+        { "status": "200", "description": "OK", "example": "{\"id\":\"msg_1\"}" },
+        { "status": "429", "description": "Rate limited", "change": "added", "example": "{\"error\":\"rate_limited\"}" }
+      ]
+    },
+    {
+      "type": "api-endpoint",
+      "method": "DELETE",
+      "path": "/v1/legacy/messages/{id}",
+      "change": "removed",
+      "deprecated": true,
+      "summary": "Removed in favour of /v1/messages/{id}."
+    },
+    {
+      "type": "mermaid",
+      "caption": "Request flow after the change.",
+      "source": "flowchart LR\n  C[Client] --> G{limit?}\n  G -- no --> R[429 + Retry-After]\n  G -- yes --> H[Handler]\n  H --> S[(Send)]"
+    },
+    {
+      "type": "checklist",
+      "items": [
+        { "label": "Regression test covers the 429 path", "checked": true },
+        { "label": "Docs mention `Retry-After`", "note": "still pending" }
+      ]
+    }
+  ]
+}

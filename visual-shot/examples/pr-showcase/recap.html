@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; font-src data:">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add per-token rate limiting to the public API</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --border: #d1d9e0;
+  --card: #f6f8fa; --accent: #0969da; --code-bg: #f6f8fa;
+  --add-bg: #e6ffec; --add-fg: #1a7f37; --rem-bg: #ffebe9; --rem-fg: #cf222e;
+  --pill-bg: #ddf4ff;
+}
+body.theme-dark {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #30363d;
+  --card: #161b22; --accent: #4493f8; --code-bg: #161b22;
+  --add-bg: #12261e; --add-fg: #3fb950; --rem-bg: #25171c; --rem-fg: #f85149;
+  --pill-bg: #121d2f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+body {
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#recap { width: 1100px; max-width: 100%; margin: 0 auto; padding: 40px 44px 56px; }
+h1 { font-size: 26px; line-height: 1.25; margin: 0 0 6px; }
+h2 { font-size: 18px; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 15px; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+.blk { margin: 16px 0; }
+.brief { color: var(--muted); font-size: 15px; margin: 0 0 8px; }
+.meta-line { color: var(--muted); font-size: 12px; margin: 0 0 22px; }
+.muted { color: var(--muted); }
+
+/* file tree */
+.file-tree { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 10px 12px; }
+.file-tree ul { list-style: none; margin: 0; padding: 0; }
+.file-tree li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.file-tree .path { color: var(--fg); }
+.file-tree .note { color: var(--muted); font-size: 12px; }
+.badge { display: inline-block; width: 18px; text-align: center; border-radius: 4px; font-size: 11px; font-weight: 700; padding: 1px 0; }
+.badge.added { background: var(--add-bg); color: var(--add-fg); }
+.badge.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.badge.modified { background: var(--pill-bg); color: var(--accent); }
+.badge.renamed { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+
+/* diff */
+.diff { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.diff-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--border); font-size: 12px; }
+.diff-head .file { font-weight: 600; }
+.diff-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.diff-col { min-width: 0; overflow: auto; }
+.diff-col + .diff-col { border-left: 1px solid var(--border); }
+.diff-col .col-title { padding: 4px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--card); }
+.line { display: flex; white-space: pre; }
+.line .ln { flex: 0 0 42px; text-align: right; padding: 0 8px 0 6px; color: var(--muted); user-select: none; border-right: 1px solid var(--border); }
+.line .code { flex: 1; padding: 0 10px; white-space: pre; }
+.line.add, .line.add .code { background: var(--add-bg); }
+.line.rem, .line.rem .code { background: var(--rem-bg); }
+.line.empty { background: var(--card); }
+.mark { color: var(--accent); font-weight: 700; }
+.annot { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.annot li { padding: 6px 10px; border-left: 3px solid var(--accent); background: var(--card); margin: 4px 0; border-radius: 0 6px 6px 0; }
+.annot .tag { font-weight: 700; }
+.patch { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; overflow: auto; }
+.patch .line .ln { display: none; }
+.patch.numbered .line .ln { display: block; }
+.code-block { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; font-size: 13px; }
+.code-block code { white-space: pre; }
+
+/* images */
+.img-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.img-pair figure, .img-single figure { margin: 0; }
+.img-pair figcaption, .img-single figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.img-pair img, .img-single img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+.img-missing { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; }
+
+/* mermaid / diagram */
+.mermaid-slot { display: flex; justify-content: center; padding: 10px; overflow: auto; }
+.mermaid-slot svg { max-width: 100%; height: auto; }
+.diagram-frame { border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; }
+
+/* wireframe: author HTML/CSS renders inside a sandboxed srcdoc iframe
+   (.wf-body) so it cannot restyle the report; the frame chrome stays CSS-only. */
+.wf { max-width: 100%; }
+.wf-frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg); }
+.wf-bar { background: var(--card); border-bottom: 1px solid var(--border); }
+.wf-body { display: block; width: 100%; border: 0; background: #fff; }
+.wf-caption { font-size: 12px; margin-top: 6px; }
+/* Surface widths; JS only picks the class, never sets a width. */
+.wf-browser, .wf-desktop { width: 100%; }
+.wf-tablet, .wf-mobile, .wf-popover, .wf-panel { margin-left: auto; margin-right: auto; }
+.wf-tablet { width: 768px; }
+.wf-mobile { width: 375px; }
+.wf-popover { width: 360px; }
+.wf-panel { width: 420px; }
+/* CSS-only chrome per surface. */
+.wf-browser .wf-bar { height: 28px; }
+.wf-browser .wf-bar::before {
+  content: "";
+  display: block;
+  width: 9px; height: 9px;
+  margin: 9px 0 0 12px;
+  border-radius: 50%;
+  background: var(--rem-fg);
+  box-shadow: 16px 0 0 var(--muted), 32px 0 0 var(--add-fg);
+}
+.wf-desktop .wf-bar { height: 26px; }
+.wf-desktop .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+.wf-tablet .wf-bar { height: 18px; }
+.wf-tablet .wf-bar::before {
+  content: "";
+  display: block;
+  width: 6px; height: 6px;
+  margin: 5px auto 0;
+  border-radius: 50%;
+  background: var(--border);
+}
+.wf-mobile .wf-bar { height: 22px; }
+.wf-mobile .wf-bar::before {
+  content: "";
+  display: block;
+  width: 90px; height: 8px;
+  margin: 6px auto 0;
+  border-radius: 6px;
+  background: var(--border);
+}
+.wf-popover .wf-bar { height: 16px; }
+.wf-popover .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40px; height: 4px;
+  margin: 6px auto 0;
+  border-radius: 3px;
+  background: var(--border);
+}
+.wf-panel .wf-bar { height: 26px; }
+.wf-panel .wf-bar::before {
+  content: "";
+  display: block;
+  width: 55%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+/* data model */
+.data-model { display: flex; flex-wrap: wrap; gap: 14px; }
+.entity { border: 1px solid var(--border); border-radius: 8px; min-width: 240px; background: var(--card); overflow: hidden; }
+.entity > .name { padding: 8px 12px; font-weight: 700; background: var(--pill-bg); border-bottom: 1px solid var(--border); }
+.entity table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.entity td { padding: 4px 12px; border-top: 1px solid var(--border); }
+.entity td.key { color: var(--muted); width: 44px; }
+.entity td.type { color: var(--muted); }
+.chg { font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; margin-left: 6px; }
+.chg.added { background: var(--add-bg); color: var(--add-fg); }
+.chg.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.chg.modified, .chg.renamed { background: var(--pill-bg); color: var(--accent); }
+
+/* endpoint */
+.endpoint { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.endpoint .head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--card); }
+.method { font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--pill-bg); color: var(--accent); }
+.endpoint .body { padding: 10px 12px; }
+.endpoint table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+.endpoint th, .endpoint td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+/* A removed endpoint is outlined red and its path struck through. */
+.endpoint.removed { border-color: var(--rem-fg); }
+.endpoint.removed .head { background: var(--rem-bg); }
+.endpoint.removed code { text-decoration: line-through; }
+
+/* json explorer */
+.json-title { font-weight: 700; margin-bottom: 6px; }
+.json-tree {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  padding: 10px 12px; overflow: auto; font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.jv-node > summary { cursor: pointer; list-style: none; }
+.jv-node > summary::-webkit-details-marker { display: none; }
+.jv-node > summary::before { content: "\25B8"; display: inline-block; width: 12px; color: var(--muted); }
+.jv-node[open] > summary::before { content: "\25BE"; }
+.jv-children { margin-left: 14px; padding-left: 10px; border-left: 1px solid var(--border); }
+.jv-row { padding: 1px 0; }
+.jv-key { color: var(--muted); }
+.jv-index { color: var(--muted); }
+.jv-punct { color: var(--muted); }
+.jv-string { color: var(--add-fg); }
+.jv-number { color: var(--accent); }
+.jv-bool { color: var(--rem-fg); }
+.jv-null { color: var(--muted); font-style: italic; }
+
+/* callout */
+.callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 14px; border-radius: 0 8px 8px 0; }
+.callout.risk, .callout.warning { border-left-color: var(--rem-fg); }
+.callout.success, .callout.decision { border-left-color: var(--add-fg); }
+.callout .title { font-weight: 700; margin-bottom: 2px; }
+
+/* table */
+table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.grid th, table.grid td { text-align: left; padding: 7px 10px; border: 1px solid var(--border); }
+table.grid th { background: var(--card); }
+
+/* checklist */
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li { padding: 4px 0 4px 26px; position: relative; }
+.checklist li::before { content: "\2610"; position: absolute; left: 4px; color: var(--muted); }
+.checklist li.done::before { content: "\2611"; color: var(--add-fg); }
+.checklist .note { color: var(--muted); font-size: 12px; display: block; }
+
+/* columns + tabs */
+.columns { display: grid; gap: 14px; align-items: start; }
+.columns .col-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+.tabs { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tabs > input { display: none; }
+.tabbar { display: flex; flex-wrap: wrap; gap: 2px; background: var(--card); border-bottom: 1px solid var(--border); padding: 4px 6px 0; }
+.tabbar label { padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; }
+.tab-panels { padding: 12px; }
+.tab-panels > .panel { display: none; }
+.tabs > input:nth-of-type(1):checked ~ .tab-panels > .panel:nth-child(1) { display: block; }
+.tabs > input:nth-of-type(1):checked ~ .tabbar > label:nth-child(1) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+.tabs > input:nth-of-type(2):checked ~ .tab-panels > .panel:nth-child(2) { display: block; }
+.tabs > input:nth-of-type(2):checked ~ .tabbar > label:nth-child(2) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+
+
+  .hljs { background: transparent; padding: 0; }
+#recap { width: 1100px; }
+pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}/*!
+  Theme: GitHub Dark
+  Description: Dark theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+  Outdated base version: https://github.com/primer/github-syntax-dark
+  Current colors taken from GitHub's CSS
+*/.hljs{color:#c9d1d9;background:#0d1117}.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-variable.language_{color:#ff7b72}.hljs-title,.hljs-title.class_,.hljs-title.class_.inherited__,.hljs-title.function_{color:#d2a8ff}.hljs-attr,.hljs-attribute,.hljs-literal,.hljs-meta,.hljs-number,.hljs-operator,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id,.hljs-variable{color:#79c0ff}.hljs-meta .hljs-string,.hljs-regexp,.hljs-string{color:#a5d6ff}.hljs-built_in,.hljs-symbol{color:#ffa657}.hljs-code,.hljs-comment,.hljs-formula{color:#8b949e}.hljs-name,.hljs-quote,.hljs-selector-pseudo,.hljs-selector-tag{color:#7ee787}.hljs-subst{color:#c9d1d9}.hljs-section{color:#1f6feb;font-weight:700}.hljs-bullet{color:#f2cc60}.hljs-emphasis{color:#c9d1d9;font-style:italic}.hljs-strong{color:#c9d1d9;font-weight:700}.hljs-addition{color:#aff5b4;background-color:#033a16}.hljs-deletion{color:#ffdcd7;background-color:#67060c}
+</style>
+</head>
+<body class="theme-dark">
+<div id="recap">
+
+<h1>Add per-token rate limiting to the public API</h1><div class="brief"><p>Wraps <code>POST /v1/messages</code> in a <strong>sliding-window limiter</strong> keyed by API token, adds a <code>429</code> response with <code>Retry-After</code>, and surfaces the limit in the settings UI.</p></div><p class="meta-line">Demo recap · visual-shot 0.8.0 · generated from this file</p><div class="blk"><div class="callout risk"><div class="title">Breaking-ish</div><p>Clients that burst above 60 rpm now receive <code>429</code> instead of being queued. The limit is per token and configurable per plan.</p></div></div>
+<div class="blk"><div class="file-tree"><div class="muted">Files changed</div><ul><li><span class="badge added" title="added">A</span><span class="path">server/rate-limit.ts</span><span class="note">sliding-window limiter</span></li><li><span class="badge modified" title="modified">M</span><span class="path">server/routes/messages.ts</span><span class="note">gate the handler</span></li><li><span class="badge modified" title="modified">M</span><span class="path">server/schema.ts</span><span class="note">add token_rpm column</span></li><li><span class="badge removed" title="removed">D</span><span class="path">server/legacy-limiter.ts</span></li><li><span class="badge renamed" title="renamed">R</span><span class="path">web/Settings.tsx</span><span class="note">from SettingsPage.tsx</span></li></ul></div></div>
+<div class="blk"><div class="columns" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="col"><div class="col-label">Before</div><div class="blk"><div class="wf wf-panel"><div class="wf-frame"><div class="wf-bar"></div><iframe class="wf-body" sandbox="" srcdoc="<!doctype html><html><head><meta charset=&quot;utf-8&quot;><style>html,body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,sans-serif;background:#fff;color:#1f2328}*,*::before,*::after{box-sizing:border-box}.s{font:13px system-ui;padding:10px}.r{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid #eaeef2}.m{color:#59636e;font-size:12px}</style></head><body><div class='s'><h3>API settings</h3><label class='r'><span>API access</span><input type='checkbox' checked></label><label class='r'><span>Webhooks</span><input type='checkbox' checked></label><p class='m'>Plan: Pro</p></div></body></html>" style="height:190px"></iframe></div><div class="muted wf-caption">Settings had no rate-limit control.</div></div></div></div><div class="col"><div class="col-label">After</div><div class="blk"><div class="wf wf-panel"><div class="wf-frame"><div class="wf-bar"></div><iframe class="wf-body" sandbox="" srcdoc="<!doctype html><html><head><meta charset=&quot;utf-8&quot;><style>html,body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,sans-serif;background:#fff;color:#1f2328}*,*::before,*::after{box-sizing:border-box}.s{font:13px system-ui;padding:10px}.r{display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px solid #eaeef2}.n{width:64px;padding:4px 6px;border:1px solid #d1d9e0;border-radius:6px;text-align:right}.m{color:#59636e;font-size:12px}</style></head><body><div class='s'><h3>API settings</h3><label class='r'><span>API access</span><input type='checkbox' checked></label><label class='r'><span>Requests per minute</span><input class='n' value='60'></label><p class='m'>Pro default: 60 rpm. Changes apply on save.</p></div></body></html>" style="height:190px"></iframe></div><div class="muted wf-caption">A rate-limit field with the plan default.</div></div></div></div></div></div>
+<div class="blk"><div class="diff"><div class="diff-head"><span class="file">server/routes/messages.ts</span><span class="muted">Gate the handler and return 429 with Retry-After.</span></div><div class="diff-grid"><div class="diff-col"><div class="col-title">Before</div><div class="line "><span class="ln">1</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes"><span class="hljs-keyword">export</span> <span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">postMessages</span>(<span class="hljs-params">req, res</span>) {</code></span></div><div class="line "><span class="ln">2</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">const</span> body = <span class="hljs-keyword">await</span> req.<span class="hljs-title function_">json</span>();</code></span></div><div class="line empty"><span class="ln"></span><span class="code"></span></div><div class="line empty"><span class="ln"></span><span class="code"></span></div><div class="line empty"><span class="ln"></span><span class="code"></span></div><div class="line empty"><span class="ln"></span><span class="code"></span></div><div class="line empty"><span class="ln"></span><span class="code"></span></div><div class="line "><span class="ln">3</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">return</span> <span class="hljs-title function_">sendMessages</span>(body);</code></span></div><div class="line "><span class="ln">4</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">}</code></span></div></div><div class="diff-col"><div class="col-title">After</div><div class="line "><span class="ln">1</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes"><span class="hljs-keyword">export</span> <span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">postMessages</span>(<span class="hljs-params">req, res</span>) {</code></span></div><div class="line "><span class="ln">2</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">const</span> body = <span class="hljs-keyword">await</span> req.<span class="hljs-title function_">json</span>();</code></span></div><div class="line add"><span class="ln">3</span><span class="code"><span class="mark">●</span><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">const</span> decision = <span class="hljs-keyword">await</span> <span class="hljs-title function_">limit</span>(req.<span class="hljs-property">token</span>, body.<span class="hljs-property">model</span>);</code></span></div><div class="line add"><span class="ln">4</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">if</span> (!decision.<span class="hljs-property">allowed</span>) {</code></span></div><div class="line add"><span class="ln">5</span><span class="code"><span class="mark">●</span><code class="language-ts hljs language-typescript" data-highlighted="yes">    res.<span class="hljs-title function_">setHeader</span>(<span class="hljs-string">'Retry-After'</span>, decision.<span class="hljs-property">retryAfter</span>);</code></span></div><div class="line add"><span class="ln">6</span><span class="code"><span class="mark">●</span><code class="language-ts hljs language-typescript" data-highlighted="yes">    <span class="hljs-keyword">return</span> res.<span class="hljs-title function_">status</span>(<span class="hljs-number">429</span>).<span class="hljs-title function_">json</span>({ <span class="hljs-attr">error</span>: <span class="hljs-string">'rate_limited'</span> });</code></span></div><div class="line add"><span class="ln">7</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  }</code></span></div><div class="line "><span class="ln">8</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">return</span> <span class="hljs-title function_">sendMessages</span>(body);</code></span></div><div class="line "><span class="ln">9</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">}</code></span></div></div></div></div><ul class="annot"><li><span class="tag">Gate</span> <span class="muted">Line 3: </span>Check before doing any model work.</li><li><span class="muted">Line 5-6: </span>Tell clients when to retry.</li></ul></div>
+<div class="blk"><div class="tabs"><input type="radio" name="tabs-1" id="tabs-1-0" checked=""><input type="radio" name="tabs-1" id="tabs-1-1"><div class="tabbar"><label for="tabs-1-0">server/rate-limit.ts</label><label for="tabs-1-1">429 response</label></div><div class="tab-panels"><div class="panel" data-label="server/rate-limit.ts"><div class="blk"><div class="diff-head"><span class="file">server/rate-limit.ts</span></div><div class="patch numbered"><div class="line"><span class="ln">1</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes"><span class="hljs-keyword">export</span> <span class="hljs-keyword">async</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">limit</span>(<span class="hljs-params">token, model</span>) {</code></span></div><div class="line"><span class="ln">2</span><span class="code"><span class="mark">●</span><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">const</span> key = <span class="hljs-string">`rl:<span class="hljs-subst">${token}</span>:<span class="hljs-subst">${model}</span>`</span>;</code></span></div><div class="line"><span class="ln">3</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">const</span> now = <span class="hljs-title class_">Date</span>.<span class="hljs-title function_">now</span>();</code></span></div><div class="line"><span class="ln">4</span><span class="code"><span class="mark">●</span><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">const</span> hits = <span class="hljs-keyword">await</span> store.<span class="hljs-title function_">zRangeByScore</span>(key, now - <span class="hljs-variable constant_">WINDOW</span>, now);</code></span></div><div class="line"><span class="ln">5</span><span class="code"><span class="mark">●</span><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">const</span> allowed = hits.<span class="hljs-property">length</span> &lt; <span class="hljs-title function_">rpmFor</span>(model);</code></span></div><div class="line"><span class="ln">6</span><span class="code"><span class="mark">●</span><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">if</span> (allowed) <span class="hljs-keyword">await</span> store.<span class="hljs-title function_">zAdd</span>(key, now, <span class="hljs-string">`<span class="hljs-subst">${now}</span>`</span>);</code></span></div><div class="line"><span class="ln">7</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">  <span class="hljs-keyword">return</span> { allowed, <span class="hljs-attr">retryAfter</span>: <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">ceil</span>(<span class="hljs-variable constant_">WINDOW</span> / <span class="hljs-number">1000</span>) };</code></span></div><div class="line"><span class="ln">8</span><span class="code"><code class="language-ts hljs language-typescript" data-highlighted="yes">}</code></span></div></div><ul class="annot"><li><span class="tag">Key</span> <span class="muted">Line 2: </span>Per token and model.</li><li><span class="muted">Line 4-6: </span>Sliding window over recent hits.</li></ul></div></div><div class="panel" data-label="429 response"><div class="blk"><div class="json-title">POST /v1/messages → 429</div><div class="json-tree"><details class="jv-node" open=""><summary><span class="jv-punct">{4 keys}</span></summary><div class="jv-children"><div class="jv-row"><span class="jv-key">"error"</span><span class="jv-punct">:</span> <span class="jv-string">"rate_limited"</span></div><div class="jv-row"><span class="jv-key">"limit"</span><span class="jv-punct">:</span> <span class="jv-number">60</span></div><div class="jv-row"><span class="jv-key">"remaining"</span><span class="jv-punct">:</span> <span class="jv-number">0</span></div><div class="jv-row"><span class="jv-key">"retry_after"</span><span class="jv-punct">:</span> <span class="jv-number">12</span></div></div></details></div></div></div></div></div></div>
+<div class="blk"><div class="data-model"><div class="entity"><div class="name">tokens</div><table><tbody><tr><td class="key">PK</td><td>id</td><td class="type">uuid</td></tr><tr><td class="key"></td><td>token_rpm<span class="chg added">added</span><span class="muted"> requests per minute</span></td><td class="type">integer</td></tr><tr><td class="key"></td><td>plan<span class="chg modified">modified</span><span class="muted"> (was varchar(32))</span></td><td class="type">text</td></tr></tbody></table></div><div class="entity"><div class="name">rate_limit_hits</div><table><tbody><tr><td class="key">FK → tokens.id</td><td>token_id</td><td class="type">uuid</td></tr><tr><td class="key"></td><td>at</td><td class="type">timestamptz</td></tr></tbody></table></div></div><div class="muted">Relations: rate_limit_hits → tokens (n-1)</div></div>
+<div class="blk"><div class="endpoint"><div class="head"><span class="method">POST</span><code>/v1/messages</code><span class="chg modified">modified</span><span class="muted">Now rate limited per token.</span></div><div class="body"><p>Returns 429 when the token exceeds its per-minute limit.</p><table><thead><tr><th>Name</th><th>In</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead><tbody><tr><td>model<span class="chg modified">modified</span><span class="muted"> (was model_id)</span></td><td>body</td><td>string</td><td>yes</td><td></td></tr><tr><td>stream<span class="chg added">added</span></td><td>body</td><td>boolean</td><td></td><td></td></tr></tbody></table><table><thead><tr><th>Status</th><th>Description</th><th>Example</th></tr></thead><tbody><tr><td>200</td><td>OK</td><td>{"id":"msg_1"}</td></tr><tr><td>429<span class="chg added">added</span></td><td>Rate limited</td><td>{"error":"rate_limited"}</td></tr></tbody></table></div></div></div>
+<div class="blk"><div class="endpoint removed"><div class="head"><span class="method">DELETE</span><code>/v1/legacy/messages/{id}</code><span class="chg removed">removed</span><span class="method">deprecated</span><span class="muted">Removed in favour of /v1/messages/{id}.</span></div><div class="body"></div></div></div>
+<div class="blk"><div class="mermaid-slot" data-mermaid-id="mermaid-2"><svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 0 653.21875 177.99856567382812" style="max-width: 653.21875px;" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="100%" id="r-mermaid-2"><style>#r-mermaid-2{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#ccc;}#r-mermaid-2 .error-icon{fill:#a44141;}#r-mermaid-2 .error-text{fill:#ddd;stroke:#ddd;}#r-mermaid-2 .edge-thickness-normal{stroke-width:1px;}#r-mermaid-2 .edge-thickness-thick{stroke-width:3.5px;}#r-mermaid-2 .edge-pattern-solid{stroke-dasharray:0;}#r-mermaid-2 .edge-thickness-invisible{stroke-width:0;fill:none;}#r-mermaid-2 .edge-pattern-dashed{stroke-dasharray:3;}#r-mermaid-2 .edge-pattern-dotted{stroke-dasharray:2;}#r-mermaid-2 .marker{fill:lightgrey;stroke:lightgrey;}#r-mermaid-2 .marker.cross{stroke:lightgrey;}#r-mermaid-2 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#r-mermaid-2 p{margin:0;}#r-mermaid-2 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#ccc;}#r-mermaid-2 .cluster-label text{fill:#F9FFFE;}#r-mermaid-2 .cluster-label span{color:#F9FFFE;}#r-mermaid-2 .cluster-label span p{background-color:transparent;}#r-mermaid-2 .label text,#r-mermaid-2 span{fill:#ccc;color:#ccc;}#r-mermaid-2 .node rect,#r-mermaid-2 .node circle,#r-mermaid-2 .node ellipse,#r-mermaid-2 .node polygon,#r-mermaid-2 .node path{fill:#1f2020;stroke:#ccc;stroke-width:1px;}#r-mermaid-2 .rough-node .label text,#r-mermaid-2 .node .label text,#r-mermaid-2 .image-shape .label,#r-mermaid-2 .icon-shape .label{text-anchor:middle;}#r-mermaid-2 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#r-mermaid-2 .rough-node .label,#r-mermaid-2 .node .label,#r-mermaid-2 .image-shape .label,#r-mermaid-2 .icon-shape .label{text-align:center;}#r-mermaid-2 .node.clickable{cursor:pointer;}#r-mermaid-2 .root .anchor path{fill:lightgrey!important;stroke-width:0;stroke:lightgrey;}#r-mermaid-2 .arrowheadPath{fill:lightgrey;}#r-mermaid-2 .edgePath .path{stroke:lightgrey;stroke-width:2.0px;}#r-mermaid-2 .flowchart-link{stroke:lightgrey;fill:none;}#r-mermaid-2 .edgeLabel{background-color:hsl(0, 0%, 34.4117647059%);text-align:center;}#r-mermaid-2 .edgeLabel p{background-color:hsl(0, 0%, 34.4117647059%);}#r-mermaid-2 .edgeLabel rect{opacity:0.5;background-color:hsl(0, 0%, 34.4117647059%);fill:hsl(0, 0%, 34.4117647059%);}#r-mermaid-2 .labelBkg{background-color:rgba(87.75, 87.75, 87.75, 0.5);}#r-mermaid-2 .cluster rect{fill:hsl(180, 1.5873015873%, 28.3529411765%);stroke:rgba(255, 255, 255, 0.25);stroke-width:1px;}#r-mermaid-2 .cluster text{fill:#F9FFFE;}#r-mermaid-2 .cluster span{color:#F9FFFE;}#r-mermaid-2 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(20, 1.5873015873%, 12.3529411765%);border:1px solid rgba(255, 255, 255, 0.25);border-radius:2px;pointer-events:none;z-index:100;}#r-mermaid-2 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#ccc;}#r-mermaid-2 rect.text{fill:none;stroke-width:0;}#r-mermaid-2 .icon-shape,#r-mermaid-2 .image-shape{background-color:hsl(0, 0%, 34.4117647059%);text-align:center;}#r-mermaid-2 .icon-shape p,#r-mermaid-2 .image-shape p{background-color:hsl(0, 0%, 34.4117647059%);padding:2px;}#r-mermaid-2 .icon-shape rect,#r-mermaid-2 .image-shape rect{opacity:0.5;background-color:hsl(0, 0%, 34.4117647059%);fill:hsl(0, 0%, 34.4117647059%);}#r-mermaid-2 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="r-mermaid-2_flowchart-v2-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="r-mermaid-2_flowchart-v2-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_C_G_0" d="M114.328,87L118.495,87C122.661,87,130.995,87,138.745,87.07C146.495,87.141,153.662,87.281,157.245,87.351L160.829,87.422"></path><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_G_R_1" d="M244.331,69.315L253.75,63.596C263.169,57.877,282.006,46.438,297.23,40.719C312.453,35,324.063,35,329.867,35L335.672,35"></path><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_G_H_2" d="M244.331,105.685L253.75,111.237C263.169,116.79,282.006,127.895,303.667,133.447C325.328,139,349.813,139,362.055,139L374.297,139"></path><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_H_S_3" d="M501.297,139L511.901,139C522.505,139,543.714,139,557.818,139C571.922,139,578.922,139,582.422,139L585.922,139"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g transform="translate(300.84375, 35)" class="edgeLabel"><g transform="translate(-9.96875, -12)" class="label"><foreignObject height="24" width="19.9375"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>no</p></span></div></foreignObject></g></g><g transform="translate(300.84375, 139)" class="edgeLabel"><g transform="translate(-13.828125, -12)" class="label"><foreignObject height="24" width="27.65625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>yes</p></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(61.1640625, 87)" id="flowchart-C-0" class="node default"><rect height="54" width="106.328125" y="-27" x="-53.1640625" style="" class="basic label-container"></rect><g transform="translate(-23.1640625, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="46.328125"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Client</p></span></div></foreignObject></g></g><g transform="translate(213.171875, 87)" id="flowchart-G-1" class="node default"><polygon transform="translate(-48.84375,48.84375)" class="label-container" points="48.84375,0 97.6875,-48.84375 48.84375,-97.6875 0,-48.84375"></polygon><g transform="translate(-21.84375, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="43.6875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>limit?</p></span></div></foreignObject></g></g><g transform="translate(439.796875, 35)" id="flowchart-R-3" class="node default"><rect height="54" width="200.25" y="-27" x="-100.125" style="" class="basic label-container"></rect><g transform="translate(-70.125, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="140.25"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>429 + Retry-After</p></span></div></foreignObject></g></g><g transform="translate(439.796875, 139)" id="flowchart-H-5" class="node default"><rect height="54" width="123" y="-27" x="-61.5" style="" class="basic label-container"></rect><g transform="translate(-31.5, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="63"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Handler</p></span></div></foreignObject></g></g><g transform="translate(617.5703125, 139)" id="flowchart-S-7" class="node default"><path transform="translate(-27.6484375, -31.001213276713752)" style="" class="basic label-container" d="M0,7.6674755178091685 a27.6484375,7.6674755178091685 0,0,0 55.296875,0 a27.6484375,7.6674755178091685 0,0,0 -55.296875,0 l0,46.667475517809166 a27.6484375,7.6674755178091685 0,0,0 55.296875,0 l0,-46.667475517809166"></path><g transform="translate(-20.1484375, -2)" style="" class="label"><rect></rect><foreignObject height="24" width="40.296875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Send</p></span></div></foreignObject></g></g></g></g></g></svg></div><div class="muted">Request flow after the change.</div></div>
+<div class="blk"><ul class="checklist"><li class="done">Regression test covers the 429 path</li><li class="">Docs mention `Retry-After`<span class="note">still pending</span></li></ul></div>
+
+</div>
+</body>
+</html>
