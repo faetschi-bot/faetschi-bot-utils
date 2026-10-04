@@ -244,15 +244,19 @@ pinned assets fetched into the cache on first use, like `diagram`; set
 `VISUAL_SHOT_HIGHLIGHT_VERSION` / `VISUAL_SHOT_MERMAID_VERSION` to repin.
 
 `--png` screenshots the whole report with every tab panel revealed
-(`TABS_PRINT_CSS`); the saved HTML keeps its interactive tabs.
+(`TABS_PRINT_CSS`) and every collapsed JSON `<details>` opened; the saved HTML
+keeps its interactive tabs and the author's `collapsedDepth`.
 
 #### Render trust boundaries
 
 The recap JSON is **untrusted input**, so the renderer enforces a few limits:
 
-- `diagram` blocks embed author-supplied `html`/`css` verbatim and it runs as
-  HTML in the artifact. Treat that content as trusted author content and never
+- `diagram` blocks embed author-supplied `html`/`css` verbatim and run as HTML in
+  the artifact. Treat that content as trusted author content and never
   interpolate diff text into it.
+- `wireframe` author `html`/`css` renders in a `sandbox` iframe (`srcdoc`), so it
+  is isolated from the report and other wireframes and scripts are disabled; it
+  is still trusted author content, so never interpolate diff text into it.
 - Local `image`/`image-pair` sources are confined to `--asset-root` (the
   `--from` file's directory by default). Only regular files with an allowlisted
   image extension and at most `MAX_RECAP_IMAGE_BYTES` (10 MiB) are inlined;
@@ -269,12 +273,48 @@ The recap JSON is **untrusted input**, so the renderer enforces a few limits:
 
 `recap.json` is a small, versioned contract: `{ version: 1, title, brief?, meta?,
 blocks: [...] }`. Block types: `file-tree`, `diff`, `patch`, `image`,
-`image-pair`, `mermaid`, `diagram`, `data-model`, `api-endpoint`, `callout`,
-`table`, `checklist`, `notes`, `code`, `annotated-code`, and the `columns` /
-`tabs` containers. Inspect the schema and validation errors from
+`image-pair`, `mermaid`, `diagram`, `wireframe`, `data-model`, `api-endpoint`,
+`callout`, `table`, `checklist`, `notes`, `code`, `annotated-code`, `json`, and
+the `columns` / `tabs` containers. Inspect the schema and validation errors from
 [`lib/recap/schema.mjs`](./lib/recap/schema.mjs); an agent authors this JSON by
 following the companion **`visual-recap`** skill in
-[`agentic-tools`](../agentic-tools).
+[`agentic-tools`](../agentic-tools). For a rendered showcase (source JSON, an
+interactive HTML report, and light/dark PNGs), see
+[`examples/recap/`](https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/visual-shot/examples/recap)
+in the repository.
+
+`wireframe` renders a framed UI mockup from author `html` (optional `css`,
+`caption`, `height`), for showing UI/state changes when a real screenshot is
+unavailable or for annotated mockups. `surface` selects the frame chrome and
+width: `browser` (default), `desktop`, `tablet`, `mobile`, `popover`, or `panel`;
+`height` overrides the per-surface body height in px (a positive integer, at most
+`2000`). The body renders in a `sandbox` iframe via `srcdoc`, so author
+`html`/`css` is isolated to that one mockup — it cannot restyle the report or a
+sibling wireframe — and scripts are disabled. Compose a before/after by placing
+two `wireframe` blocks inside one `columns` block.
+
+Wireframe author `css` and inline styles are **not** themed: the iframe starts
+from a light base (`background:#fff; color:#1f2328`). Keep mockup colors
+self-contained and readable on a light background, or make them theme-aware
+yourself, so they stay legible when the report is dark.
+
+`json` renders any JSON value as a collapsible tree:
+`{ type: "json", data: <any JSON>, title?, collapsedDepth? }`. Use it to show an
+API request/response payload, a config object, or event data inline instead of
+pasting a code block. `data` is required and may be any JSON value — including
+`null`, `false`, `0`, or `""`. Objects show `{N keys}` and arrays `[N items]`;
+nested nodes collapse with native `<details>`/`<summary>`. Every key and value is
+escaped, so untrusted diff text is safe. `collapsedDepth` (a non-negative
+integer, at most `50`) sets how deep nodes start expanded; omit it to expand
+everything, which is what a `--png` screenshot needs.
+
+`api-endpoint` fields are diff-aware so a recap can show a contract changing,
+not just its new shape. The endpoint root accepts `change`
+(`added`/`removed`/`modified`/`renamed`), rendered as a badge beside the
+method/path; a `removed` endpoint is outlined red with its path struck through.
+Each `params[]` and `responses[]` entry accepts the same `change` plus a `was`
+string holding the previous name/status, rendered as a badge and a muted
+`(was <value>)` after the name/status. All values are escaped.
 
 ## Environment variables
 

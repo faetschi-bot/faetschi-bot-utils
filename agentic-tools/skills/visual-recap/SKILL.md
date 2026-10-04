@@ -54,6 +54,11 @@ Skip it for small, single-file, or obvious diffs — a recap is review overhead.
    npx visual-shot --url "$APP_URL" --name recap-after
    ```
 
+   When a real screenshot is not available (the UI cannot run, or you need an
+   annotated mockup), fall back to a `wireframe` block: author `html` in a framed
+   surface that renders in a `sandbox` iframe, isolated from the report and with
+   scripts disabled. Do not invent state a real capture could show instead.
+
 5. **Author `recap.json`** (see the contract below). Ground every structured
    field in the actual diff.
 
@@ -96,18 +101,27 @@ block types and missing required fields fail validation with the exact path
 | `image-pair` | `before`, `after` | Real before/after screenshots; `captionBefore`/`captionAfter`. |
 | `mermaid` | `source` | Sequence/flowchart where textual grammar is clearest. |
 | `diagram` | `html` | Author HTML/CSS diagram for architecture; optional `css`, `caption`. |
+| `wireframe` | `html` | Framed UI mockup from author HTML/CSS for UI/state changes; `surface` (`browser` default, `desktop`/`tablet`/`mobile`/`popover`/`panel`), optional `css`, `caption`, `height` (positive integer px, ≤ 2000). The body renders in a `sandbox` iframe, so author CSS/HTML is isolated and scripts are disabled; the iframe is light-themed, so keep mockup colors light-safe or theme-aware. Prefer real `image-pair` captures when you have them; before/after is two wireframes in a `columns` block. |
 | `data-model` | `entities[{name, fields[{name,type,pk?,fk?,change?,was?}]}]` | Schema/ERD changes; optional `relations`. |
-| `api-endpoint` | `method`, `path` | Contract view; `params`, `responses`, `summary`, `description`, `deprecated`. |
+| `api-endpoint` | `method`, `path` | Contract view with diff-aware `change` (`added`/`removed`/`modified`/`renamed`) on the root and on each `params[]`/`responses[]` entry, plus `was` for the previous name/status; also `summary`, `description`, `deprecated`. |
 | `callout` | `body` | Note with `tone` (`info`/`decision`/`risk`/`warning`/`success`) and optional `title`. |
 | `table` | `columns`, `rows` | Simple grid. |
 | `checklist` | `items[{label, note?, checked?}]` | Toggleable list. |
 | `notes` | `markdown` | Prose: objective, decisions, risks. Small Markdown subset. |
 | `code` / `annotated-code` | `code` | New code; annotated variety anchors `annotations` to line ranges. |
+| `json` | `data` | Any JSON value as a collapsible tree; use for API request/response payloads or config objects instead of a code block. Optional `title`, `collapsedDepth` (non-negative, ≤ 50; omit to expand all). `data` may be `null`, `false`, `0`, or `""`. |
 | `columns` | `columns[{label, blocks}]` | Side-by-side comparison container. |
 | `tabs` | `tabs[{label, blocks}]` | Group several diffs/patches; horizontal. |
 
 Annotations on `diff`/`annotated-code` are `{ lines: "4" | "2-5", side?:
 "after"|"before", label?, note? }` and mark the referenced lines.
+
+`api-endpoint` is diff-aware: set `change` on the endpoint, or on any
+`params[]`/`responses[]` entry, to mark it added/removed/modified/renamed, and
+add `was` with the previous param name or response status. A `removed` endpoint
+renders struck through and outlined. `json` block values are escaped and never
+executed, so pasting a real request/response body is safe — but still redact
+secrets (see Security).
 
 ### Minimal example
 
@@ -147,7 +161,8 @@ Annotations on `diff`/`annotated-code` are `{ lines: "4" | "2-5", side?:
   <= ~70 characters. Summarize or link the rest of a long file instead of
   dumping it.
 - **UI changes need real screenshots.** An `image-pair` beats prose for a
-  visible delta. For menus/popovers, capture the focused sub-surface.
+  visible delta. For menus/popovers, capture the focused sub-surface. Only when a
+  real capture is impossible should you fall back to a `wireframe` mockup.
 
 ## Security
 
@@ -161,7 +176,9 @@ Annotations on `diff`/`annotated-code` are `{ lines: "4" | "2-5", side?:
 
 - **`diagram` `html`/`css` is raw.** That field is embedded verbatim and runs as
   HTML in the artifact. Treat it as trusted author content and never interpolate
-  diff text, file contents, or user input into it.
+  diff text, file contents, or user input into it. **`wireframe` `html`/`css` is
+  also trusted author content**, but it is rendered inside a `sandbox` iframe
+  (`srcdoc`), so it is isolated from the report and scripts are disabled.
 - **`image`/`image-pair` `src` must be a real image file inside the recap's
   directory** (the render's asset root; `--asset-root` overrides it). Only files
   with an allowlisted image extension and under the size cap are inlined as data

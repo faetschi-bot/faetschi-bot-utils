@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; font-src data:">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recap blocks showcase</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --border: #d1d9e0;
+  --card: #f6f8fa; --accent: #0969da; --code-bg: #f6f8fa;
+  --add-bg: #e6ffec; --add-fg: #1a7f37; --rem-bg: #ffebe9; --rem-fg: #cf222e;
+  --pill-bg: #ddf4ff;
+}
+body.theme-dark {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #30363d;
+  --card: #161b22; --accent: #4493f8; --code-bg: #161b22;
+  --add-bg: #12261e; --add-fg: #3fb950; --rem-bg: #25171c; --rem-fg: #f85149;
+  --pill-bg: #121d2f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+body {
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#recap { width: 1100px; max-width: 100%; margin: 0 auto; padding: 40px 44px 56px; }
+h1 { font-size: 26px; line-height: 1.25; margin: 0 0 6px; }
+h2 { font-size: 18px; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 15px; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+.blk { margin: 16px 0; }
+.brief { color: var(--muted); font-size: 15px; margin: 0 0 8px; }
+.meta-line { color: var(--muted); font-size: 12px; margin: 0 0 22px; }
+.muted { color: var(--muted); }
+
+/* file tree */
+.file-tree { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 10px 12px; }
+.file-tree ul { list-style: none; margin: 0; padding: 0; }
+.file-tree li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.file-tree .path { color: var(--fg); }
+.file-tree .note { color: var(--muted); font-size: 12px; }
+.badge { display: inline-block; width: 18px; text-align: center; border-radius: 4px; font-size: 11px; font-weight: 700; padding: 1px 0; }
+.badge.added { background: var(--add-bg); color: var(--add-fg); }
+.badge.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.badge.modified { background: var(--pill-bg); color: var(--accent); }
+.badge.renamed { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+
+/* diff */
+.diff { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.diff-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--border); font-size: 12px; }
+.diff-head .file { font-weight: 600; }
+.diff-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.diff-col { min-width: 0; overflow: auto; }
+.diff-col + .diff-col { border-left: 1px solid var(--border); }
+.diff-col .col-title { padding: 4px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--card); }
+.line { display: flex; white-space: pre; }
+.line .ln { flex: 0 0 42px; text-align: right; padding: 0 8px 0 6px; color: var(--muted); user-select: none; border-right: 1px solid var(--border); }
+.line .code { flex: 1; padding: 0 10px; white-space: pre; }
+.line.add, .line.add .code { background: var(--add-bg); }
+.line.rem, .line.rem .code { background: var(--rem-bg); }
+.line.empty { background: var(--card); }
+.mark { color: var(--accent); font-weight: 700; }
+.annot { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.annot li { padding: 6px 10px; border-left: 3px solid var(--accent); background: var(--card); margin: 4px 0; border-radius: 0 6px 6px 0; }
+.annot .tag { font-weight: 700; }
+.patch { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; overflow: auto; }
+.patch .line .ln { display: none; }
+.patch.numbered .line .ln { display: block; }
+.code-block { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; font-size: 13px; }
+.code-block code { white-space: pre; }
+
+/* images */
+.img-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.img-pair figure, .img-single figure { margin: 0; }
+.img-pair figcaption, .img-single figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.img-pair img, .img-single img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+.img-missing { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; }
+
+/* mermaid / diagram */
+.mermaid-slot { display: flex; justify-content: center; padding: 10px; overflow: auto; }
+.mermaid-slot svg { max-width: 100%; height: auto; }
+.diagram-frame { border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; }
+
+/* wireframe: author HTML/CSS renders inside a sandboxed srcdoc iframe
+   (.wf-body) so it cannot restyle the report; the frame chrome stays CSS-only. */
+.wf { max-width: 100%; }
+.wf-frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg); }
+.wf-bar { background: var(--card); border-bottom: 1px solid var(--border); }
+.wf-body { display: block; width: 100%; border: 0; background: #fff; }
+.wf-caption { font-size: 12px; margin-top: 6px; }
+/* Surface widths; JS only picks the class, never sets a width. */
+.wf-browser, .wf-desktop { width: 100%; }
+.wf-tablet, .wf-mobile, .wf-popover, .wf-panel { margin-left: auto; margin-right: auto; }
+.wf-tablet { width: 768px; }
+.wf-mobile { width: 375px; }
+.wf-popover { width: 360px; }
+.wf-panel { width: 420px; }
+/* CSS-only chrome per surface. */
+.wf-browser .wf-bar { height: 28px; }
+.wf-browser .wf-bar::before {
+  content: "";
+  display: block;
+  width: 9px; height: 9px;
+  margin: 9px 0 0 12px;
+  border-radius: 50%;
+  background: var(--rem-fg);
+  box-shadow: 16px 0 0 var(--muted), 32px 0 0 var(--add-fg);
+}
+.wf-desktop .wf-bar { height: 26px; }
+.wf-desktop .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+.wf-tablet .wf-bar { height: 18px; }
+.wf-tablet .wf-bar::before {
+  content: "";
+  display: block;
+  width: 6px; height: 6px;
+  margin: 5px auto 0;
+  border-radius: 50%;
+  background: var(--border);
+}
+.wf-mobile .wf-bar { height: 22px; }
+.wf-mobile .wf-bar::before {
+  content: "";
+  display: block;
+  width: 90px; height: 8px;
+  margin: 6px auto 0;
+  border-radius: 6px;
+  background: var(--border);
+}
+.wf-popover .wf-bar { height: 16px; }
+.wf-popover .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40px; height: 4px;
+  margin: 6px auto 0;
+  border-radius: 3px;
+  background: var(--border);
+}
+.wf-panel .wf-bar { height: 26px; }
+.wf-panel .wf-bar::before {
+  content: "";
+  display: block;
+  width: 55%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+/* data model */
+.data-model { display: flex; flex-wrap: wrap; gap: 14px; }
+.entity { border: 1px solid var(--border); border-radius: 8px; min-width: 240px; background: var(--card); overflow: hidden; }
+.entity > .name { padding: 8px 12px; font-weight: 700; background: var(--pill-bg); border-bottom: 1px solid var(--border); }
+.entity table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.entity td { padding: 4px 12px; border-top: 1px solid var(--border); }
+.entity td.key { color: var(--muted); width: 44px; }
+.entity td.type { color: var(--muted); }
+.chg { font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; margin-left: 6px; }
+.chg.added { background: var(--add-bg); color: var(--add-fg); }
+.chg.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.chg.modified, .chg.renamed { background: var(--pill-bg); color: var(--accent); }
+
+/* endpoint */
+.endpoint { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.endpoint .head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--card); }
+.method { font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--pill-bg); color: var(--accent); }
+.endpoint .body { padding: 10px 12px; }
+.endpoint table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+.endpoint th, .endpoint td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+/* A removed endpoint is outlined red and its path struck through. */
+.endpoint.removed { border-color: var(--rem-fg); }
+.endpoint.removed .head { background: var(--rem-bg); }
+.endpoint.removed code { text-decoration: line-through; }
+
+/* json explorer */
+.json-title { font-weight: 700; margin-bottom: 6px; }
+.json-tree {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  padding: 10px 12px; overflow: auto; font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.jv-node > summary { cursor: pointer; list-style: none; }
+.jv-node > summary::-webkit-details-marker { display: none; }
+.jv-node > summary::before { content: "\25B8"; display: inline-block; width: 12px; color: var(--muted); }
+.jv-node[open] > summary::before { content: "\25BE"; }
+.jv-children { margin-left: 14px; padding-left: 10px; border-left: 1px solid var(--border); }
+.jv-row { padding: 1px 0; }
+.jv-key { color: var(--muted); }
+.jv-index { color: var(--muted); }
+.jv-punct { color: var(--muted); }
+.jv-string { color: var(--add-fg); }
+.jv-number { color: var(--accent); }
+.jv-bool { color: var(--rem-fg); }
+.jv-null { color: var(--muted); font-style: italic; }
+
+/* callout */
+.callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 14px; border-radius: 0 8px 8px 0; }
+.callout.risk, .callout.warning { border-left-color: var(--rem-fg); }
+.callout.success, .callout.decision { border-left-color: var(--add-fg); }
+.callout .title { font-weight: 700; margin-bottom: 2px; }
+
+/* table */
+table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.grid th, table.grid td { text-align: left; padding: 7px 10px; border: 1px solid var(--border); }
+table.grid th { background: var(--card); }
+
+/* checklist */
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li { padding: 4px 0 4px 26px; position: relative; }
+.checklist li::before { content: "\2610"; position: absolute; left: 4px; color: var(--muted); }
+.checklist li.done::before { content: "\2611"; color: var(--add-fg); }
+.checklist .note { color: var(--muted); font-size: 12px; display: block; }
+
+/* columns + tabs */
+.columns { display: grid; gap: 14px; align-items: start; }
+.columns .col-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+.tabs { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tabs > input { display: none; }
+.tabbar { display: flex; flex-wrap: wrap; gap: 2px; background: var(--card); border-bottom: 1px solid var(--border); padding: 4px 6px 0; }
+.tabbar label { padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; }
+.tab-panels { padding: 12px; }
+.tab-panels > .panel { display: none; }
+.tabs > input:nth-of-type(1):checked ~ .tab-panels > .panel:nth-child(1) { display: block; }
+.tabs > input:nth-of-type(1):checked ~ .tabbar > label:nth-child(1) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+.tabs > input:nth-of-type(2):checked ~ .tab-panels > .panel:nth-child(2) { display: block; }
+.tabs > input:nth-of-type(2):checked ~ .tabbar > label:nth-child(2) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+
+
+  .hljs { background: transparent; padding: 0; }
+#recap { width: 1100px; }
+</style>
+</head>
+<body class="theme-light">
+<div id="recap">
+
+<h1>Recap blocks showcase</h1><div class="brief"><p>A rendered demo of the recap block set: <strong>wireframe</strong> (isolated mockups), <strong>json</strong> (collapsible explorer), diff-aware <strong>api-endpoint</strong>, plus tabs, columns, and callouts.</p></div><p class="meta-line">visual-shot examples/recap</p><div class="blk"><div class="callout info"><div class="title">Before / after is two wireframes in a columns block</div><p>Each wireframe body renders in a <strong>sandboxed iframe</strong>, so the two panes cannot affect each other and author scripts are disabled.</p></div></div>
+<div class="blk"><div class="columns" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="col"><div class="col-label">Before</div><div class="blk"><div class="wf wf-browser"><div class="wf-frame"><div class="wf-bar"></div><iframe class="wf-body" sandbox="" srcdoc="<!doctype html><html><head><meta charset=&quot;utf-8&quot;><style>html,body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,sans-serif;background:#fff;color:#1f2328}*,*::before,*::after{box-sizing:border-box}.app{font:13px system-ui}.bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #d1d9e0}.logo{font-weight:700}.search{flex:1;padding:5px 8px;border:1px solid #d1d9e0;border-radius:6px}.danger{background:#cf222e;color:#fff;border:0;border-radius:6px;padding:6px 10px}.body{padding:8px 12px}.row{padding:7px 0;border-bottom:1px solid #eaeef2}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#0969da;margin-right:8px}</style></head><body><div class='app'><header class='bar'><span class='logo'>Acme</span><input class='search' placeholder='Search'><button class='danger'>Delete all</button></header><main class='body'><div class='row'><span class='dot'></span>Invoice #1042</div><div class='row'><span class='dot'></span>Invoice #1043</div><div class='row'><span class='dot'></span>Invoice #1044</div></main></div></body></html>" style="height:240px"></iframe></div><div class="muted wf-caption">Toolbar had a destructive 'Delete all' button.</div></div></div></div><div class="col"><div class="col-label">After</div><div class="blk"><div class="wf wf-browser"><div class="wf-frame"><div class="wf-bar"></div><iframe class="wf-body" sandbox="" srcdoc="<!doctype html><html><head><meta charset=&quot;utf-8&quot;><style>html,body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,sans-serif;background:#fff;color:#1f2328}*,*::before,*::after{box-sizing:border-box}.app{font:13px system-ui}.bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #d1d9e0}.logo{font-weight:700}.search{flex:1;padding:5px 8px;border:1px solid #d1d9e0;border-radius:6px}.ghost{background:#fff;border:1px solid #d1d9e0;border-radius:6px;padding:6px 10px}.bulk{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#ddf4ff}.bulk label{display:flex;gap:6px;align-items:center}.danger{background:#cf222e;color:#fff;border:0;border-radius:6px;padding:6px 10px}.body{padding:8px 12px}.row{padding:7px 0;border-bottom:1px solid #eaeef2}.sel{background:#f6f8fa}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#0969da;margin-right:8px}</style></head><body><div class='app'><header class='bar'><span class='logo'>Acme</span><input class='search' placeholder='Search'><button class='ghost'>Filter</button></header><div class='bulk'><label><input type='checkbox' checked> 3 selected</label><button class='danger'>Delete selected</button></div><main class='body'><div class='row sel'><span class='dot'></span>Invoice #1042</div><div class='row sel'><span class='dot'></span>Invoice #1043</div><div class='row sel'><span class='dot'></span>Invoice #1044</div></main></div></body></html>" style="height:240px"></iframe></div><div class="muted wf-caption">Bulk delete moved into a row-selection toolbar.</div></div></div></div></div></div>
+<div class="blk"><div class="columns" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="col"><div class="col-label">Mobile (375px)</div><div class="blk"><div class="wf wf-mobile"><div class="wf-frame"><div class="wf-bar"></div><iframe class="wf-body" sandbox="" srcdoc="<!doctype html><html><head><meta charset=&quot;utf-8&quot;><style>html,body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,sans-serif;background:#fff;color:#1f2328}*,*::before,*::after{box-sizing:border-box}.m{font:13px system-ui}.nav{padding:12px;border-bottom:1px solid #d1d9e0}.row{display:flex;justify-content:space-between;padding:11px 12px;border-bottom:1px solid #eaeef2}.hint{padding:10px 12px;color:#59636e;font-size:12px}</style></head><body><div class='m'><div class='nav'><strong>Settings</strong></div><label class='row'><span>Autosave</span><input type='checkbox' checked></label><label class='row'><span>Usage alerts</span><input type='checkbox'></label><label class='row'><span>Weekly digest</span><input type='checkbox' checked></label><p class='hint'>Autosave keeps drafts every 30s.</p></div></body></html>" style="height:300px"></iframe></div><div class="muted wf-caption">Settings with a new autosave toggle.</div></div></div></div><div class="col"><div class="col-label">Popover (360px)</div><div class="blk"><div class="wf wf-popover"><div class="wf-frame"><div class="wf-bar"></div><iframe class="wf-body" sandbox="" srcdoc="<!doctype html><html><head><meta charset=&quot;utf-8&quot;><style>html,body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,sans-serif;background:#fff;color:#1f2328}*,*::before,*::after{box-sizing:border-box}.p{font:13px system-ui;padding:6px}.u{display:flex;gap:8px;align-items:center;padding:8px}.av{width:26px;height:26px;border-radius:50%;background:#ddf4ff}.muted{color:#59636e;font-size:12px}.item{display:block;width:100%;text-align:left;background:none;border:0;padding:8px;border-radius:6px}.item:hover{background:#f6f8fa}.danger{color:#cf222e}</style></head><body><div class='p'><div class='u'><span class='av'></span><div><strong>Jane Doe</strong><div class='muted'>jane@acme.co</div></div></div><hr><button class='item'>Open profile</button><button class='item'>Copy link</button><button class='item danger'>Remove from team</button></div></body></html>" style="height:200px"></iframe></div><div class="muted wf-caption">Row action popover.</div></div></div></div></div></div>
+<div class="blk"><div class="tabs"><input type="radio" name="tabs-1" id="tabs-1-0" checked=""><input type="radio" name="tabs-1" id="tabs-1-1"><div class="tabbar"><label for="tabs-1-0">Response (expanded)</label><label for="tabs-1-1">Collapsed (depth 0)</label></div><div class="tab-panels"><div class="panel" data-label="Response (expanded)"><div class="blk"><div class="json-title">GET /v1/messages/1042</div><div class="json-tree"><details class="jv-node" open=""><summary><span class="jv-punct">{6 keys}</span></summary><div class="jv-children"><div class="jv-row"><span class="jv-key">"id"</span><span class="jv-punct">:</span> <span class="jv-string">"msg_1042"</span></div><div class="jv-row"><span class="jv-key">"status"</span><span class="jv-punct">:</span> <span class="jv-string">"queued"</span></div><div class="jv-row"><span class="jv-key">"created"</span><span class="jv-punct">:</span> <span class="jv-number">1767225600</span></div><div class="jv-row"><span class="jv-key">"rate_limit"</span><span class="jv-punct">:</span> <details class="jv-node" open=""><summary><span class="jv-punct">{3 keys}</span></summary><div class="jv-children"><div class="jv-row"><span class="jv-key">"limit"</span><span class="jv-punct">:</span> <span class="jv-number">60</span></div><div class="jv-row"><span class="jv-key">"remaining"</span><span class="jv-punct">:</span> <span class="jv-number">57</span></div><div class="jv-row"><span class="jv-key">"reset_at"</span><span class="jv-punct">:</span> <span class="jv-string">"2026-01-01T00:01:00Z"</span></div></div></details></div><div class="jv-row"><span class="jv-key">"tags"</span><span class="jv-punct">:</span> <details class="jv-node" open=""><summary><span class="jv-punct">[2 items]</span></summary><div class="jv-children"><div class="jv-row"><span class="jv-index">0</span><span class="jv-punct">:</span> <span class="jv-string">"billing"</span></div><div class="jv-row"><span class="jv-index">1</span><span class="jv-punct">:</span> <span class="jv-string">"priority"</span></div></div></details></div><div class="jv-row"><span class="jv-key">"customer"</span><span class="jv-punct">:</span> <span class="jv-null">null</span></div></div></details></div></div></div><div class="panel" data-label="Collapsed (depth 0)"><div class="blk"><div class="json-title">Same payload with collapsedDepth: 0</div><div class="json-tree"><details class="jv-node" open=""><summary><span class="jv-punct">{5 keys}</span></summary><div class="jv-children"><div class="jv-row"><span class="jv-key">"id"</span><span class="jv-punct">:</span> <span class="jv-string">"msg_1042"</span></div><div class="jv-row"><span class="jv-key">"status"</span><span class="jv-punct">:</span> <span class="jv-string">"queued"</span></div><div class="jv-row"><span class="jv-key">"rate_limit"</span><span class="jv-punct">:</span> <details class="jv-node"><summary><span class="jv-punct">{2 keys}</span></summary><div class="jv-children"><div class="jv-row"><span class="jv-key">"limit"</span><span class="jv-punct">:</span> <span class="jv-number">60</span></div><div class="jv-row"><span class="jv-key">"remaining"</span><span class="jv-punct">:</span> <span class="jv-number">57</span></div></div></details></div><div class="jv-row"><span class="jv-key">"tags"</span><span class="jv-punct">:</span> <details class="jv-node"><summary><span class="jv-punct">[2 items]</span></summary><div class="jv-children"><div class="jv-row"><span class="jv-index">0</span><span class="jv-punct">:</span> <span class="jv-string">"billing"</span></div><div class="jv-row"><span class="jv-index">1</span><span class="jv-punct">:</span> <span class="jv-string">"priority"</span></div></div></details></div><div class="jv-row"><span class="jv-key">"customer"</span><span class="jv-punct">:</span> <span class="jv-null">null</span></div></div></details></div></div></div></div></div></div>
+<div class="blk"><div class="endpoint"><div class="head"><span class="method">POST</span><code>/v1/messages</code><span class="chg modified">modified</span><span class="muted">Body field renamed and a 429 added.</span></div><div class="body"><table><thead><tr><th>Name</th><th>In</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead><tbody><tr><td>model<span class="chg modified">modified</span><span class="muted"> (was model_id)</span></td><td>body</td><td>string</td><td>yes</td><td></td></tr><tr><td>stream<span class="chg added">added</span></td><td>body</td><td>boolean</td><td></td><td></td></tr></tbody></table><table><thead><tr><th>Status</th><th>Description</th><th>Example</th></tr></thead><tbody><tr><td>200</td><td>OK</td><td></td></tr><tr><td>429<span class="chg added">added</span></td><td>Rate limited</td><td>{"error":"rate_limited"}</td></tr></tbody></table></div></div></div>
+<div class="blk"><div class="endpoint removed"><div class="head"><span class="method">DELETE</span><code>/v1/legacy/messages/{id}</code><span class="chg removed">removed</span><span class="method">deprecated</span><span class="muted">Removed in favour of /v1/messages/{id}.</span></div><div class="body"></div></div></div>
+
+</div>
+</body>
+</html>

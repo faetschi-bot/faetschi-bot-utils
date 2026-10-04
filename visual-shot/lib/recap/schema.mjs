@@ -9,6 +9,24 @@ export const RECAP_SCHEMA_VERSION = 1;
 
 export const CHANGE_VALUES = new Set(['added', 'removed', 'modified', 'renamed']);
 export const TONE_VALUES = new Set(['info', 'decision', 'risk', 'warning', 'success']);
+export const WIREFRAME_SURFACES = new Set(['desktop', 'tablet', 'mobile', 'browser', 'popover', 'panel']);
+
+// Per-surface body height (px) used when the author omits `height`. The cap
+// keeps a hostile/typo'd number from turning one mockup into a giant iframe.
+export const WIREFRAME_DEFAULT_HEIGHTS = {
+  browser: 560,
+  desktop: 560,
+  tablet: 720,
+  mobile: 640,
+  popover: 320,
+  panel: 360,
+};
+export const MAX_WIREFRAME_HEIGHT = 2000;
+
+// `json.collapsedDepth` bounds how deep a tree starts expanded. The cap keeps an
+// untrusted number from forcing a giant stylesheet-free recursion; omitting the
+// field expands everything (the renderer treats the default as unbounded).
+export const MAX_JSON_COLLAPSED_DEPTH = 50;
 
 export const BLOCK_TYPES = new Set([
   'file-tree',
@@ -18,6 +36,7 @@ export const BLOCK_TYPES = new Set([
   'image-pair',
   'mermaid',
   'diagram',
+  'wireframe',
   'data-model',
   'api-endpoint',
   'callout',
@@ -26,6 +45,7 @@ export const BLOCK_TYPES = new Set([
   'notes',
   'code',
   'annotated-code',
+  'json',
   'columns',
   'tabs',
 ]);
@@ -75,6 +95,32 @@ function annotationProblems(block) {
   return problems;
 }
 
+// Shared validation for api-endpoint `params` / `responses`: each entry may
+// carry a diff-aware `change` (same enum as elsewhere) and a `was` label for the
+// previous name/status. Absent fields are fine; a present one must be well-typed.
+function endpointEntryProblems(list, key, errors) {
+  if (list === undefined) return;
+  if (!isArr(list)) {
+    errors.push(`${key} must be an array`);
+    return;
+  }
+  list.forEach((entry, i) => {
+    if (!entry || typeof entry !== 'object' || isArr(entry)) {
+      errors.push(`${key}[${i}] must be an object`);
+      return;
+    }
+    if (entry.name !== undefined && typeof entry.name !== 'string') {
+      errors.push(`${key}[${i}].name must be a string`);
+    }
+    if (entry.change !== undefined && !CHANGE_VALUES.has(entry.change)) {
+      errors.push(`${key}[${i}].${CHANGE_ERROR}`);
+    }
+    if (entry.was !== undefined && typeof entry.was !== 'string') {
+      errors.push(`${key}[${i}].was must be a string`);
+    }
+  });
+}
+
 // Each entry returns a list of human-readable problems for one block, given the
 // block's path (e.g. `blocks[2]`) for locatable error messages.
 const BLOCK_CHECKS = {
@@ -103,8 +149,38 @@ const BLOCK_CHECKS = {
     const errors = typeof b.code === 'string' ? [] : ['code must be a string'];
     return errors.concat(annotationProblems(b));
   },
+  json: (b) => {
+    // `data` may legitimately be null/false/0/"", so presence is checked with
+    // `in`, never truthiness.
+    const errors = 'data' in b ? [] : ['data is required'];
+    if (b.title !== undefined && typeof b.title !== 'string') errors.push('title must be a string');
+    if (b.collapsedDepth !== undefined) {
+      if (!Number.isInteger(b.collapsedDepth) || b.collapsedDepth < 0) {
+        errors.push('collapsedDepth must be a non-negative integer');
+      } else if (b.collapsedDepth > MAX_JSON_COLLAPSED_DEPTH) {
+        errors.push(`collapsedDepth must be at most ${MAX_JSON_COLLAPSED_DEPTH}`);
+      }
+    }
+    return errors;
+  },
   mermaid: (b) => (isStr(b.source) ? [] : ['source is required']),
   diagram: (b) => (isStr(b.html) ? [] : ['html is required']),
+  wireframe: (b) => {
+    const errors = isStr(b.html) ? [] : ['html is required'];
+    if (b.surface !== undefined && !WIREFRAME_SURFACES.has(b.surface)) {
+      errors.push('surface must be one of desktop, tablet, mobile, browser, popover, panel');
+    }
+    if (b.css !== undefined && typeof b.css !== 'string') errors.push('css must be a string');
+    if (b.caption !== undefined && typeof b.caption !== 'string') errors.push('caption must be a string');
+    if (b.height !== undefined) {
+      if (!Number.isInteger(b.height) || b.height <= 0) {
+        errors.push('height must be a positive integer');
+      } else if (b.height > MAX_WIREFRAME_HEIGHT) {
+        errors.push(`height must be at most ${MAX_WIREFRAME_HEIGHT}`);
+      }
+    }
+    return errors;
+  },
   'data-model': (b) => {
     if (!isArr(b.entities) || b.entities.length === 0) return ['entities must be a non-empty array'];
     return b.entities.flatMap((e, i) => {
@@ -131,6 +207,9 @@ const BLOCK_CHECKS = {
     const errors = [];
     if (!isStr(b.method)) errors.push('method is required');
     if (!isStr(b.path)) errors.push('path is required');
+    if (b.change !== undefined && !CHANGE_VALUES.has(b.change)) errors.push(CHANGE_ERROR);
+    endpointEntryProblems(b.params, 'params', errors);
+    endpointEntryProblems(b.responses, 'responses', errors);
     return errors;
   },
   callout: (b) => {
