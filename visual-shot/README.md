@@ -278,7 +278,9 @@ blocks: [...] }`. Block types: `file-tree`, `diff`, `patch`, `image`,
 the `columns` / `tabs` containers. Inspect the schema and validation errors from
 [`lib/recap/schema.mjs`](./lib/recap/schema.mjs); an agent authors this JSON by
 following the companion **`visual-recap`** skill in
-[`agentic-tools`](../agentic-tools).
+[`agentic-tools`](../agentic-tools). For a rendered showcase (source JSON, an
+interactive HTML report, and light/dark PNGs), see
+[`examples/recap/`](./examples/recap).
 
 `wireframe` renders a framed UI mockup from author `html` (optional `css`,
 `caption`, `height`), for showing UI/state changes when a real screenshot is
