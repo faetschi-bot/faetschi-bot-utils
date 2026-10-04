@@ -6,44 +6,25 @@
 import { spawnSync } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
 import { join } from 'node:path';
-import { KNOWN_HARNESSES } from './catalog.mjs';
 import { CliError } from './errors.mjs';
+import { HARNESSES, INSTALLERS } from './harnesses.mjs';
 
-// Native installers. `buildArgs` is the only place that knows each harness's
-// command shape, so adding a harness is a one-entry change.
-// Sources: https://pi.dev/docs/latest (pi install) and the omp-you-should-know
-// README (omp plugin install github:...).
-export const INSTALLERS = {
-  pi: {
-    command: 'pi',
-    // Pi writes user-scope packages to ~/.pi/agent/settings.json; --local
-    // switches to the project's .pi/settings.json.
-    supportsLocal: true,
-    buildArgs: ({ spec, local }) => ['install', spec, ...(local ? ['--local'] : [])],
-  },
-  omp: {
-    command: 'omp',
-    // OMP installs plugins for the user. No local scope is documented, so this
-    // tool will not invent a flag for one.
-    supportsLocal: false,
-    buildArgs: ({ spec }) => ['plugin', 'install', spec],
-  },
-};
+export { INSTALLERS };
 
 // Accepts "pi", "omp", "both", or "auto". `auto` reports the harnesses whose
 // CLI is on PATH; an empty result is left for the caller to explain.
 export function resolveHarnesses(requested, { isAvailable = (command) => Boolean(resolveCommandPath(command)) } = {}) {
-  if (!['pi', 'omp', 'both', 'auto'].includes(requested)) {
-    throw new CliError(`Unknown --harness: ${requested} (expected pi, omp, both, or auto)`);
+  if (![...HARNESSES, 'both', 'auto'].includes(requested)) {
+    throw new CliError(`Unknown --harness: ${requested} (expected ${[...HARNESSES, 'both', 'auto'].join(', ')})`);
   }
-  if (requested === 'pi' || requested === 'omp') return { harnesses: [requested] };
-  if (requested === 'both') return { harnesses: [...KNOWN_HARNESSES] };
-  return { harnesses: KNOWN_HARNESSES.filter((harness) => isAvailable(INSTALLERS[harness].command)) };
+  if (HARNESSES.includes(requested)) return { harnesses: [requested] };
+  if (requested === 'both') return { harnesses: [...HARNESSES] };
+  return { harnesses: HARNESSES.filter((harness) => isAvailable(INSTALLERS[harness].command)) };
 }
 
 export function harnessStatus({ resolve = (command) => resolveCommandPath(command) } = {}) {
   const status = {};
-  for (const harness of KNOWN_HARNESSES) {
+  for (const harness of HARNESSES) {
     const command = INSTALLERS[harness].command;
     const path = resolve(command);
     status[harness] = { command, found: Boolean(path), path: path ?? null };

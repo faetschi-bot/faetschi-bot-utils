@@ -2,8 +2,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { KNOWN_HARNESSES, listExtensions, readCatalog, validateCatalog } from '../lib/catalog.mjs';
+import { listExtensions, readCatalog, validateCatalog } from '../lib/catalog.mjs';
 import { CliError } from '../lib/errors.mjs';
+import { HARNESSES } from '../lib/harnesses.mjs';
 import {
   executePlan,
   harnessStatus,
@@ -23,14 +24,15 @@ function usage() {
   console.log(`pi-extensions - install a curated set of Pi and OMP extensions.
 
 Usage:
-  pi-extensions list [options]                 list catalog extensions
-  pi-extensions doctor [options]               validate the catalog, detect harnesses
-  pi-extensions install <name...> [options]    install extensions for pi and/or omp
-  pi-extensions install --all [options]        install every catalog extension
+  pi-extensions list [--harness pi|omp|both] [--json]
+  pi-extensions doctor [--json]
+  pi-extensions install <name...> [options]
+  pi-extensions install --all [options]
 
 Options:
   --root <path>        catalog root to use (default: this package)
-  --harness <name>     pi, omp, both, or auto (default: auto = detect on PATH)
+  --harness <name>     list: pi, omp, or both
+                       install: pi, omp, both, or auto (default: auto = on PATH)
   --local              install for the current project instead of the user (pi only)
   --global             install for the user (default)
   --all                select every extension in the catalog
@@ -46,7 +48,8 @@ This tool does not copy extension code. It runs each harness's own installer:
 
 The catalog (catalog.json) maps each extension to a source per harness, so a
 license that forbids redistribution is respected: the upstream repo is the only
-copy.`);
+copy. Install stops at the first failed step and reports the rest as not
+attempted.`);
 }
 
 function parse(argv) {
@@ -91,12 +94,13 @@ function loadValidCatalog(root) {
 
 function runList(options, root) {
   const harness = options.harness ?? 'both';
-  if (!['pi', 'omp', 'both'].includes(harness)) {
-    throw new CliError(`Unknown --harness: ${harness} (expected pi, omp, or both)`);
+  const allowed = [...HARNESSES, 'both'];
+  if (!allowed.includes(harness)) {
+    throw new CliError(`Unknown --harness: ${harness} (expected ${allowed.join(', ')})`);
   }
   const extensions = listExtensions(loadValidCatalog(root), { harness });
   if (options.json) {
-    console.log(JSON.stringify({ root, harness, extensions }, null, 2));
+    console.log(JSON.stringify({ ok: true, root, harness, extensions }, null, 2));
     return;
   }
   if (extensions.length === 0) {
@@ -118,7 +122,7 @@ function runDoctor(options, root) {
     ok: validation.ok,
     root,
     errors: validation.errors,
-    extensions: listExtensions({ extensions: validation.extensions }),
+    extensions: validation.entries,
     harnesses: status,
   };
   if (options.json) {
@@ -126,13 +130,14 @@ function runDoctor(options, root) {
     process.exitCode = result.ok ? 0 : 1;
     return;
   }
-  for (const harness of KNOWN_HARNESSES) {
+  for (const harness of HARNESSES) {
     const info = status[harness];
     const label = info.found ? `found: ${info.path}` : `not found (command "${info.command}")`;
     console.log(`${info.found ? '[ok]  ' : '[skip]'} ${harness} CLI ${label}`);
   }
-  for (const extension of result.extensions) {
-    console.log(`[ok]  ${extension.name} (${Object.keys(extension.sources).join(', ')})`);
+  for (const entry of result.extensions) {
+    const suffix = entry.harnesses?.length ? ` (${entry.harnesses.join(', ')})` : '';
+    console.log(`${entry.ok ? '[ok]  ' : '[FAIL]'} ${entry.name ?? '(invalid)'}${suffix}`);
   }
   for (const error of validation.errors) console.log(`        error: ${error}`);
   console.log(result.ok ? '[pi-extensions] catalog valid' : '[pi-extensions] catalog validation failed');
@@ -148,11 +153,11 @@ function runInstall(options, root) {
   if (harnesses.length === 0 && options.dryRun && requested === 'auto') {
     // A preview should work on a machine without the harnesses; with nothing to
     // detect, show the full catalog plan instead of failing the detection.
-    harnesses = [...KNOWN_HARNESSES];
+    harnesses = [...HARNESSES];
   }
   if (harnesses.length === 0) {
     throw new CliError(
-      `no supported harness found on PATH (looked for: ${KNOWN_HARNESSES.join(', ')}); install one, or pass --harness pi|omp`,
+      `no supported harness found on PATH (looked for: ${HARNESSES.join(', ')}); install one, or pass --harness ${HARNESSES.join('|')}`,
       1,
     );
   }
@@ -186,9 +191,16 @@ function runInstall(options, root) {
 
   const results = executePlan(steps, { run: options.json ? runCaptured : runInherit });
   const ok = results.every((result) => result.ok);
+  // executePlan stops at the first failure; surface the steps it never reached
+  // so a caller can see the run was incomplete.
+  const notAttempted = steps.slice(results.length).map(summarizeStep);
   if (options.json) {
     console.log(
-      JSON.stringify({ ok, root, local, harnesses, skipped, results: results.map(summarizeResult) }, null, 2),
+      JSON.stringify(
+        { ok, root, local, harnesses, skipped, results: results.map(summarizeResult), notAttempted },
+        null,
+        2,
+      ),
     );
     process.exitCode = ok ? 0 : 1;
     return;
@@ -198,6 +210,9 @@ function runInstall(options, root) {
     if (!result.ok && result.error) console.log(`[pi-extensions]   ${result.error}`);
   }
   for (const skip of skipped) console.log(`[pi-extensions] skip ${skip.extension} for ${skip.harness}: ${skip.reason}`);
+  for (const step of notAttempted) {
+    console.log(`[pi-extensions] not attempted: ${step.extension} for ${step.harness}`);
+  }
   process.exitCode = ok ? 0 : 1;
 }
 

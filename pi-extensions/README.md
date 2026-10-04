@@ -62,7 +62,7 @@ Flags for `install`:
 
 | Flag | Effect |
 |------|--------|
-| `--harness pi\|omp\|both\|auto` | Which harness to install for. `auto` (default) uses the CLIs found on `PATH`. |
+| `--harness pi\|omp\|both\|auto` | Which harness to install for. `auto` (default) uses the CLIs found on `PATH`. `list` accepts `pi`, `omp`, or `both`. |
 | `--global` / `--local` | User scope (default) or project scope. `--local` is Pi-only; OMP has no local scope, so it is refused rather than guessed. |
 | `--all` | Select every catalog extension. Cannot combine with names. |
 | `--dry-run` | Print the native commands and install nothing. |
@@ -70,6 +70,9 @@ Flags for `install`:
 
 `--root <path>` points the tool at a different catalog, for a vendored copy or a
 fork.
+
+`install` stops at the first failed step and reports the steps it did not reach:
+`notAttempted` in `--json`, or `not attempted` lines in text output.
 
 Scope, trust, and updates are the harness's job: after installing, manage the
 extension with `pi list`, `pi update --extensions`, or `omp`'s own commands.

@@ -74,6 +74,16 @@ test('validateCatalog rejects a malformed source', () => {
   }
 });
 
+test('validateCatalog reports per-entry validity', () => {
+  const catalog = sampleCatalog();
+  catalog.extensions.push({ name: 'Bad Name', summary: '' });
+  const result = validateCatalog(catalog);
+  assert.equal(result.ok, false);
+  assert.equal(result.entries[0].ok, true);
+  assert.deepEqual(result.entries[0].harnesses, ['pi']);
+  assert.equal(result.entries[1].ok, false);
+});
+
 test('listExtensions narrows sources to the requested harness', () => {
   const catalog = sampleCatalog();
   catalog.extensions[0].sources.omp = {

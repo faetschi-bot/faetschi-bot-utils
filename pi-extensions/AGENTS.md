@@ -44,6 +44,8 @@ pi-extensions install [<name>...] [--all] [--harness pi|omp|both|auto] [--global
   scope, so `--local` with OMP is a usage error (exit 2), not a silent global
   install.
 - `--dry-run` prints the native commands and requires no harness CLI.
+- `install` stops at the first failed step; the steps it never reached appear
+  under `notAttempted` in `--json` and as `not attempted` lines in text output.
 - Exit codes: 0 success, 1 runtime/environment, 2 usage.
 
 ## Do not
@@ -58,8 +60,9 @@ pi-extensions install [<name>...] [--all] [--harness pi|omp|both|auto] [--global
 
 ```text
 bin/pi-extensions.mjs   CLI entry: parse, dispatch, print, exit codes
+lib/harnesses.mjs       HARNESSES + INSTALLERS (single source of truth)
 lib/catalog.mjs         catalog JSON read + validation (pure) + list/filter
-lib/install.mjs         installer table, PATH lookup, plan (pure), execute
+lib/install.mjs         PATH lookup, plan (pure), execute
 lib/errors.mjs          CliError with an exit code
 catalog.json            the extension catalog (data)
 test/catalog.test.mjs   catalog validation and filtering
@@ -67,8 +70,9 @@ test/install.test.mjs   command planning, PATH lookup, execution
 test/cli.test.mjs       end-to-end CLI contract, fully offline
 ```
 
-Adding a harness is one entry in `INSTALLERS` (`lib/install.mjs`). Adding an
-extension is one entry in `catalog.json`. Keep both changes small and test them.
+Adding a harness is one entry in `INSTALLERS` (`lib/harnesses.mjs`); `HARNESSES`
+and every `--harness` list derive from it. Adding an extension is one entry in
+`catalog.json`. Keep both changes small and test them.
 
 ## Catalog schema
 

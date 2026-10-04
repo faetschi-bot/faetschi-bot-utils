@@ -7,9 +7,9 @@
 // tests share one definition of a valid catalog.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { HARNESSES } from './harnesses.mjs';
 
 export const CATALOG_FILE = 'catalog.json';
-export const KNOWN_HARNESSES = ['pi', 'omp'];
 export const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export function readCatalog(root) {
@@ -30,38 +30,46 @@ export function readCatalog(root) {
 export function validateCatalog(catalog) {
   const extensions = Array.isArray(catalog?.extensions) ? catalog.extensions : null;
   if (!extensions) {
-    return { ok: false, errors: ['catalog must have an "extensions" array'], extensions: [] };
+    return { ok: false, errors: ['catalog must have an "extensions" array'], extensions: [], entries: [] };
   }
   const errors = [];
   if (extensions.length === 0) errors.push('catalog "extensions" must not be empty');
 
   const seen = new Set();
-  extensions.forEach((extension, index) => {
-    const where = `extensions[${index}]`;
-    if (!extension || typeof extension !== 'object') {
-      errors.push(`${where}: must be an object`);
-      return;
-    }
-    const label = typeof extension.name === 'string' ? `${where} (${extension.name})` : where;
-    if (typeof extension.name !== 'string' || !NAME_RE.test(extension.name)) {
-      errors.push(`${label}: "name" must be lowercase kebab-case`);
-    } else if (seen.has(extension.name)) {
-      errors.push(`${label}: duplicate name`);
-    } else {
-      seen.add(extension.name);
-    }
-    if (typeof extension.summary !== 'string' || extension.summary.trim() === '') {
-      errors.push(`${label}: missing non-empty "summary"`);
-    }
-    errors.push(...validateSources(extension, label));
-  });
+  const entries = extensions.map((extension, index) => validateExtension(extension, index, seen));
+  for (const entry of entries) errors.push(...entry.errors);
 
-  return { ok: errors.length === 0, errors, extensions };
+  return { ok: errors.length === 0, errors, extensions, entries };
 }
 
-function validateSources(extension, label) {
+// Validates one entry and returns its own ok/errors so `doctor` can label each
+// entry instead of marking everything [ok] when one entry is broken.
+function validateExtension(extension, index, seen) {
+  const where = `extensions[${index}]`;
+  if (!extension || typeof extension !== 'object') {
+    return { name: null, harnesses: [], ok: false, errors: [`${where}: must be an object`] };
+  }
   const errors = [];
+  const name = typeof extension.name === 'string' ? extension.name : null;
+  const label = name ? `${where} (${name})` : where;
+  if (typeof extension.name !== 'string' || !NAME_RE.test(extension.name)) {
+    errors.push(`${label}: "name" must be lowercase kebab-case`);
+  } else if (seen.has(extension.name)) {
+    errors.push(`${label}: duplicate name`);
+  } else {
+    seen.add(extension.name);
+  }
+  if (typeof extension.summary !== 'string' || extension.summary.trim() === '') {
+    errors.push(`${label}: missing non-empty "summary"`);
+  }
   const sources = extension.sources;
+  const harnesses = sources && typeof sources === 'object' && !Array.isArray(sources) ? Object.keys(sources) : [];
+  errors.push(...validateSources(sources, label));
+  return { name, harnesses, ok: errors.length === 0, errors };
+}
+
+function validateSources(sources, label) {
+  const errors = [];
   if (!sources || typeof sources !== 'object' || Array.isArray(sources)) {
     return [`${label}: missing "sources" object`];
   }
@@ -69,8 +77,8 @@ function validateSources(extension, label) {
   if (harnesses.length === 0) errors.push(`${label}: "sources" must list at least one harness`);
   for (const harness of harnesses) {
     const where = `${label}.sources.${harness}`;
-    if (!KNOWN_HARNESSES.includes(harness)) {
-      errors.push(`${where}: unknown harness (expected ${KNOWN_HARNESSES.join(', ')})`);
+    if (!HARNESSES.includes(harness)) {
+      errors.push(`${where}: unknown harness (expected ${HARNESSES.join(', ')})`);
       continue;
     }
     const source = sources[harness];

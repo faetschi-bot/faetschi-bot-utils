@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const bin = fileURLToPath(new URL('../bin/pi-extensions.mjs', import.meta.url));
@@ -78,6 +81,57 @@ test('install --dry-run with auto previews both when no harness is on PATH', () 
   const parsed = JSON.parse(result.stdout);
   assert.deepEqual(parsed.harnesses, ['pi', 'omp']);
   assert.equal(parsed.steps.length, 2);
+});
+
+test('install --json captures harness output as one JSON document', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pi-extensions-fake-pi-'));
+  const fake = join(dir, 'pi');
+  writeFileSync(fake, '#!/bin/sh\necho "fake pi stdout"\necho "fake pi stderr" >&2\nexit 0\n');
+  chmodSync(fake, 0o755);
+  try {
+    const result = run(['install', '--all', '--harness', 'pi', '--json'], {
+      env: { ...process.env, PATH: dir },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    // JSON.parse throws if the child's stdout leaked into the result document.
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.results[0].ok, true);
+    assert.match(parsed.results[0].stdout, /fake pi stdout/);
+    assert.match(parsed.results[0].stderr, /fake pi stderr/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('install --json reports steps not attempted after a failure', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pi-extensions-fail-pi-'));
+  const fake = join(dir, 'pi');
+  writeFileSync(fake, '#!/bin/sh\necho "boom" >&2\nexit 3\n');
+  chmodSync(fake, 0o755);
+  const catalogDir = mkdtempSync(join(tmpdir(), 'pi-extensions-catalog-'));
+  writeFileSync(
+    join(catalogDir, 'catalog.json'),
+    JSON.stringify({
+      extensions: [
+        { name: 'first', summary: 'x', sources: { pi: { installer: 'pi', spec: 'git:example/first', homepage: 'https://example.test/first', license: 'MIT' } } },
+        { name: 'second', summary: 'y', sources: { pi: { installer: 'pi', spec: 'git:example/second', homepage: 'https://example.test/second', license: 'MIT' } } },
+      ],
+    }),
+  );
+  try {
+    const result = run(['install', '--all', '--harness', 'pi', '--json', '--root', catalogDir], {
+      env: { ...process.env, PATH: dir },
+    });
+    assert.equal(result.status, 1);
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.ok, false);
+    assert.deepEqual(parsed.results.map((entry) => entry.extension), ['first']);
+    assert.deepEqual(parsed.notAttempted.map((entry) => entry.extension), ['second']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(catalogDir, { recursive: true, force: true });
+  }
 });
 
 test('install --local with omp exits 2', () => {

@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check bin/pi-extensions.mjs && node --check lib/catalog.mjs && node --check lib/install.mjs
+        run: node --check bin/pi-extensions.mjs && node --check lib/catalog.mjs && node --check lib/harnesses.mjs && node --check lib/install.mjs
       - name: Validate catalog
         run: node bin/pi-extensions.mjs doctor
       - name: Tests
