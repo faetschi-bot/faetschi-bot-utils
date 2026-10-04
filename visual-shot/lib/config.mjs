@@ -29,7 +29,9 @@ export const DEFAULT_MERMAID_VERSION = '11.4.1';
 export const DEFAULT_DIAGRAM_SCALE = 2;
 
 // recap
-export const DEFAULT_RECAP_THEME = 'light';
+// A recap is usually posted into a PR, where GitHub renders it on a dark
+// surface; dark is the default and `--theme light` opts back into light.
+export const DEFAULT_RECAP_THEME = 'dark';
 export const DEFAULT_RECAP_WIDTH = 1100;
 export const DEFAULT_RECAP_SCALE = 2;
 export const MAX_RECAP_PATCH_FILES = 25;

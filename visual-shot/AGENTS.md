@@ -157,14 +157,16 @@ copy with image links, each written as `![diagram](<relative/path>)`.
 
 `recap` renders a self-contained HTML report (file map, annotated diffs,
 diagrams, schema/API summaries, real before/after screenshots, review notes) and
-optionally a PNG of it. It is the **rendering** half of a visual recap: you (the
-agent) author the content as `recap.json`, `visual-shot` renders it
-deterministically. The companion **`visual-recap`** skill in
+optionally a PNG of it, or — with `--format gfm` — a GitHub-flavoured Markdown
+comment. It is the **rendering** half of a visual recap: you (the agent) author
+the content as `recap.json`, `visual-shot` renders it deterministically. The
+companion **`visual-recap`** skill in
 [`agentic-tools`](../agentic-tools) is the authoring recipe — install it and
-follow it before writing `recap.json`.
+follow it before writing `recap.json`. The default theme is **dark** (matching a
+PR comment surface); pass `--theme light` for a light report.
 
 ```bash
-# Render an authored recap (HTML, plus a PNG of the whole report)
+# Render an authored recap (HTML, plus a PNG of the whole report), dark by default
 npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png
 
 # Confine local image reads to an explicit directory
@@ -172,7 +174,29 @@ npx visual-shot recap --from recap.json --asset-root docs/screenshots --png
 
 # Mechanical recap straight from a git range (file map + raw patches)
 npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png --json
+
+# A GitHub comment instead of HTML (no browser, no provisioning)
+npx visual-shot recap --from recap.json --format gfm --out recap.md --json
 ```
+
+`--format gfm` maps each block to Markdown: `notes` as-is; `callout` as a
+blockquote; `file-tree`/`table`/`data-model`/`api-endpoint` as tables (an
+unknown `file-tree` change falls back to `M`); `diff`/`patch`/`code` as
+`<details>` with a fenced diff/code block (the `patch` fence holds the raw git
+patch) and annotation bullets; `mermaid` as a ` ```mermaid ` fence; `json` as a
+pretty-printed ` ```json ` fence; `checklist` as `- [x]`/`- [ ]`; `columns`/`tabs`
+flattened with bold labels; `image`/`image-pair` embed their destinations.
+`diagram`/`wireframe` cannot render in a comment, so they emit an italic caption
+placeholder (and use `--report-url` for a link). The output starts with the
+sticky marker `<!-- visual-shot-recap -->` for idempotent comment upserts;
+GitHub renders Mermaid fences and `<details>` natively. Prose and inline fields
+may contain Markdown (`` `code` ``, `**bold**`, links) but their `<`/`>` are
+neutralised, so no field can inject HTML; only `<details>`, `<summary>`, and
+`<br>` are emitted structurally, and content inside fenced code blocks is passed
+through literally. No new browser work happens unless `--png` is also passed, in
+which case the PNG is rendered (dark by default) and referenced by its local
+path when `--image-url` is absent — pass `--image-url` for a comment image that
+loads.
 
 The JSON contract is `{ version: 1, title, brief?, meta?, blocks: [...] }`; block
 types are `file-tree`, `diff`, `patch`, `image`, `image-pair`, `mermaid`,
@@ -206,12 +230,32 @@ outlined red and its path struck through.
   data URIs, and Mermaid SVG + syntax highlighting are baked in.
 - The HTML-only path (no `--png`, no Mermaid, no code) needs **no** Chromium and
   does not provision. `--png`, Mermaid, or code highlighting provision lazily.
-- `--json` returns `{ ok, html, png, theme, blocks, mermaid, highlight, warnings }`.
-  A failed PNG screenshot is a `warning` (HTML is still written), not a failure.
+- `--json` returns `{ ok, format, html | markdown, png, theme, blocks, warnings }`
+  (plus `mermaid`/`highlight` for html). A failed PNG screenshot is a `warning`
+  (the artifact is still written), not a failure.
 - Syntax highlighting and Mermaid are pinned cache assets; if a download fails,
   the recap renders unhighlighted with a warning instead of failing.
 - `--png` reveals every tab panel and every collapsed JSON `<details>` in the
   screenshot; the HTML keeps interactive tabs and the author's `collapsedDepth`.
+
+### Post a recap comment to a PR
+
+`--format gfm` writes a comment body starting with the sticky marker
+`<!-- visual-shot-recap -->`. Upsert one comment on that marker (do not post a
+new comment each run):
+
+```bash
+npx visual-shot recap --from recap.json --format gfm --out recap.md --json
+# peter-evans/find-comment@v3 (body-includes: '<!-- visual-shot-recap -->')
+# yields steps.find.outputs.comment-id; pass it to
+# peter-evans/create-or-update-comment@v4 (body-path: recap.md, edit-mode: replace).
+# With gh, find the comment whose body contains the marker and PATCH it, else create it.
+```
+
+GitHub renders ` ```mermaid ` and `<details>` natively, so the comment is
+interactive. `diagram`/`wireframe` bodies cannot run there — the renderer emits
+their caption as a placeholder; add `--report-url <url>` to link the rendered
+HTML report, and `--png`/`--image-url` to embed a screenshot.
 
 ### Recap trust boundaries (the JSON is untrusted)
 

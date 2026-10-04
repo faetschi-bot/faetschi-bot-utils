@@ -1,4 +1,4 @@
-import { DEFAULT_RECAP_WIDTH } from '../config.mjs';
+import { DEFAULT_RECAP_THEME, DEFAULT_RECAP_WIDTH } from '../config.mjs';
 import { renderAnnotatedCode, renderCode, renderDiff, renderPatch } from './blocks-code.mjs';
 import {
   renderCallout,
@@ -176,7 +176,7 @@ ${bodyHtml}
 
 // Builds the initial page. The command renders mermaid and runs highlight.js in
 // the browser, then serializes #recap and rebuilds with the same css.
-export function buildRecap(recap, { theme = 'light', width = DEFAULT_RECAP_WIDTH, extraCss = '', assetRoot, maxImageBytes } = {}) {
+export function buildRecap(recap, { theme = DEFAULT_RECAP_THEME, width = DEFAULT_RECAP_WIDTH, extraCss = '', assetRoot, maxImageBytes } = {}) {
   const ctx = createRenderContext({ assetRoot, maxImageBytes });
   const body = renderBody(recap, ctx);
   const maxTabs = collectMaxTabs(recap.blocks);

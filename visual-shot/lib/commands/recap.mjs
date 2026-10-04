@@ -16,6 +16,7 @@ import { CliError } from '../errors.mjs';
 import { ensureHighlight } from '../highlight.mjs';
 import { ensureMermaid } from '../mermaid.mjs';
 import { assembleRecap } from '../recap/assemble.mjs';
+import { renderRecapGfm } from '../recap/gfm.mjs';
 import { collectGitDiff } from '../recap/git.mjs';
 import { RECAP_CSP, TABS_PRINT_CSS, buildRecap, renderDocument } from '../recap/render.mjs';
 import { validateRecap } from '../recap/schema.mjs';
@@ -33,7 +34,8 @@ export function usage() {
 
 Render a visual recap — file map, annotated diffs, diagrams, schema/API
 summaries, before/after screenshots, review notes — to a self-contained HTML
-report (optionally a PNG). Reads an agent-authored recap JSON and/or a git diff.
+report (optionally a PNG) or to a GitHub-flavoured Markdown comment.
+Reads an agent-authored recap JSON and/or a git diff.
 
 Options:
   --from <file|->       recap JSON to render ("-" reads stdin)
@@ -41,9 +43,15 @@ Options:
   --repo <dir>          repository for --diff (default: cwd)
   --asset-root <dir>    root confining local image reads (default: the --from
                         file's directory, else cwd for stdin/--diff-only)
-  --out <path>          output HTML (default: $VISUAL_OUT_DIR/recap.html)
-  --png                 also write a PNG of the report
+  --format <html|gfm>   output format: HTML report or GitHub Markdown comment
+                        (default: html)
+  --out <path>          output file (default: $VISUAL_OUT_DIR/recap.html for
+                        html, $VISUAL_OUT_DIR/recap.md for gfm)
+  --png                 also write a PNG of the report (html always; gfm only
+                        when explicitly given)
   --png-out <path>      explicit PNG path (default: alongside --out)
+  --report-url <url>    gfm: link to the rendered HTML report
+  --image-url <url>     gfm: embed an image of the report
   --title <text>        override the recap title
   --theme <light|dark>  report theme (default: ${DEFAULT_RECAP_THEME})
   --width <px>          page width, ${MIN_RECAP_WIDTH}-${MAX_RECAP_WIDTH} (default: ${DEFAULT_RECAP_WIDTH})
@@ -66,9 +74,12 @@ export function parse(argv) {
     else if (a === '--diff') o.diff = val();
     else if (a === '--repo') o.repo = val();
     else if (a === '--asset-root') o.assetRoot = val();
+    else if (a === '--format') o.format = val();
     else if (a === '--out') o.out = val();
     else if (a === '--png-out') o.pngOut = val();
     else if (a === '--png') o.png = true;
+    else if (a === '--report-url') o.reportUrl = val();
+    else if (a === '--image-url') o.imageUrl = val();
     else if (a === '--title') o.title = val();
     else if (a === '--theme') o.theme = val();
     else if (a === '--width') o.width = val();
@@ -166,10 +177,17 @@ export function validate(opts) {
   if (theme !== 'light' && theme !== 'dark') {
     throw new CliError(`invalid --theme "${opts.theme}" (expected light or dark)`);
   }
-  const out = resolve(opts.out || join(process.env.VISUAL_OUT_DIR || DEFAULT_OUT_DIR, 'recap.html'));
+  const format = opts.format === undefined ? 'html' : opts.format;
+  if (format !== 'html' && format !== 'gfm') {
+    throw new CliError(`invalid --format "${opts.format}" (expected html or gfm)`);
+  }
+  const out = resolve(
+    opts.out
+      || join(process.env.VISUAL_OUT_DIR || DEFAULT_OUT_DIR, format === 'gfm' ? 'recap.md' : 'recap.html'),
+  );
   const pngOut = opts.pngOut
     ? resolve(opts.pngOut)
-    : out.replace(/\.html?$/i, '') + '.png';
+    : out.replace(/\.(html?|md)$/i, '') + '.png';
 
   const from = opts.from ? readRecapJson(opts.from) : null;
   const gitData = opts.diff ? collectGitDiff({ repo: opts.repo, range: opts.diff }) : null;
@@ -193,6 +211,9 @@ export function validate(opts) {
     out,
     png: Boolean(opts.png),
     pngOut,
+    format,
+    reportUrl: opts.reportUrl || null,
+    imageUrl: opts.imageUrl || null,
     theme,
     width: boundedNumber(opts.width, DEFAULT_RECAP_WIDTH, MIN_RECAP_WIDTH, MAX_RECAP_WIDTH, 'width'),
     scale: boundedNumber(opts.scale, DEFAULT_RECAP_SCALE, 1, MAX_RECAP_SCALE, 'scale'),
@@ -324,6 +345,15 @@ async function renderInBrowser(plan, built, highlightAsset) {
   }
 }
 
+function writeOutput(path, content) {
+  try {
+    ensureDir(path);
+    writeFileSync(path, content);
+  } catch (e) {
+    throw new CliError(`cannot write output ${path}: ${e.message}`, 1);
+  }
+}
+
 export async function run(plan, ctx) {
   plan.cache = ctx.cache;
   const { recap, warnings } = assembleRecap({
@@ -332,6 +362,31 @@ export async function run(plan, ctx) {
     title: plan.title,
     range: plan.range,
   });
+
+  const isGfm = plan.format === 'gfm';
+
+  // gfm without --png is pure text: no build pass, no highlight/mermaid assets,
+  // and no browser. The HTML path inlines local images as data URIs, but a
+  // comment cannot carry those, so we reference image sources directly instead.
+  if (isGfm && !plan.png) {
+    const markdown = renderRecapGfm(recap, { reportUrl: plan.reportUrl, imageUrl: plan.imageUrl });
+    writeOutput(plan.out, markdown);
+    if (plan.json) {
+      console.log(JSON.stringify({
+        ok: true,
+        format: 'gfm',
+        markdown: plan.out,
+        png: null,
+        theme: normalizeTheme(plan.theme),
+        blocks: recap.blocks.length,
+        warnings,
+      }, null, 2));
+    } else {
+      console.log(`saved ${plan.out}`);
+      for (const warning of warnings) console.error(`[visual-shot] warning: ${warning}`);
+    }
+    return 0;
+  }
 
   let highlightAsset = null;
   if (plan.highlight && recapHasCode(recap.blocks)) {
@@ -349,21 +404,27 @@ export async function run(plan, ctx) {
     maxImageBytes: MAX_RECAP_IMAGE_BYTES,
   });
 
-  const needBrowser = plan.png || built.mermaid.length > 0 || Boolean(highlightAsset);
-  let finalHtml;
+  // gfm only reaches here with --png; html reaches here whenever mermaid/code
+  // need baking or a PNG was requested. A gfm run never writes HTML.
+  const needBrowser = plan.png || (!isGfm && (built.mermaid.length > 0 || Boolean(highlightAsset)));
+  let finalHtml = null;
   let pngOk = false;
   if (needBrowser) {
     const { content, pngError, pngWritten } = await renderInBrowser(plan, built, highlightAsset);
-    if (pngError) warnings.push(`PNG screenshot failed (HTML still written): ${pngError}`);
+    if (pngError) {
+      warnings.push(`PNG screenshot failed (${isGfm ? 'Markdown' : 'HTML'} still written): ${pngError}`);
+    }
     pngOk = pngWritten;
-    finalHtml = renderDocument({
-      bodyHtml: content,
-      css: built.css,
-      theme: plan.theme,
-      width: plan.width,
-      title: recap.title,
-      csp: RECAP_CSP,
-    });
+    if (!isGfm) {
+      finalHtml = renderDocument({
+        bodyHtml: content,
+        css: built.css,
+        theme: plan.theme,
+        width: plan.width,
+        title: recap.title,
+        csp: RECAP_CSP,
+      });
+    }
   } else {
     // No browser pass: the built body is already final, but the saved file must
     // still carry the CSP. The initial render shell (built.html) intentionally
@@ -381,22 +442,23 @@ export async function run(plan, ctx) {
   // skipped oversized PNG, rejected images), so merge after the browser pass.
   warnings.push(...built.warnings);
 
-  try {
-    ensureDir(plan.out);
-    writeFileSync(plan.out, finalHtml);
-  } catch (e) {
-    throw new CliError(`cannot write output ${plan.out}: ${e.message}`, 1);
+  if (isGfm) {
+    // Reference the rendered PNG only when the caller did not supply a URL.
+    const imageUrl = plan.imageUrl || (pngOk ? plan.pngOut : null);
+    writeOutput(plan.out, renderRecapGfm(recap, { reportUrl: plan.reportUrl, imageUrl }));
+  } else {
+    writeOutput(plan.out, finalHtml);
   }
 
   if (plan.json) {
     console.log(JSON.stringify({
       ok: true,
-      html: plan.out,
+      format: isGfm ? 'gfm' : 'html',
+      ...(isGfm ? { markdown: plan.out } : { html: plan.out }),
       png: pngOk ? plan.pngOut : null,
       theme: normalizeTheme(plan.theme),
       blocks: recap.blocks.length,
-      mermaid: built.mermaid.length,
-      highlight: Boolean(highlightAsset),
+      ...(isGfm ? {} : { mermaid: built.mermaid.length, highlight: Boolean(highlightAsset) }),
       warnings,
     }, null, 2));
   } else {
