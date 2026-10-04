@@ -280,7 +280,8 @@ the `columns` / `tabs` containers. Inspect the schema and validation errors from
 following the companion **`visual-recap`** skill in
 [`agentic-tools`](../agentic-tools). For a rendered showcase (source JSON, an
 interactive HTML report, and light/dark PNGs), see
-[`examples/recap/`](./examples/recap).
+[`examples/recap/`](https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/visual-shot/examples/recap)
+in the repository.
 
 `wireframe` renders a framed UI mockup from author `html` (optional `css`,
 `caption`, `height`), for showing UI/state changes when a real screenshot is
