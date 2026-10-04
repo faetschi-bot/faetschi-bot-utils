@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; font-src data:">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentic-tools: add the simple-english skill</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --border: #d1d9e0;
+  --card: #f6f8fa; --accent: #0969da; --code-bg: #f6f8fa;
+  --add-bg: #e6ffec; --add-fg: #1a7f37; --rem-bg: #ffebe9; --rem-fg: #cf222e;
+  --pill-bg: #ddf4ff;
+}
+body.theme-dark {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #30363d;
+  --card: #161b22; --accent: #4493f8; --code-bg: #161b22;
+  --add-bg: #12261e; --add-fg: #3fb950; --rem-bg: #25171c; --rem-fg: #f85149;
+  --pill-bg: #121d2f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+body {
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#recap { width: 1100px; max-width: 100%; margin: 0 auto; padding: 40px 44px 56px; }
+h1 { font-size: 26px; line-height: 1.25; margin: 0 0 6px; }
+h2 { font-size: 18px; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 15px; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+.blk { margin: 16px 0; }
+.brief { color: var(--muted); font-size: 15px; margin: 0 0 8px; }
+.meta-line { color: var(--muted); font-size: 12px; margin: 0 0 22px; }
+.muted { color: var(--muted); }
+
+/* file tree */
+.file-tree { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 10px 12px; }
+.file-tree ul { list-style: none; margin: 0; padding: 0; }
+.file-tree li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.file-tree .path { color: var(--fg); }
+.file-tree .note { color: var(--muted); font-size: 12px; }
+.badge { display: inline-block; width: 18px; text-align: center; border-radius: 4px; font-size: 11px; font-weight: 700; padding: 1px 0; }
+.badge.added { background: var(--add-bg); color: var(--add-fg); }
+.badge.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.badge.modified { background: var(--pill-bg); color: var(--accent); }
+.badge.renamed { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+
+/* diff */
+.diff { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.diff-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--border); font-size: 12px; }
+.diff-head .file { font-weight: 600; }
+.diff-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.diff-col { min-width: 0; overflow: auto; }
+.diff-col + .diff-col { border-left: 1px solid var(--border); }
+.diff-col .col-title { padding: 4px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--card); }
+.line { display: flex; white-space: pre; }
+.line .ln { flex: 0 0 42px; text-align: right; padding: 0 8px 0 6px; color: var(--muted); user-select: none; border-right: 1px solid var(--border); }
+.line .code { flex: 1; padding: 0 10px; white-space: pre; }
+.line.add, .line.add .code { background: var(--add-bg); }
+.line.rem, .line.rem .code { background: var(--rem-bg); }
+.line.empty { background: var(--card); }
+.mark { color: var(--accent); font-weight: 700; }
+.annot { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.annot li { padding: 6px 10px; border-left: 3px solid var(--accent); background: var(--card); margin: 4px 0; border-radius: 0 6px 6px 0; }
+.annot .tag { font-weight: 700; }
+.patch { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; overflow: auto; }
+.patch .line .ln { display: none; }
+.patch.numbered .line .ln { display: block; }
+.code-block { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; font-size: 13px; }
+.code-block code { white-space: pre; }
+
+/* images */
+.img-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.img-pair figure, .img-single figure { margin: 0; }
+.img-pair figcaption, .img-single figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.img-pair img, .img-single img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+.img-missing { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; }
+
+/* mermaid / diagram */
+.mermaid-slot { display: flex; justify-content: center; padding: 10px; overflow: auto; }
+.mermaid-slot svg { max-width: 100%; height: auto; }
+.diagram-frame { border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; }
+
+/* wireframe: author HTML/CSS renders inside a sandboxed srcdoc iframe
+   (.wf-body) so it cannot restyle the report; the frame chrome stays CSS-only. */
+.wf { max-width: 100%; }
+.wf-frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg); }
+.wf-bar { background: var(--card); border-bottom: 1px solid var(--border); }
+.wf-body { display: block; width: 100%; border: 0; background: #fff; }
+.wf-caption { font-size: 12px; margin-top: 6px; }
+/* Surface widths; JS only picks the class, never sets a width. */
+.wf-browser, .wf-desktop { width: 100%; }
+.wf-tablet, .wf-mobile, .wf-popover, .wf-panel { margin-left: auto; margin-right: auto; }
+.wf-tablet { width: 768px; }
+.wf-mobile { width: 375px; }
+.wf-popover { width: 360px; }
+.wf-panel { width: 420px; }
+/* CSS-only chrome per surface. */
+.wf-browser .wf-bar { height: 28px; }
+.wf-browser .wf-bar::before {
+  content: "";
+  display: block;
+  width: 9px; height: 9px;
+  margin: 9px 0 0 12px;
+  border-radius: 50%;
+  background: var(--rem-fg);
+  box-shadow: 16px 0 0 var(--muted), 32px 0 0 var(--add-fg);
+}
+.wf-desktop .wf-bar { height: 26px; }
+.wf-desktop .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+.wf-tablet .wf-bar { height: 18px; }
+.wf-tablet .wf-bar::before {
+  content: "";
+  display: block;
+  width: 6px; height: 6px;
+  margin: 5px auto 0;
+  border-radius: 50%;
+  background: var(--border);
+}
+.wf-mobile .wf-bar { height: 22px; }
+.wf-mobile .wf-bar::before {
+  content: "";
+  display: block;
+  width: 90px; height: 8px;
+  margin: 6px auto 0;
+  border-radius: 6px;
+  background: var(--border);
+}
+.wf-popover .wf-bar { height: 16px; }
+.wf-popover .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40px; height: 4px;
+  margin: 6px auto 0;
+  border-radius: 3px;
+  background: var(--border);
+}
+.wf-panel .wf-bar { height: 26px; }
+.wf-panel .wf-bar::before {
+  content: "";
+  display: block;
+  width: 55%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+/* data model */
+.data-model { display: flex; flex-wrap: wrap; gap: 14px; }
+.entity { border: 1px solid var(--border); border-radius: 8px; min-width: 240px; background: var(--card); overflow: hidden; }
+.entity > .name { padding: 8px 12px; font-weight: 700; background: var(--pill-bg); border-bottom: 1px solid var(--border); }
+.entity table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.entity td { padding: 4px 12px; border-top: 1px solid var(--border); }
+.entity td.key { color: var(--muted); width: 44px; }
+.entity td.type { color: var(--muted); }
+.chg { font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; margin-left: 6px; }
+.chg.added { background: var(--add-bg); color: var(--add-fg); }
+.chg.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.chg.modified, .chg.renamed { background: var(--pill-bg); color: var(--accent); }
+
+/* endpoint */
+.endpoint { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.endpoint .head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--card); }
+.method { font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--pill-bg); color: var(--accent); }
+.endpoint .body { padding: 10px 12px; }
+.endpoint table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+.endpoint th, .endpoint td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+/* A removed endpoint is outlined red and its path struck through. */
+.endpoint.removed { border-color: var(--rem-fg); }
+.endpoint.removed .head { background: var(--rem-bg); }
+.endpoint.removed code { text-decoration: line-through; }
+
+/* json explorer */
+.json-title { font-weight: 700; margin-bottom: 6px; }
+.json-tree {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  padding: 10px 12px; overflow: auto; font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.jv-node > summary { cursor: pointer; list-style: none; }
+.jv-node > summary::-webkit-details-marker { display: none; }
+.jv-node > summary::before { content: "\25B8"; display: inline-block; width: 12px; color: var(--muted); }
+.jv-node[open] > summary::before { content: "\25BE"; }
+.jv-children { margin-left: 14px; padding-left: 10px; border-left: 1px solid var(--border); }
+.jv-row { padding: 1px 0; }
+.jv-key { color: var(--muted); }
+.jv-index { color: var(--muted); }
+.jv-punct { color: var(--muted); }
+.jv-string { color: var(--add-fg); }
+.jv-number { color: var(--accent); }
+.jv-bool { color: var(--rem-fg); }
+.jv-null { color: var(--muted); font-style: italic; }
+
+/* callout */
+.callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 14px; border-radius: 0 8px 8px 0; }
+.callout.risk, .callout.warning { border-left-color: var(--rem-fg); }
+.callout.success, .callout.decision { border-left-color: var(--add-fg); }
+.callout .title { font-weight: 700; margin-bottom: 2px; }
+
+/* table */
+table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.grid th, table.grid td { text-align: left; padding: 7px 10px; border: 1px solid var(--border); }
+table.grid th { background: var(--card); }
+
+/* checklist */
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li { padding: 4px 0 4px 26px; position: relative; }
+.checklist li::before { content: "\2610"; position: absolute; left: 4px; color: var(--muted); }
+.checklist li.done::before { content: "\2611"; color: var(--add-fg); }
+.checklist .note { color: var(--muted); font-size: 12px; display: block; }
+
+/* columns + tabs */
+.columns { display: grid; gap: 14px; align-items: start; }
+.columns .col-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+.tabs { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tabs > input { display: none; }
+.tabbar { display: flex; flex-wrap: wrap; gap: 2px; background: var(--card); border-bottom: 1px solid var(--border); padding: 4px 6px 0; }
+.tabbar label { padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; }
+.tab-panels { padding: 12px; }
+.tab-panels > .panel { display: none; }
+.tabs > input:nth-of-type(1):checked ~ .tab-panels > .panel:nth-child(1) { display: block; }
+.tabs > input:nth-of-type(1):checked ~ .tabbar > label:nth-child(1) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+.tabs > input:nth-of-type(2):checked ~ .tab-panels > .panel:nth-child(2) { display: block; }
+.tabs > input:nth-of-type(2):checked ~ .tabbar > label:nth-child(2) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+.tabs > input:nth-of-type(3):checked ~ .tab-panels > .panel:nth-child(3) { display: block; }
+.tabs > input:nth-of-type(3):checked ~ .tabbar > label:nth-child(3) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+.tabs > input:nth-of-type(4):checked ~ .tab-panels > .panel:nth-child(4) { display: block; }
+.tabs > input:nth-of-type(4):checked ~ .tabbar > label:nth-child(4) { color: var(--fg); border-color: var(--accent); background: var(--card); }
+
+
+  .hljs { background: transparent; padding: 0; }
+#recap { width: 1100px; }
+pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}/*!
+  Theme: GitHub Dark
+  Description: Dark theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+  Outdated base version: https://github.com/primer/github-syntax-dark
+  Current colors taken from GitHub's CSS
+*/.hljs{color:#c9d1d9;background:#0d1117}.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-variable.language_{color:#ff7b72}.hljs-title,.hljs-title.class_,.hljs-title.class_.inherited__,.hljs-title.function_{color:#d2a8ff}.hljs-attr,.hljs-attribute,.hljs-literal,.hljs-meta,.hljs-number,.hljs-operator,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id,.hljs-variable{color:#79c0ff}.hljs-meta .hljs-string,.hljs-regexp,.hljs-string{color:#a5d6ff}.hljs-built_in,.hljs-symbol{color:#ffa657}.hljs-code,.hljs-comment,.hljs-formula{color:#8b949e}.hljs-name,.hljs-quote,.hljs-selector-pseudo,.hljs-selector-tag{color:#7ee787}.hljs-subst{color:#c9d1d9}.hljs-section{color:#1f6feb;font-weight:700}.hljs-bullet{color:#f2cc60}.hljs-emphasis{color:#c9d1d9;font-style:italic}.hljs-strong{color:#c9d1d9;font-weight:700}.hljs-addition{color:#aff5b4;background-color:#033a16}.hljs-deletion{color:#ffdcd7;background-color:#67060c}
+</style>
+</head>
+<body class="theme-dark">
+<div id="recap">
+
+<h1>agentic-tools: add the simple-english skill</h1><div class="brief"><p>Vendors the ASD-STE100 Simplified Technical English skill as <code>agentic-tools/skills/simple-english</code> and registers it in the pack docs. Install it with <code>npx agentic-tools install simple-english</code>.</p></div><p class="meta-line">PR #52 · branch agentic-tools/simple-english · 11 files, +1906 / -1</p><div class="blk"><div class="callout info"><div class="title">What this adds</div><p><code>simple-english</code> makes an agent write, rewrite, review, and check technical documentation in <strong>ASD-STE100 Simplified Technical English</strong>. It is vendored from <a href="https://github.com/0xpili/simplified-technical-english"><code>0xpili/simplified-technical-english</code></a> and renamed for a shorter install name.</p></div></div>
+<div class="blk"><div class="file-tree"><ul><li><span class="badge modified" title="modified">M</span><span class="path">agentic-tools/AGENTS.md</span><span class="note">Skills-table row + new "Vendored skills" note</span></li><li><span class="badge modified" title="modified">M</span><span class="path">agentic-tools/README.md</span><span class="note">Skills-table row + simple-english section</span></li><li><span class="badge modified" title="modified">M</span><span class="path">agentic-tools/package.json</span><span class="note">0.5.0 -&gt; 0.6.0 so merging publishes the tarball</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/SKILL.md</span><span class="note">Trigger + verb/sentence/word/safety rules (124 lines)</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/references/writing-rules.md</span><span class="note">53 rules + 4 recommendations (209 lines)</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/references/word-list.md</span><span class="note">869 approved words (994 lines)</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/references/substitutions.md</span><span class="note">Replacements for unapproved words (113 lines)</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/examples/before-after.md</span><span class="note">5 before/after rewrites (86 lines)</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/scripts/ste_check.py</span><span class="note">Optional Python 3 checker (301 lines)</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/LICENSE</span><span class="note">MIT for the skill text and script</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/simple-english/NOTICE.md</span><span class="note">ASD-STE100 word list stays ASD property</span></li></ul></div></div>
+<div class="blk"><table class="grid"><thead><tr><th>Path</th><th>Role</th></tr></thead><tbody><tr><td>SKILL.md</td><td>Trigger + the verb, sentence, word, and safety rules</td></tr><tr><td>references/writing-rules.md</td><td>The 53 writing rules + 4 recommendations</td></tr><tr><td>references/word-list.md</td><td>The 869 approved words</td></tr><tr><td>references/substitutions.md</td><td>Replacements for frequent unapproved words</td></tr><tr><td>examples/before-after.md</td><td>5 before/after rewrites</td></tr><tr><td>scripts/ste_check.py</td><td>Optional Python 3 checker (rule numbers in output)</td></tr><tr><td>LICENSE + NOTICE.md</td><td>MIT text/script; ASD-STE100 dictionary stays ASD property</td></tr></tbody></table></div>
+<div class="blk"><div class="diff"><div class="diff-head"><span class="file">examples/before-after.md — Example 1 (procedural)</span><span class="muted">Real example from the skill: the rewrite the agent is taught to produce.</span></div><div class="diff-grid"><div class="diff-col"><div class="col-title">Before</div><div class="line rem"><span class="ln">1</span><span class="code"><code class="language-text hljs language-plaintext" data-highlighted="yes">Prior to commencing the installation, it should be ensured that all components</code></span></div><div class="line rem"><span class="ln">2</span><span class="code"><code class="language-text hljs language-plaintext" data-highlighted="yes">have been thoroughly inspected for damage, and any defective parts should be</code></span></div><div class="line rem"><span class="ln">3</span><span class="code"><span class="mark">●</span><code class="language-text hljs language-plaintext" data-highlighted="yes">replaced immediately; failure to do so may result in system malfunction.</code></span></div></div><div class="diff-col"><div class="col-title">After</div><div class="line add"><span class="ln">1</span><span class="code"><code class="language-text hljs language-plaintext" data-highlighted="yes">Before you start the installation, examine all the components for damage.</code></span></div><div class="line add"><span class="ln">2</span><span class="code"><span class="mark">●</span><code class="language-text hljs language-plaintext" data-highlighted="yes">If you find a defective part, replace it immediately.</code></span></div><div class="line add"><span class="ln">3</span><span class="code"><span class="mark">●</span><code class="language-text hljs language-plaintext" data-highlighted="yes">A defective part can cause a system malfunction.</code></span></div></div></div></div><ul class="annot"><li><span class="tag">Imperative</span> <span class="muted">Line 2-3: </span>Commands, active voice, no "should".</li><li><span class="tag">Semicolon</span> <span class="muted">Line 3 (before): </span>Semicolons are banned — split into sentences.</li></ul></div>
+<div class="blk"><div class="tabs"><input type="radio" name="tabs-1" id="tabs-1-0" checked=""><input type="radio" name="tabs-1" id="tabs-1-1"><input type="radio" name="tabs-1" id="tabs-1-2"><input type="radio" name="tabs-1" id="tabs-1-3"><div class="tabbar"><label for="tabs-1-0">package.json</label><label for="tabs-1-1">AGENTS.md</label><label for="tabs-1-2">README.md</label><label for="tabs-1-3">SKILL.md</label></div><div class="tab-panels"><div class="panel" data-label="package.json"><div class="blk"><div class="diff"><div class="diff-head"><span class="file">agentic-tools/package.json</span><span class="muted">Version bump triggers the release workflow on merge.</span></div><div class="patch"><div class="line "><span class="code">diff --git a/agentic-tools/package.json b/agentic-tools/package.json</span></div><div class="line "><span class="code">index 449b323..6d2892f 100644</span></div><div class="line "><span class="code">--- a/agentic-tools/package.json</span></div><div class="line "><span class="code">+++ b/agentic-tools/package.json</span></div><div class="line "><span class="code">@@ -1,6 +1,6 @@</span></div><div class="line "><span class="code"> {</span></div><div class="line "><span class="code">   "name": "agentic-tools",</span></div><div class="line rem"><span class="code">-  "version": "0.5.0",</span></div><div class="line add"><span class="code">+  "version": "0.6.0",</span></div><div class="line "><span class="code">   "description": "Reusable skills and hooks for AI coding agents.",</span></div><div class="line "><span class="code">   "keywords": [</span></div><div class="line "><span class="code">     "agent",</span></div></div></div></div></div><div class="panel" data-label="AGENTS.md"><div class="blk"><div class="diff"><div class="diff-head"><span class="file">agentic-tools/AGENTS.md</span><span class="muted">New table row + a "Vendored skills" maintainer note.</span></div><div class="patch"><div class="line "><span class="code">diff --git a/agentic-tools/AGENTS.md b/agentic-tools/AGENTS.md</span></div><div class="line "><span class="code">index 912c8de..b9d165c 100644</span></div><div class="line "><span class="code">--- a/agentic-tools/AGENTS.md</span></div><div class="line "><span class="code">+++ b/agentic-tools/AGENTS.md</span></div><div class="line "><span class="code">@@ -105,6 +105,15 @@ npx agentic-tools list</span></div><div class="line "><span class="code"> | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |</span></div><div class="line "><span class="code"> | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a large, multi-file, UI/schema/API/architecture change into a visual recap. Authors the `recap.json` that `visual-shot recap` renders. |</span></div><div class="line "><span class="code"> | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |</span></div><div class="line add"><span class="code">+| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |</span></div><div class="line add"><span class="code">+</span></div><div class="line add"><span class="code">+## Vendored skills</span></div><div class="line add"><span class="code">+</span></div><div class="line add"><span class="code">+A skill can be copied from upstream instead of written here. Keep the source</span></div><div class="line add"><span class="code">+files verbatim, ship its `LICENSE`/`NOTICE.md` inside the skill directory so the</span></div><div class="line add"><span class="code">+attribution travels with `install`, and point at the upstream repo in the</span></div><div class="line add"><span class="code">+provenance note here. `simple-english` is vendored this way from</span></div><div class="line add"><span class="code">+[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english).</span></div><div class="line "><span class="code"> </span></div><div class="line "><span class="code"> ## Adding a skill (maintainers)</span></div><div class="line "><span class="code"> </span></div></div></div></div></div><div class="panel" data-label="README.md"><div class="blk"><div class="diff"><div class="diff-head"><span class="file">agentic-tools/README.md</span><span class="muted">New table row + a simple-english section.</span></div><div class="patch"><div class="line "><span class="code">diff --git a/agentic-tools/README.md b/agentic-tools/README.md</span></div><div class="line "><span class="code">index 3a6b21b..26f5f58 100644</span></div><div class="line "><span class="code">--- a/agentic-tools/README.md</span></div><div class="line "><span class="code">+++ b/agentic-tools/README.md</span></div><div class="line "><span class="code">@@ -82,6 +82,7 @@ $ npx agentic-tools doctor --json</span></div><div class="line "><span class="code"> | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |</span></div><div class="line "><span class="code"> | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |</span></div><div class="line "><span class="code"> | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |</span></div><div class="line add"><span class="code">+| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |</span></div><div class="line "><span class="code"> </span></div><div class="line "><span class="code"> ### agent-friendly-code</span></div><div class="line "><span class="code"> </span></div><div class="line "><span class="code">@@ -150,6 +151,19 @@ of `config set` keys worth knowing, day-to-day commands, and the trust caveats</span></div><div class="line "><span class="code"> (it types into your terminal; it is not an auto-approver). The pack does not ship</span></div><div class="line "><span class="code"> or vendor unsnooze — the skill just points at upstream.</span></div><div class="line "><span class="code"> </span></div><div class="line add"><span class="code">+### simple-english</span></div><div class="line add"><span class="code">+</span></div><div class="line add"><span class="code">+Vendored verbatim from</span></div><div class="line add"><span class="code">+[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english)</span></div><div class="line add"><span class="code">+(renamed to `simple-english` for a shorter install name; MIT, and the ASD-STE100</span></div><div class="line add"><span class="code">+word list stays ASD property — see the skill's `NOTICE.md`). It makes the agent</span></div><div class="line add"><span class="code">+write and rewrite technical documentation in ASD-STE100 Simplified Technical</span></div><div class="line add"><span class="code">+English: the verb, sentence, word, and safety rules, an 869-word approved list,</span></div><div class="line add"><span class="code">+substitutions, before/after examples, and an optional `scripts/ste_check.py`</span></div><div class="line add"><span class="code">+checker. Because the whole skill directory is copied, `install simple-english`</span></div><div class="line add"><span class="code">+brings its references, examples, and script along; it is text plus one optional</span></div><div class="line add"><span class="code">+Python 3 checker.</span></div><div class="line add"><span class="code">+</span></div><div class="line "><span class="code"> ## Use a skill</span></div><div class="line "><span class="code"> </span></div><div class="line "><span class="code"> `install &lt;name...&gt;` copies only the named skills; `install --all` copies every</span></div></div></div></div></div><div class="panel" data-label="SKILL.md"><div class="blk"><div class="diff-head"><span class="file">agentic-tools/skills/simple-english/SKILL.md</span><span class="muted">Frontmatter: the install name must match the directory.</span></div><pre class="code-block"><code class="language-yaml hljs" data-highlighted="yes"><span class="hljs-meta">---</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">simple-english</span>
+<span class="hljs-attr">description:</span> <span class="hljs-string">Writes</span> <span class="hljs-string">and</span> <span class="hljs-string">rewrites</span> <span class="hljs-string">text</span> <span class="hljs-string">in</span> <span class="hljs-string">Simplified</span> <span class="hljs-string">Technical</span> <span class="hljs-string">English</span> <span class="hljs-string">(ASD-STE100),</span> <span class="hljs-string">a</span> <span class="hljs-string">controlled</span> <span class="hljs-string">language</span> <span class="hljs-string">for</span> <span class="hljs-string">clear</span> <span class="hljs-string">technical</span> <span class="hljs-string">documentation.</span> <span class="hljs-string">Use</span> <span class="hljs-string">when</span> <span class="hljs-string">the</span> <span class="hljs-string">user</span> <span class="hljs-string">asks</span> <span class="hljs-string">for</span> <span class="hljs-string">STE,</span> <span class="hljs-string">Simplified</span> <span class="hljs-string">Technical</span> <span class="hljs-string">English,</span> <span class="hljs-string">controlled</span> <span class="hljs-string">language,</span> <span class="hljs-string">or</span> <span class="hljs-string">plain</span> <span class="hljs-string">technical</span> <span class="hljs-string">writing,</span> <span class="hljs-string">and</span> <span class="hljs-string">when</span> <span class="hljs-string">the</span> <span class="hljs-string">user</span> <span class="hljs-string">asks</span> <span class="hljs-string">to</span> <span class="hljs-string">write,</span> <span class="hljs-string">rewrite,</span> <span class="hljs-string">review,</span> <span class="hljs-string">or</span> <span class="hljs-string">check</span> <span class="hljs-string">technical</span> <span class="hljs-string">documentation,</span> <span class="hljs-string">procedures,</span> <span class="hljs-string">manuals,</span> <span class="hljs-string">instructions,</span> <span class="hljs-string">warnings,</span> <span class="hljs-string">or</span> <span class="hljs-string">reports.</span>
+<span class="hljs-attr">license:</span> <span class="hljs-string">MIT</span> <span class="hljs-string">for</span> <span class="hljs-string">the</span> <span class="hljs-string">text</span> <span class="hljs-string">of</span> <span class="hljs-string">this</span> <span class="hljs-string">skill.</span> <span class="hljs-string">The</span> <span class="hljs-string">word</span> <span class="hljs-string">list</span> <span class="hljs-string">in</span> <span class="hljs-string">references/word-list.md</span> <span class="hljs-string">comes</span> <span class="hljs-string">from</span> <span class="hljs-string">the</span> <span class="hljs-string">ASD-STE100</span> <span class="hljs-string">dictionary,</span> <span class="hljs-string">which</span> <span class="hljs-string">is</span> <span class="hljs-string">the</span> <span class="hljs-string">property</span> <span class="hljs-string">of</span> <span class="hljs-string">ASD.</span> <span class="hljs-string">Refer</span> <span class="hljs-string">to</span> <span class="hljs-string">NOTICE.md.</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">source-specification:</span> <span class="hljs-string">ASD-STE100</span> <span class="hljs-string">Issue</span> <span class="hljs-number">7</span> <span class="hljs-string">(2017-01-25)</span>
+<span class="hljs-meta">---</span></code></pre></div></div></div></div></div>
+<div class="blk"><div class="mermaid-slot" data-mermaid-id="mermaid-2"><svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 0 276 662" style="max-width: 276px;" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="100%" id="r-mermaid-2"><style>#r-mermaid-2{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#ccc;}#r-mermaid-2 .error-icon{fill:#a44141;}#r-mermaid-2 .error-text{fill:#ddd;stroke:#ddd;}#r-mermaid-2 .edge-thickness-normal{stroke-width:1px;}#r-mermaid-2 .edge-thickness-thick{stroke-width:3.5px;}#r-mermaid-2 .edge-pattern-solid{stroke-dasharray:0;}#r-mermaid-2 .edge-thickness-invisible{stroke-width:0;fill:none;}#r-mermaid-2 .edge-pattern-dashed{stroke-dasharray:3;}#r-mermaid-2 .edge-pattern-dotted{stroke-dasharray:2;}#r-mermaid-2 .marker{fill:lightgrey;stroke:lightgrey;}#r-mermaid-2 .marker.cross{stroke:lightgrey;}#r-mermaid-2 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#r-mermaid-2 p{margin:0;}#r-mermaid-2 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#ccc;}#r-mermaid-2 .cluster-label text{fill:#F9FFFE;}#r-mermaid-2 .cluster-label span{color:#F9FFFE;}#r-mermaid-2 .cluster-label span p{background-color:transparent;}#r-mermaid-2 .label text,#r-mermaid-2 span{fill:#ccc;color:#ccc;}#r-mermaid-2 .node rect,#r-mermaid-2 .node circle,#r-mermaid-2 .node ellipse,#r-mermaid-2 .node polygon,#r-mermaid-2 .node path{fill:#1f2020;stroke:#ccc;stroke-width:1px;}#r-mermaid-2 .rough-node .label text,#r-mermaid-2 .node .label text,#r-mermaid-2 .image-shape .label,#r-mermaid-2 .icon-shape .label{text-anchor:middle;}#r-mermaid-2 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#r-mermaid-2 .rough-node .label,#r-mermaid-2 .node .label,#r-mermaid-2 .image-shape .label,#r-mermaid-2 .icon-shape .label{text-align:center;}#r-mermaid-2 .node.clickable{cursor:pointer;}#r-mermaid-2 .root .anchor path{fill:lightgrey!important;stroke-width:0;stroke:lightgrey;}#r-mermaid-2 .arrowheadPath{fill:lightgrey;}#r-mermaid-2 .edgePath .path{stroke:lightgrey;stroke-width:2.0px;}#r-mermaid-2 .flowchart-link{stroke:lightgrey;fill:none;}#r-mermaid-2 .edgeLabel{background-color:hsl(0, 0%, 34.4117647059%);text-align:center;}#r-mermaid-2 .edgeLabel p{background-color:hsl(0, 0%, 34.4117647059%);}#r-mermaid-2 .edgeLabel rect{opacity:0.5;background-color:hsl(0, 0%, 34.4117647059%);fill:hsl(0, 0%, 34.4117647059%);}#r-mermaid-2 .labelBkg{background-color:rgba(87.75, 87.75, 87.75, 0.5);}#r-mermaid-2 .cluster rect{fill:hsl(180, 1.5873015873%, 28.3529411765%);stroke:rgba(255, 255, 255, 0.25);stroke-width:1px;}#r-mermaid-2 .cluster text{fill:#F9FFFE;}#r-mermaid-2 .cluster span{color:#F9FFFE;}#r-mermaid-2 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(20, 1.5873015873%, 12.3529411765%);border:1px solid rgba(255, 255, 255, 0.25);border-radius:2px;pointer-events:none;z-index:100;}#r-mermaid-2 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#ccc;}#r-mermaid-2 rect.text{fill:none;stroke-width:0;}#r-mermaid-2 .icon-shape,#r-mermaid-2 .image-shape{background-color:hsl(0, 0%, 34.4117647059%);text-align:center;}#r-mermaid-2 .icon-shape p,#r-mermaid-2 .image-shape p{background-color:hsl(0, 0%, 34.4117647059%);padding:2px;}#r-mermaid-2 .icon-shape rect,#r-mermaid-2 .image-shape rect{opacity:0.5;background-color:hsl(0, 0%, 34.4117647059%);fill:hsl(0, 0%, 34.4117647059%);}#r-mermaid-2 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-2_flowchart-v2-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="r-mermaid-2_flowchart-v2-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="r-mermaid-2_flowchart-v2-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_A_B_0" d="M138,86L138,90.167C138,94.333,138,102.667,138,110.333C138,118,138,125,138,128.5L138,132"></path><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_B_C_1" d="M138,190L138,194.167C138,198.333,138,206.667,138,214.333C138,222,138,229,138,232.5L138,236"></path><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_C_D_2" d="M138,294L138,298.167C138,302.333,138,310.667,138,318.333C138,326,138,333,138,336.5L138,340"></path><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_D_E_3" d="M138,398L138,402.167C138,406.333,138,414.667,138,422.333C138,430,138,437,138,440.5L138,444"></path><path marker-end="url(#r-mermaid-2_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_E_F_4" d="M138,502L138,506.167C138,510.333,138,518.667,138,526.333C138,534,138,541,138,544.5L138,548"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(138, 47)" id="flowchart-A-0" class="node default"><rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container"></rect><g transform="translate(-100, -24)" style="" class="label"><rect></rect><foreignObject height="48" width="200"><div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Classify procedural or descriptive</p></span></div></foreignObject></g></g><g transform="translate(138, 163)" id="flowchart-B-1" class="node default"><rect height="54" width="140.71875" y="-27" x="-70.359375" style="" class="basic label-container"></rect><g transform="translate(-40.359375, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="80.71875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Verb rules</p></span></div></foreignObject></g></g><g transform="translate(138, 267)" id="flowchart-C-3" class="node default"><rect height="54" width="179.46875" y="-27" x="-89.734375" style="" class="basic label-container"></rect><g transform="translate(-59.734375, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="119.46875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Sentence rules</p></span></div></foreignObject></g></g><g transform="translate(138, 371)" id="flowchart-D-5" class="node default"><rect height="54" width="145.5625" y="-27" x="-72.78125" style="" class="basic label-container"></rect><g transform="translate(-42.78125, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="85.5625"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Word rules</p></span></div></foreignObject></g></g><g transform="translate(138, 475)" id="flowchart-E-7" class="node default"><rect height="54" width="209.96875" y="-27" x="-104.984375" style="" class="basic label-container"></rect><g transform="translate(-74.984375, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="149.96875"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Safety instructions</p></span></div></foreignObject></g></g><g transform="translate(138, 603)" id="flowchart-F-9" class="node default"><rect height="102" width="260" y="-51" x="-130" style="" class="basic label-container"></rect><g transform="translate(-100, -36)" style="" class="label"><rect></rect><foreignObject height="72" width="200"><div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Check with ste_check.py or a manual scan</p></span></div></foreignObject></g></g></g></g></g></svg></div><div class="muted">The six steps the skill instructs the agent to follow.</div></div>
+<div class="blk"><ul class="checklist"><li class="done">`doctor --json` -&gt; `ok: true` for all 5 skills</li><li class="done">`npm test` -&gt; 17/17 pass</li><li class="done">`install simple-english` copies the full skill directory</li><li class="done">`npm pack --dry-run` includes every skill file</li><li class="done">`scripts/ste_check.py` runs and flags rule violations</li></ul></div>
+<div class="blk"><div class="callout risk"><div class="title">License scope</div><p>The skill text, references, examples, and script are <strong>MIT</strong>. The <code>references/word-list.md</code> comes from the <strong>ASD-STE100 dictionary, which is ASD property</strong>. <code>LICENSE</code> and <code>NOTICE.md</code> are copied inside the skill directory so the attribution travels with <code>install</code>.</p></div></div>
+
+</div>
+</body>
+</html>
