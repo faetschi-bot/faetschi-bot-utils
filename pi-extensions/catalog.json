@@ -1,0 +1,22 @@
+{
+  "extensions": [
+    {
+      "name": "you-should-know",
+      "summary": "A side agent watches the session and shows one card above the prompt when it finds something you might miss.",
+      "sources": {
+        "pi": {
+          "installer": "pi",
+          "spec": "git:github.com/aliceisjustplaying/pi-you-should-know",
+          "homepage": "https://github.com/aliceisjustplaying/pi-you-should-know",
+          "license": "UNLICENSED"
+        },
+        "omp": {
+          "installer": "omp",
+          "spec": "github:ubranch/omp-you-should-know",
+          "homepage": "https://github.com/ubranch/omp-you-should-know",
+          "license": "MIT"
+        }
+      }
+    }
+  ]
+}
