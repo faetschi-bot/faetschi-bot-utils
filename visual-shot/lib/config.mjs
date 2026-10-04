@@ -10,7 +10,6 @@ export const DEFAULT_NAV_TIMEOUT = 30000;
 export const DEFAULT_SERVER_TIMEOUT = 30000;
 export const MAX_ERRORS = 50;
 export const MAX_RETRIES = 10;
-export const DEFAULT_PLAYWRIGHT_VERSION = '1.49.1';
 
 // diff
 export const DEFAULT_DIFF_THRESHOLD = 0.1;
@@ -33,7 +32,9 @@ export const DEFAULT_DIAGRAM_SCALE = 2;
 // surface; dark is the default and `--theme light` opts back into light.
 export const DEFAULT_RECAP_THEME = 'dark';
 export const DEFAULT_RECAP_WIDTH = 1100;
-export const DEFAULT_RECAP_SCALE = 2;
+// The recap PNG is a companion image (see --only/--visuals-only), not a
+// full-resolution screenshot; scale 1 keeps it small. `--scale` opts up.
+export const DEFAULT_RECAP_SCALE = 1;
 export const MAX_RECAP_PATCH_FILES = 25;
 export const MAX_RECAP_PATCH_BYTES = 400000;
 export const DEFAULT_HIGHLIGHT_VERSION = '11.10.0';
@@ -69,20 +70,11 @@ export function assetSha256(url) {
 
 export function cacheDir(env = process.env) {
   return env.VISUAL_SHOT_CACHE
-    || env.BRUTAL_VISUAL_CACHE
     || join(env.XDG_DATA_HOME || join(os.homedir(), '.local/share'), 'visual-shot');
 }
 
-export function playwrightVersion(env = process.env) {
-  return env.VISUAL_SHOT_PLAYWRIGHT_VERSION
-    || env.BRUTAL_PLAYWRIGHT_VERSION
-    || DEFAULT_PLAYWRIGHT_VERSION;
-}
-
 export function mermaidVersion(env = process.env) {
-  return env.VISUAL_SHOT_MERMAID_VERSION
-    || env.BRUTAL_MERMAID_VERSION
-    || DEFAULT_MERMAID_VERSION;
+  return env.VISUAL_SHOT_MERMAID_VERSION || DEFAULT_MERMAID_VERSION;
 }
 
 export function highlightVersion(env = process.env) {

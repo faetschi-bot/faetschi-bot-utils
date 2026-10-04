@@ -1,14 +1,8 @@
-import { classifyPatchLine, computeLineDiff, parseLineRange, splitLines } from './diff.mjs';
+import { classifyPatchLine, computeLineDiff, normalizeNewlines, parseLineRange, splitLines } from './diff.mjs';
 import { codeClass, escapeHtml } from './html.mjs';
 
 // Rendering for everything that shows code or a literal change: full-file
 // before/after diffs, raw unified patches, code snippets, and annotated code.
-
-// Keeps rendered code deterministic regardless of the source file's line
-// endings; mirrors the normalization splitLines applies in diff.mjs.
-function normalizeNewlines(value) {
-  return String(value ?? '').replace(/\r\n?/g, '\n');
-}
 
 function annotationLines(block, side) {
   const set = new Set();
@@ -84,7 +78,7 @@ export function renderDiff(block) {
 }
 
 export function renderPatch(block) {
-  const lines = String(block.patch ?? '').replace(/\r\n?/g, '\n').split('\n');
+  const lines = normalizeNewlines(block.patch).split('\n');
   if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
   const body = lines
     .map((line) => {

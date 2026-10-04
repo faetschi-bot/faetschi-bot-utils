@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assetSha256, highlightVersion } from './config.mjs';
-import { downloadVerified, verifyFileSha256 } from './shared.mjs';
+import { downloadVerified, usableCachedAsset } from './shared.mjs';
 
 // highlight.js is pinned and cached like mermaid: fetched once into
 // $VISUAL_SHOT_CACHE/highlight/, then offline. The browser bundle carries the
@@ -20,26 +20,11 @@ export function highlightCssPath(cache, theme) {
   return themeAssetPath(cache, theme === 'dark' ? 'github-dark' : 'github');
 }
 
-const MIN_ASSET_BYTES = 1000;
-
-// A cached asset is usable only when it clears the size floor and still matches
-// the pinned digest. A tampered or corrupted entry is discarded by
-// re-downloading instead of being trusted.
-function usableCached(file, expectedSha256) {
-  try {
-    if (!existsSync(file) || statSync(file).size < MIN_ASSET_BYTES) return false;
-  } catch {
-    return false;
-  }
-  if (expectedSha256 && !verifyFileSha256(file, expectedSha256)) return false;
-  return true;
-}
-
 // Downloads only when the cache misses or fails verification, so the command
 // falls back to unhighlighted code via a CliError from downloadVerified.
 async function fetchAsset(url, dest, what) {
   const expected = assetSha256(url);
-  if (usableCached(dest, expected)) return;
+  if (usableCachedAsset(dest, expected)) return;
   await downloadVerified(url, dest, expected, what);
 }
 

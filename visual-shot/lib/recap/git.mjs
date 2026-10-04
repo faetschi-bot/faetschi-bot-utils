@@ -55,6 +55,46 @@ export function truncatePatch(text, maxBytes) {
   return `${slice}\n… truncated\n`;
 }
 
+// Split a multi-file `git diff` at each `diff --git` header into per-file patch
+// text (one chunk per file, in git's output order).
+function splitDiffByFile(text) {
+  const chunks = [];
+  let current = null;
+  for (const line of String(text ?? '').split('\n')) {
+    if (line.startsWith('diff --git ')) {
+      if (current) chunks.push(current.join('\n'));
+      current = [line];
+    } else if (current) {
+      current.push(line);
+    }
+  }
+  if (current) chunks.push(current.join('\n'));
+  return chunks;
+}
+
+// Derive the `b/<new>` path from a chunk's `diff --git a/<old> b/<new>` header.
+// Paths may contain spaces and renames swap the two sides, so the header is
+// ambiguous on its own; every plausible split is collected and the caller's
+// known selected paths disambiguate. `core.quotePath=false` is forced for the
+// diff, so only truly unusual bytes (newlines, quotes) get quoted — those yield
+// no candidate and make the caller fail loudly instead of mis-attaching a patch.
+function newPathFromHeader(chunk, selectedPaths) {
+  const firstLine = String(chunk ?? '').split('\n', 1)[0];
+  const marker = 'diff --git ';
+  if (!firstLine.startsWith(marker)) return null;
+  const rest = firstLine.slice(marker.length);
+  const candidates = [];
+  let idx = rest.indexOf(' b/');
+  while (idx !== -1) {
+    const aSide = rest.slice(0, idx);
+    const bSide = rest.slice(idx + 1);
+    if (aSide.startsWith('a/') && bSide.startsWith('b/')) candidates.push(bSide.slice(2));
+    idx = rest.indexOf(' b/', idx + 1);
+  }
+  if (candidates.length === 0) return null;
+  return candidates.find((path) => selectedPaths.has(path)) ?? candidates[0];
+}
+
 export function collectGitDiff({
   repo = process.cwd(),
   range,
@@ -64,7 +104,7 @@ export function collectGitDiff({
   assertValidRange(range);
 
   const git = (args) => {
-    const result = spawnSync('git', ['-C', repo, ...args], {
+    const result = spawnSync('git', ['-C', repo, '-c', 'core.quotePath=false', ...args], {
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
     });
@@ -77,10 +117,37 @@ export function collectGitDiff({
   };
 
   const entries = parseNameStatus(git(['diff', '--name-status', range]));
+  const selected = entries.slice(0, maxFiles);
   const patches = new Map();
-  for (const entry of entries.slice(0, maxFiles)) {
-    const patch = git(['diff', '--no-color', '--unified=3', range, '--', entry.path]);
-    patches.set(entry.path, truncatePatch(patch, maxBytes));
+  if (selected.length > 0) {
+    // One subprocess for the whole range, but bounded to the files we keep:
+    // git path-limits the diff to `selected`, so its output — and memory — scale
+    // with the kept patches rather than the potentially huge full range.
+    const selectedPaths = selected.map((entry) => entry.path);
+    const chunks = splitDiffByFile(git(['diff', '--no-color', '--unified=3', range, '--', ...selectedPaths]));
+    // Pair each chunk to its selected entry by the header's new path, not by
+    // position, so a reordering (or rename) cannot silently mis-attach a patch.
+    if (chunks.length !== selected.length) {
+      throw new CliError(
+        `git diff returned ${chunks.length} file patch(es) for ${selected.length} selected file(s) in "${range}"`,
+      );
+    }
+    const selectedSet = new Set(selectedPaths);
+    const byPath = new Map();
+    for (const chunk of chunks) {
+      const path = newPathFromHeader(chunk, selectedSet);
+      if (!path || !selectedSet.has(path)) {
+        throw new CliError(`could not pair a git diff patch with a changed file in "${range}"`);
+      }
+      if (byPath.has(path)) {
+        throw new CliError(`git diff returned duplicate patches for "${path}" in "${range}"`);
+      }
+      byPath.set(path, chunk);
+    }
+    // Insert in `selected` order so the patch map mirrors the entry order.
+    for (const entry of selected) {
+      patches.set(entry.path, truncatePatch(byPath.get(entry.path), maxBytes));
+    }
   }
   return {
     entries,

@@ -4,7 +4,9 @@ import { extname, resolve, sep } from 'node:path';
 // Low-level HTML helpers shared by the block renderers. Kept free of block
 // knowledge so renderers can import them without a cycle.
 
-const MIME_BY_EXT = {
+// Allowlisted image extensions, shared with the `diff` command's local-image
+// input reader.
+export const MIME_BY_EXT = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -33,6 +35,20 @@ export function escapeAttr(value) {
 export function codeClass(language) {
   const clean = String(language ?? '').trim().toLowerCase();
   return /^[a-z0-9+#._-]+$/.test(clean) ? ` class="language-${clean}"` : '';
+}
+
+// Coerce an untrusted table cell to display text: strings verbatim, null/
+// undefined empty, and structured values as compact JSON so a cell never
+// collapses to "[object Object]". Shared by the HTML and GFM table renderers.
+export function cellText(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  try {
+    const json = JSON.stringify(value);
+    return json === undefined ? String(value) : json;
+  } catch {
+    return String(value);
+  }
 }
 
 // Small Markdown subset for recap prose: headings, bullet/ordered lists,

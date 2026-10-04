@@ -3,8 +3,10 @@
 Reproducible headless-Chromium visual artifacts for PR review: screenshots,
 image diffs, terminal captures, Mermaid diagrams, and visual recaps. Point it at
 a running web app (any language, any framework) or a file and it writes a PNG/SVG
-(or a self-contained HTML report). This file is the canonical recipe; prefer it
-and `visual-shot --help` over reading the source.
+(or a self-contained HTML report). This file covers the renderer CLI and its
+contracts; for authoring a visual recap, follow the **`visual-recap`** skill in
+[`agentic-tools`](../agentic-tools). Prefer this file and `visual-shot --help`
+over reading the source.
 
 ## What an agent needs
 
@@ -155,48 +157,24 @@ copy with image links, each written as `![diagram](<relative/path>)`.
 
 ## Render a visual recap (recap)
 
-`recap` renders a self-contained HTML report (file map, annotated diffs,
-diagrams, schema/API summaries, real before/after screenshots, review notes) and
-optionally a PNG of it, or — with `--format gfm` — a GitHub-flavoured Markdown
-comment. It is the **rendering** half of a visual recap: you (the agent) author
-the content as `recap.json`, `visual-shot` renders it deterministically. The
-companion **`visual-recap`** skill in
-[`agentic-tools`](../agentic-tools) is the authoring recipe — install it and
-follow it before writing `recap.json`. The default theme is **dark** (matching a
-PR comment surface); pass `--theme light` for a light report.
+`recap` renders a self-contained HTML report — file map, annotated diffs,
+diagrams, schema/API summaries, real before/after screenshots, review notes — or
+a GitHub-flavoured Markdown comment (`--format gfm`), from an agent-authored
+`recap.json` and/or a git range. It is the **rendering** half; the
+**`visual-recap`** skill in [`agentic-tools`](../agentic-tools) is the authoring
+recipe — block reference, grounding, the non-redundant PR workflow, and render
+trust boundaries. The default theme is **dark**; pass `--theme light` for light.
 
 ```bash
-# Render an authored recap (HTML, plus a PNG of the whole report), dark by default
+# Render an authored recap (HTML, plus a PNG of the whole report)
 npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png
-
 # Confine local image reads to an explicit directory
 npx visual-shot recap --from recap.json --asset-root docs/screenshots --png
-
 # Mechanical recap straight from a git range (file map + raw patches)
 npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png --json
-
 # A GitHub comment instead of HTML (no browser, no provisioning)
 npx visual-shot recap --from recap.json --format gfm --out recap.md --json
 ```
-
-`--format gfm` maps each block to Markdown: `notes` as-is; `callout` as a
-blockquote; `file-tree`/`table`/`data-model`/`api-endpoint` as tables (an
-unknown `file-tree` change falls back to `M`); `diff`/`patch`/`code` as
-`<details>` with a fenced diff/code block (the `patch` fence holds the raw git
-patch) and annotation bullets; `mermaid` as a ` ```mermaid ` fence; `json` as a
-pretty-printed ` ```json ` fence; `checklist` as `- [x]`/`- [ ]`; `columns`/`tabs`
-flattened with bold labels; `image`/`image-pair` embed their destinations.
-`diagram`/`wireframe` cannot render in a comment, so they emit an italic caption
-placeholder (and use `--report-url` for a link). The output starts with the
-sticky marker `<!-- visual-shot-recap -->` for idempotent comment upserts;
-GitHub renders Mermaid fences and `<details>` natively. Prose and inline fields
-may contain Markdown (`` `code` ``, `**bold**`, links) but their `<`/`>` are
-neutralised, so no field can inject HTML; only `<details>`, `<summary>`, and
-`<br>` are emitted structurally, and content inside fenced code blocks is passed
-through literally. No new browser work happens unless `--png` is also passed, in
-which case the PNG is rendered (dark by default) and referenced by its local
-path when `--image-url` is absent — pass `--image-url` for a comment image that
-loads.
 
 `--only <list>` keeps only the listed (comma-separated) block types and
 `--visuals-only` is the shorthand for `--only wireframe,image,image-pair,diagram`
@@ -208,98 +186,15 @@ still `0`, and a warning `no blocks matched --only <types>; nothing rendered` is
 emitted; with `--json` the result is `ok: true`, `blocks: 0`, `png: null` (and
 `html`/`markdown: null`), plus `only` holding the resolved type list.
 
-The JSON contract is `{ version: 1, title, brief?, meta?, blocks: [...] }`; block
-types are `file-tree`, `diff`, `patch`, `image`, `image-pair`, `mermaid`,
-`diagram`, `wireframe`, `data-model`, `api-endpoint`, `callout`, `table`,
-`checklist`, `notes`, `code`, `annotated-code`, `json`, and the `columns`/`tabs`
-containers. `--diff` adds a `file-tree` (unless the JSON already has one) and one
-`patch` per changed file. Validation errors name the exact block path
-(`blocks[2].after`) and exit 2 without rendering.
-
-`wireframe` renders a framed UI mockup from author `html` (optional `css`,
-`caption`, `height`); `surface` is one of `browser` (default), `desktop`, `tablet`,
-`mobile`, `popover`, `panel`, and `height` (a positive integer px, at most `2000`)
-overrides the per-surface body height. The body renders in a `sandbox` iframe via
-`srcdoc`, so author `html`/`css` is isolated to that mockup and scripts are
-disabled; for a before/after, place two `wireframe` blocks in one `columns` block.
-The iframe starts from a light base, so keep mockup colors light-safe or
-theme-aware.
-
-`json` renders `{ type: "json", data: <any JSON>, title?, collapsedDepth? }` as a
-collapsible tree — use it for API request/response payloads or config objects
-instead of a code block. `data` is required (and may be `null`, `false`, `0`, or
-`""`). Keys/values are escaped. `collapsedDepth` (non-negative, ≤ `50`) sets the
-initial expansion; omit it to expand everything for a `--png` screenshot.
-
-`api-endpoint` is diff-aware: the root and each `params[]`/`responses[]` entry
-accept `change` (`added`/`removed`/`modified`/`renamed`), and param/response
-entries also accept `was` (the previous name/status). A removed endpoint is
-outlined red and its path struck through.
-
-- The HTML is the primary artifact and is offline-capable: local images become
-  data URIs, and Mermaid SVG + syntax highlighting are baked in.
-- The HTML-only path (no `--png`, no Mermaid, no code) needs **no** Chromium and
-  does not provision. `--png`, Mermaid, or code highlighting provision lazily.
-- `--json` returns `{ ok, format, html | markdown, png, theme, blocks, only, warnings }`
-  (plus `mermaid`/`highlight` for html). A failed PNG screenshot is a `warning`
-  (the artifact is still written), not a failure.
-- Syntax highlighting and Mermaid are pinned cache assets; if a download fails,
-  the recap renders unhighlighted with a warning instead of failing.
-- `--png` reveals every tab panel and every collapsed JSON `<details>` in the
-  screenshot; the HTML keeps interactive tabs and the author's `collapsedDepth`.
-
-### Post a recap comment to a PR
-
-`--format gfm` writes a comment body starting with the sticky marker
-`<!-- visual-shot-recap -->`. Upsert one comment on that marker (do not post a
-new comment each run):
-
-```bash
-npx visual-shot recap --from recap.json --format gfm --out recap.md --json
-# peter-evans/find-comment@v3 (body-includes: '<!-- visual-shot-recap -->')
-# yields steps.find.outputs.comment-id; pass it to
-# peter-evans/create-or-update-comment@v4 (body-path: recap.md, edit-mode: replace).
-# With gh, find the comment whose body contains the marker and PATCH it, else create it.
-```
-
-GitHub renders ` ```mermaid ` and `<details>` natively, so the comment is
-interactive. `diagram`/`wireframe` bodies cannot run there — the renderer emits
-their caption as a placeholder; add `--report-url <url>` to link the rendered
-HTML report.
-
-**Avoid redundant recap PRs.** GFM already renders files, diffs, tables, JSON,
-and Mermaid, so a full report PNG next to the comment duplicates it. Pair the
-text with a visuals-only PNG instead:
-
-```bash
-# 1. Review text (no browser, no provisioning)
-npx visual-shot recap --from recap.json --format gfm --out recap.md --json
-# 2. Visual companion — only the blocks a comment cannot render
-npx visual-shot recap --from recap.json --visuals-only --png --png-out recap-visuals.png --json
-```
-
-Embed step 2's PNG only when its `--json` reports a non-null `png`. If the recap
-has no wireframes/screenshots/diagrams, it reports `blocks: 0`/`png: null` and
-writes no file — nothing to embed, so post `recap.md` alone. Only
-`wireframe`/`image`/`image-pair`/`diagram` are worth a PNG; GFM covers the rest.
-
-### Recap trust boundaries (the JSON is untrusted)
-
-- `diagram` `html`/`css` is embedded **raw** and runs as HTML in the artifact;
-  `wireframe` `html`/`css` renders in a `sandbox` iframe, so it is isolated and
-  scripts are disabled. Both are trusted author content; never interpolate diff
-  text into either.
-- Local `image`/`image-pair` `src` is confined to `--asset-root` (default: the
-  `--from` file's directory, else cwd). Only real files with an allowlisted
-  image extension and `<= MAX_RECAP_IMAGE_BYTES` (10 MiB) are inlined; anything
-  else is dropped with a warning.
-- Remote `https:` image URLs stay in the markup and are fetched when the
-  artifact is opened — a recap with remote images is not strictly offline.
-- The final file carries a CSP that blocks scripts and external egress, and the
-  render pass only loads inline/local/about: URLs, so a crafted block cannot
-  beacon or SSRF during rendering.
-- `--width`/`--scale` are bounded (`320`–`4000` / `1`–`4`) and `--from` is
-  capped at 8 MiB; out-of-range input exits 2.
+The JSON contract is `{ version: 1, title, brief?, meta?, blocks: [...] }`;
+validation errors name the exact block path (`blocks[2].after`) and exit `2`
+without rendering. `--diff` adds a `file-tree` (unless the JSON already has one)
+and one `patch` per changed file. `--json` returns
+`{ ok, format, html | markdown, png, theme, blocks, only, warnings }` (plus
+`mermaid`/`highlight` for html); a failed PNG screenshot is a `warning` (the
+artifact is still written), not a failure. The HTML-only path (no `--png`, no
+Mermaid, no code) needs no Chromium; Mermaid and highlight are pinned cache
+assets that fall back with a warning.
 
 ## Parse the result
 

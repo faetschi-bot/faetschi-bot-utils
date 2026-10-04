@@ -4,11 +4,7 @@
 
 Wraps `POST /v1/messages` in a **sliding-window limiter** keyed by API token, adds a `429` response with `Retry-After`, and surfaces the limit in the settings UI.
 
-_Demo recap · visual-shot 0.8.0 · generated from this file_
-
-[Open the interactive recap](<https://github.com/faetschi-bot/faetschi-bot-utils/blob/example/recap-showcase/visual-shot/examples/pr-showcase/recap.html>)
-
-![Visual recap](<https://raw.githubusercontent.com/faetschi-bot/faetschi-bot-utils/example/recap-showcase/visual-shot/examples/pr-showcase/recap.png>)
+_Demo recap · visual-shot 0.10.0 · generated from this file_
 
 > _risk_
 > **Breaking-ish**
@@ -27,11 +23,11 @@ _Demo recap · visual-shot 0.8.0 · generated from this file_
 
 **Before**
 
-_Interactive wireframe “Settings had no rate-limit control.” — see the [rendered report](<https://github.com/faetschi-bot/faetschi-bot-utils/blob/example/recap-showcase/visual-shot/examples/pr-showcase/recap.html>)._
+_Interactive wireframe “Settings had no rate-limit control.” — see the rendered report._
 
 **After**
 
-_Interactive wireframe “A rate-limit field with the plan default.” — see the [rendered report](<https://github.com/faetschi-bot/faetschi-bot-utils/blob/example/recap-showcase/visual-shot/examples/pr-showcase/recap.html>)._
+_Interactive wireframe “A rate-limit field with the plan default.” — see the rendered report._
 
 <details>
 <summary>server/routes/messages.ts — Gate the handler and return 429 with Retry-After.</summary>

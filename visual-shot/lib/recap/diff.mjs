@@ -6,8 +6,14 @@ import { CliError } from '../errors.mjs';
 
 const MAX_DP_CELLS = 4_000_000;
 
+// CRLF and lone CR both become LF so splitting and rendering are deterministic
+// regardless of the source file's line endings. Shared with the code renderers.
+export function normalizeNewlines(value) {
+  return String(value ?? '').replace(/\r\n?/g, '\n');
+}
+
 export function splitLines(text) {
-  const normalized = String(text ?? '').replace(/\r\n?/g, '\n');
+  const normalized = normalizeNewlines(text);
   const lines = normalized.split('\n');
   if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
   return lines;

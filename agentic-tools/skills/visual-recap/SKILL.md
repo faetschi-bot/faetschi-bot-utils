@@ -18,7 +18,8 @@ inline chat prose — the artifact is the deliverable.
 
 ## Requirements
 
-- `visual-shot` >= 0.9.0 (`visual-shot recap --help`).
+- A recent `visual-shot` with the `recap` command — check
+  `visual-shot recap --help` shows `--only`/`--visuals-only`.
 - This skill installed (e.g. `npx agentic-tools install visual-recap`).
 
 ## When to use
@@ -62,35 +63,21 @@ Skip it for small, single-file, or obvious diffs — a recap is review overhead.
 5. **Author `recap.json`** (see the contract below). Ground every structured
    field in the actual diff.
 
-6. **Render and verify.**
-
-   ```bash
-   npx visual-shot recap --from recap.json --format gfm --out recap.md --json
-   npx visual-shot recap --from recap.json --visuals-only --png --out recap-visuals.html --json
-   ```
-
-   Require `"ok": true`. Post the GFM text, and embed the visuals-only PNG only
-   when the second run reports a non-null `png` (see
-   [Posting to a PR](#posting-to-a-pr)).
-
-## Recipe: fold in the mechanical parts
-
-You do not have to hand-write the file map or copy raw patches. Pass the range
-and `visual-shot` adds a `file-tree` (unless your JSON already has one) plus one
-`patch` tab per changed file:
-
-```bash
-npx visual-shot recap --from recap.json --diff main...HEAD --png
-```
-
-Use `--diff` alone for a quick mechanical recap when no authored content exists.
+6. **Render and verify.** Post the GFM text and embed the visuals-only PNG only
+   when the second run reports a non-null `png` — see
+   [Posting to a PR](#posting-to-a-pr) for the two commands and
+   [Verify before reporting success](#verify-before-reporting-success) for what
+   to check.
 
 ## `recap.json` contract
 
 `{ "version": 1, "title": string, "brief"?: string, "meta"?: string,
 "blocks": Block[] }`. `title` <= ~70 chars; `brief` is 1-3 sentences. Unknown
 block types and missing required fields fail validation with the exact path
-(e.g. `blocks[2].after`).
+(e.g. `blocks[2].after`). Pass `--diff <range>` to fold in the mechanical parts:
+`visual-shot` adds a `file-tree` (unless your JSON already has one) plus one
+`patch` tab per changed file, and `--diff` alone gives a quick mechanical recap
+when no authored content exists.
 
 ### Block reference
 
@@ -111,28 +98,21 @@ block types and missing required fields fail validation with the exact path
 | `checklist` | `items[{label, note?, checked?}]` | Toggleable list. |
 | `notes` | `markdown` | Prose: objective, decisions, risks. Small Markdown subset. |
 | `code` / `annotated-code` | `code` | New code; annotated variety anchors `annotations` to line ranges. |
-| `json` | `data` | Any JSON value as a collapsible tree; use for API request/response payloads or config objects instead of a code block. Optional `title`, `collapsedDepth` (non-negative, ≤ 50; omit to expand all). `data` may be `null`, `false`, `0`, or `""`. |
+| `json` | `data` | Any JSON value as a collapsible tree; use for API request/response payloads or config objects instead of a code block. Objects show `{N keys}` and arrays `[N items]`; every key/value is escaped. Optional `title`, `collapsedDepth` (non-negative, ≤ 50; omit to expand all). `data` may be `null`, `false`, `0`, or `""`. |
 | `columns` | `columns[{label, blocks}]` | Side-by-side comparison container. |
 | `tabs` | `tabs[{label, blocks}]` | Group several diffs/patches; horizontal. |
 
 Annotations on `diff`/`annotated-code` are `{ lines: "4" | "2-5", side?:
-"after"|"before", label?, note? }` and mark the referenced lines.
-
-The block types split by **which PR surface can carry them**. GitHub renders the
-text blocks natively — `file-tree`, `diff`, `patch`, `json`, `table`,
-`data-model`, `api-endpoint`, `callout`, `checklist`, `notes`, `code`, and
-`mermaid` (as a native ` ```mermaid ` fence) — so those belong in the GFM
-comment and are **redundant** in a PNG. Only `wireframe`, `image`,
-`image-pair`, and `diagram` cannot render in a comment; they are the reason to
-build a `--visuals-only --png` companion. Never screenshot the text blocks just
-to attach an image.
-
-`api-endpoint` is diff-aware: set `change` on the endpoint, or on any
-`params[]`/`responses[]` entry, to mark it added/removed/modified/renamed, and
-add `was` with the previous param name or response status. A `removed` endpoint
-renders struck through and outlined. `json` block values are escaped and never
-executed, so pasting a real request/response body is safe — but still redact
-secrets (see Security).
+"after"|"before", label?, note? }` and mark the referenced lines. `api-endpoint`
+is diff-aware: set `change` on the endpoint, or on any `params[]`/`responses[]`
+entry, to mark it added/removed/modified/renamed, and add `was` with the previous
+param name or response status; a `removed` endpoint renders struck through and
+outlined. `json` values are escaped and never executed, so pasting a real
+request/response body is safe — but still redact secrets (see Security). A
+`wireframe` body renders isolated in its own `sandbox` iframe, so it cannot
+restyle the report or a sibling wireframe, and its `css`/inline styles start from
+a light base (`background:#fff; color:#1f2328`) — keep mockup colors light-safe
+or theme-aware.
 
 ### Minimal example
 
@@ -215,33 +195,37 @@ single-image recap is explicitly wanted (e.g. an attachment or slide).
 
 ## Render trust boundaries
 
+The recap JSON is **untrusted input**; the renderer enforces these limits:
+
 - **`diagram` `html`/`css` is raw.** That field is embedded verbatim and runs as
   HTML in the artifact. Treat it as trusted author content and never interpolate
   diff text, file contents, or user input into it. **`wireframe` `html`/`css` is
   also trusted author content**, but it is rendered inside a `sandbox` iframe
-  (`srcdoc`), so it is isolated from the report and scripts are disabled.
+  (`srcdoc`), so it is isolated from the report and other wireframes and scripts
+  are disabled.
 - **`image`/`image-pair` `src` must be a real image file inside the recap's
-  directory** (the render's asset root; `--asset-root` overrides it). Only files
-  with an allowlisted image extension and under the size cap are inlined as data
-  URIs — anything else is dropped with a warning. Never point an image path at a
-  secret, an env file, or anything outside the recap directory.
-- **Remote image URLs are fetched when the artifact is opened**, not at render
-  time, so a recap that references `https:` images is not strictly offline.
+  directory** (the render's asset root; `--asset-root` overrides it). Only
+  regular files with an allowlisted image extension and at most
+  `MAX_RECAP_IMAGE_BYTES` (10 MiB) are inlined as data URIs — anything else is
+  dropped with a warning and renders as "image not found". Never point an image
+  path at a secret, an env file, or anything outside the recap directory.
+- **Remote `https:` image URLs are fetched when the artifact is opened**, not at
+  render time, so a recap that references them is not strictly offline.
+- **The written file carries a CSP** (`RECAP_CSP`) that blocks scripts and
+  external egress, and the render pass itself only loads inline (`data:`), local
+  (`file:`), and `about:` URLs — a crafted `diagram` or markdown `<img>` cannot
+  beacon or SSRF while `recap` renders.
+- **`--width` / `--scale` are bounded** (`320`–`4000` / `1`–`4`) and a `--from`
+  file is capped at `MAX_RECAP_SOURCE_BYTES` (8 MiB); out-of-range values exit
+  `2`.
 
 ## Verify before reporting success
 
-Verify the two surfaces you will actually post (see "Posting to a PR" above):
-
-```bash
-# text: the GFM comment body
-npx visual-shot recap --from recap.json --format gfm --out recap.md --json
-# visuals: the companion image (only embed it if png is non-null)
-npx visual-shot recap --from recap.json --visuals-only --png --png-out recap-visuals.png --json
-```
-
-Require `"ok": true` and inspect the `warnings` array (`[]` when clean). A
-missing image or failed Mermaid render appears as a warning; fix the JSON and
-re-render rather than reporting a partial recap. Do not claim success from a
-non-zero exit or from hand-reviewed HTML alone. If neither the GFM text nor a
-visuals-only PNG is needed, a plain `--png` smoke render is fine for local
-inspection — just do not embed it next to the GFM text.
+Verify the two surfaces you will actually post, using the commands in
+[Posting to a PR](#posting-to-a-pr): require `"ok": true` and inspect the
+`warnings` array (`[]` when clean). A missing image or failed Mermaid render
+appears as a warning; fix the JSON and re-render rather than reporting a partial
+recap. Do not claim success from a non-zero exit or from hand-reviewed HTML
+alone. If neither the GFM text nor a visuals-only PNG is needed, a plain `--png`
+smoke render is fine for local inspection — just do not embed it next to the GFM
+text.

@@ -8,23 +8,13 @@ import {
   DEFAULT_VIEWPORT,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
+import { MIME_BY_EXT } from '../recap/html.mjs';
 import { ensureDir, launchBrowser, positive } from '../shared.mjs';
 
 export const name = 'diff';
 export const aliases = ['image-diff'];
 export const summary = 'Compare two images (paths or URLs) into a before/after PNG';
 export const needsBrowser = true;
-
-const MIME_BY_EXT = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.gif': 'image/gif',
-  '.bmp': 'image/bmp',
-  '.avif': 'image/avif',
-  '.svg': 'image/svg+xml',
-};
 
 export function usage() {
   return `visual-shot diff <before> <after> [options]

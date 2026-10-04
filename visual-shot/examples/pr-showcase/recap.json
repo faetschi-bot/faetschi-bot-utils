@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Add per-token rate limiting to the public API",
   "brief": "Wraps `POST /v1/messages` in a **sliding-window limiter** keyed by API token, adds a `429` response with `Retry-After`, and surfaces the limit in the settings UI.",
-  "meta": "Demo recap · visual-shot 0.8.0 · generated from this file",
+  "meta": "Demo recap · visual-shot 0.10.0 · generated from this file",
   "blocks": [
     {
       "type": "callout",

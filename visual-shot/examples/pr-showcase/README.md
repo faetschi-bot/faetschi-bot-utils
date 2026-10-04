@@ -10,7 +10,8 @@ request. This folder is illustrative, not part of the tool.
 - `recap.html` — the self-contained interactive report (dark theme).
 - `recap.png` — the rendered screenshot (dark theme).
 
-Generated with `visual-shot 0.8.0`. Regenerate with:
+Generated with `visual-shot 0.10.0` (default 1100px width and scale 1).
+Regenerate with:
 
 ```bash
 npx visual-shot recap --from examples/pr-showcase/recap.json --png \

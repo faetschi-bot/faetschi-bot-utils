@@ -8,7 +8,7 @@ import {
   mermaidVersion,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
-import { ensureMermaid } from '../mermaid.mjs';
+import { ensureMermaid, initMermaid, renderMermaidInPage } from '../mermaid.mjs';
 import { ensureDir, launchBrowser, positive } from '../shared.mjs';
 
 export const name = 'diagram';
@@ -228,30 +228,15 @@ export async function run(plan, ctx) {
       deviceScaleFactor: plan.scale,
     });
     await page.setContent(PAGE_HTML, { waitUntil: 'load' });
-    await page.addScriptTag({ content: source });
-
-    const hasMermaid = await page.evaluate(() => typeof window.mermaid !== 'undefined');
-    if (!hasMermaid) throw new CliError('failed to load Mermaid into the page', 1);
-
-    await page.evaluate((theme) => {
-      window.mermaid.initialize({ startOnLoad: false, theme, securityLevel: 'strict' });
-    }, plan.theme);
+    if (!(await initMermaid(page, { scriptSource: source, theme: plan.theme }))) {
+      throw new CliError('failed to load Mermaid into the page', 1);
+    }
 
     for (let i = 0; i < plan.definitions.length; i++) {
       const index = i + 1;
       const id = diagramId(plan.base, index, plan.definitions[i]);
-      const rendered = await page.evaluate(
-        async ({ id, def }) => {
-          try {
-            const { svg } = await window.mermaid.render(id, def);
-            return { ok: true, svg };
-          } catch (e) {
-            return { ok: false, error: e && e.message ? e.message : String(e) };
-          }
-        },
-        { id, def: plan.definitions[i] },
-      );
-      if (!rendered.ok) {
+      const rendered = await renderMermaidInPage(page, { id, source: plan.definitions[i] });
+      if (rendered.error) {
         throw new CliError(`mermaid render failed (diagram ${index}): ${rendered.error}`, 1);
       }
 

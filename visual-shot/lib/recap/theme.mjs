@@ -2,8 +2,6 @@
 // are CSS custom properties switched by a body class, so one stylesheet serves
 // both themes and the screenshot pass without duplication.
 
-export const RECAP_THEMES = ['light', 'dark'];
-
 export function normalizeTheme(value) {
   return value === 'dark' ? 'dark' : 'light';
 }
