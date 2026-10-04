@@ -1,0 +1,46 @@
+{
+  "name": "pi-extensions",
+  "version": "0.1.0",
+  "description": "Install a curated set of Pi and OMP extensions through each harness's own installer.",
+  "keywords": [
+    "pi",
+    "omp",
+    "oh-my-pi",
+    "extensions",
+    "plugins",
+    "agent",
+    "cli"
+  ],
+  "homepage": "https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/pi-extensions#readme",
+  "bugs": {
+    "url": "https://github.com/faetschi-bot/faetschi-bot-utils/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faetschi-bot/faetschi-bot-utils.git",
+    "directory": "pi-extensions"
+  },
+  "author": "faetschi-bot",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pi-extensions": "bin/pi-extensions.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "catalog.json",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "validate": "node bin/pi-extensions.mjs doctor",
+    "prepack": "node --check bin/pi-extensions.mjs && node --check lib/catalog.mjs && node --check lib/harnesses.mjs && node --check lib/install.mjs && node bin/pi-extensions.mjs doctor",
+    "prepublishOnly": "node --check bin/pi-extensions.mjs && node --check lib/catalog.mjs && node --check lib/harnesses.mjs && node --check lib/install.mjs && node bin/pi-extensions.mjs doctor"
+  }
+}

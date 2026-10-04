@@ -13,6 +13,7 @@ its own `AGENTS.md` next to it — start there.
 | [`agentic-tools/`](./agentic-tools) | [`agentic-tools/AGENTS.md`](./agentic-tools/AGENTS.md) |
 | [`mention-agent/`](./mention-agent) | [`mention-agent/AGENTS.md`](./mention-agent/AGENTS.md) |
 | [`session-search/`](./session-search) | [`session-search/AGENTS.md`](./session-search/AGENTS.md) |
+| [`pi-extensions/`](./pi-extensions) | [`pi-extensions/AGENTS.md`](./pi-extensions/AGENTS.md) |
 
 ## Golden rules
 
@@ -53,4 +54,9 @@ npx mention-agent doctor --json
 # session-search
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/session-search-latest/session-search.tgz
 npx session-search doctor --json
+
+# pi-extensions
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/pi-extensions-latest/pi-extensions.tgz
+npx pi-extensions doctor --json
+npx pi-extensions install --all   # install for the pi/omp CLIs found on PATH
 ```
