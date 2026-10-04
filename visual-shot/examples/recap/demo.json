@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "title": "Recap blocks showcase",
+  "brief": "A rendered demo of the recap block set: **wireframe** (isolated mockups), **json** (collapsible explorer), diff-aware **api-endpoint**, plus tabs, columns, and callouts.",
+  "meta": "visual-shot examples/recap",
+  "blocks": [
+    { "type": "callout", "tone": "info", "title": "Before / after is two wireframes in a columns block", "body": "Each wireframe body renders in a **sandboxed iframe**, so the two panes cannot affect each other and author scripts are disabled." },
+
+    { "type": "columns", "columns": [
+      { "label": "Before", "blocks": [
+        { "type": "wireframe", "surface": "browser", "height": 240, "caption": "Toolbar had a destructive 'Delete all' button.",
+          "html": "<div class='app'><header class='bar'><span class='logo'>Acme</span><input class='search' placeholder='Search'><button class='danger'>Delete all</button></header><main class='body'><div class='row'><span class='dot'></span>Invoice #1042</div><div class='row'><span class='dot'></span>Invoice #1043</div><div class='row'><span class='dot'></span>Invoice #1044</div></main></div>",
+          "css": ".app{font:13px system-ui}.bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #d1d9e0}.logo{font-weight:700}.search{flex:1;padding:5px 8px;border:1px solid #d1d9e0;border-radius:6px}.danger{background:#cf222e;color:#fff;border:0;border-radius:6px;padding:6px 10px}.body{padding:8px 12px}.row{padding:7px 0;border-bottom:1px solid #eaeef2}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#0969da;margin-right:8px}" }
+      ] },
+      { "label": "After", "blocks": [
+        { "type": "wireframe", "surface": "browser", "height": 240, "caption": "Bulk delete moved into a row-selection toolbar.",
+          "html": "<div class='app'><header class='bar'><span class='logo'>Acme</span><input class='search' placeholder='Search'><button class='ghost'>Filter</button></header><div class='bulk'><label><input type='checkbox' checked> 3 selected</label><button class='danger'>Delete selected</button></div><main class='body'><div class='row sel'><span class='dot'></span>Invoice #1042</div><div class='row sel'><span class='dot'></span>Invoice #1043</div><div class='row sel'><span class='dot'></span>Invoice #1044</div></main></div>",
+          "css": ".app{font:13px system-ui}.bar{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #d1d9e0}.logo{font-weight:700}.search{flex:1;padding:5px 8px;border:1px solid #d1d9e0;border-radius:6px}.ghost{background:#fff;border:1px solid #d1d9e0;border-radius:6px;padding:6px 10px}.bulk{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#ddf4ff}.bulk label{display:flex;gap:6px;align-items:center}.danger{background:#cf222e;color:#fff;border:0;border-radius:6px;padding:6px 10px}.body{padding:8px 12px}.row{padding:7px 0;border-bottom:1px solid #eaeef2}.sel{background:#f6f8fa}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#0969da;margin-right:8px}" }
+      ] }
+    ] },
+
+    { "type": "columns", "columns": [
+      { "label": "Mobile (375px)", "blocks": [
+        { "type": "wireframe", "surface": "mobile", "height": 300, "caption": "Settings with a new autosave toggle.",
+          "html": "<div class='m'><div class='nav'><strong>Settings</strong></div><label class='row'><span>Autosave</span><input type='checkbox' checked></label><label class='row'><span>Usage alerts</span><input type='checkbox'></label><label class='row'><span>Weekly digest</span><input type='checkbox' checked></label><p class='hint'>Autosave keeps drafts every 30s.</p></div>",
+          "css": ".m{font:13px system-ui}.nav{padding:12px;border-bottom:1px solid #d1d9e0}.row{display:flex;justify-content:space-between;padding:11px 12px;border-bottom:1px solid #eaeef2}.hint{padding:10px 12px;color:#59636e;font-size:12px}" }
+      ] },
+      { "label": "Popover (360px)", "blocks": [
+        { "type": "wireframe", "surface": "popover", "height": 200, "caption": "Row action popover.",
+          "html": "<div class='p'><div class='u'><span class='av'></span><div><strong>Jane Doe</strong><div class='muted'>jane@acme.co</div></div></div><hr><button class='item'>Open profile</button><button class='item'>Copy link</button><button class='item danger'>Remove from team</button></div>",
+          "css": ".p{font:13px system-ui;padding:6px}.u{display:flex;gap:8px;align-items:center;padding:8px}.av{width:26px;height:26px;border-radius:50%;background:#ddf4ff}.muted{color:#59636e;font-size:12px}.item{display:block;width:100%;text-align:left;background:none;border:0;padding:8px;border-radius:6px}.item:hover{background:#f6f8fa}.danger{color:#cf222e}" }
+      ] }
+    ] },
+
+    { "type": "tabs", "tabs": [
+      { "label": "Response (expanded)", "blocks": [
+        { "type": "json", "title": "GET /v1/messages/1042", "data": { "id": "msg_1042", "status": "queued", "created": 1767225600, "rate_limit": { "limit": 60, "remaining": 57, "reset_at": "2026-01-01T00:01:00Z" }, "tags": ["billing", "priority"], "customer": null } }
+      ] },
+      { "label": "Collapsed (depth 0)", "blocks": [
+        { "type": "json", "title": "Same payload with collapsedDepth: 0", "collapsedDepth": 0, "data": { "id": "msg_1042", "status": "queued", "rate_limit": { "limit": 60, "remaining": 57 }, "tags": ["billing", "priority"], "customer": null } }
+      ] }
+    ] },
+
+    { "type": "api-endpoint", "method": "POST", "path": "/v1/messages", "change": "modified", "summary": "Body field renamed and a 429 added.",
+      "params": [
+        { "name": "model", "in": "body", "type": "string", "required": true, "change": "modified", "was": "model_id" },
+        { "name": "stream", "in": "body", "type": "boolean", "required": false, "change": "added" }
+      ],
+      "responses": [
+        { "status": "200", "description": "OK" },
+        { "status": "429", "description": "Rate limited", "change": "added", "example": "{\"error\":\"rate_limited\"}" }
+      ] },
+
+    { "type": "api-endpoint", "method": "DELETE", "path": "/v1/legacy/messages/{id}", "change": "removed", "deprecated": true, "summary": "Removed in favour of /v1/messages/{id}." }
+  ]
+}

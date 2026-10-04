@@ -91,33 +91,49 @@ export function renderDataModel(block) {
   return `<div class="blk"><div class="data-model">${entities}</div>${relations}</div>`;
 }
 
+// Cells are pre-escaped HTML, so callers own escaping (headers stay escaped
+// here). This lets a cell carry a diff-aware badge/`was` suffix alongside text.
 function endpointTable(headers, rows) {
   if (rows.length === 0) return '';
   const head = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
-  const body = rows.map((cols) => `<tr>${cols.map((c) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+  const body = rows.map((cols) => `<tr>${cols.map((c) => `<td>${c ?? ''}</td>`).join('')}</tr>`).join('');
   return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+// Diff-aware suffix shared by params and responses: a change badge followed by a
+// muted `(was <previous>)` when a prior name/status is recorded.
+function endpointChange(entry) {
+  const badge = changeBadge(entry.change);
+  const was = entry.was ? `<span class="muted"> (was ${escapeHtml(String(entry.was))})</span>` : '';
+  return `${badge}${was}`;
 }
 
 export function renderEndpoint(block) {
   const summary = block.summary ? `<span class="muted">${escapeHtml(block.summary)}</span>` : '';
+  const change = changeBadge(block.change);
   const deprecated = block.deprecated ? '<span class="method">deprecated</span>' : '';
+  const removed = block.change === 'removed' ? ' removed' : '';
   const description = block.description ? `<p>${escapeHtml(block.description)}</p>` : '';
   const params = endpointTable(
     ['Name', 'In', 'Type', 'Required', 'Notes'],
     (block.params ?? []).map((p) => [
-      p.name ?? '',
-      p.in ?? '',
-      p.type ?? '',
+      `${escapeHtml(p.name ?? '')}${endpointChange(p)}`,
+      escapeHtml(p.in ?? ''),
+      escapeHtml(p.type ?? ''),
       p.required ? 'yes' : '',
-      p.description ?? '',
+      escapeHtml(p.description ?? ''),
     ]),
   );
   const responses = endpointTable(
     ['Status', 'Description', 'Example'],
-    (block.responses ?? []).map((r) => [String(r.status ?? ''), r.description ?? '', r.example ?? '']),
+    (block.responses ?? []).map((r) => [
+      `${escapeHtml(String(r.status ?? ''))}${endpointChange(r)}`,
+      escapeHtml(r.description ?? ''),
+      escapeHtml(r.example ?? ''),
+    ]),
   );
-  return `<div class="blk"><div class="endpoint"><div class="head">`
-    + `<span class="method">${escapeHtml(block.method)}</span><code>${escapeHtml(block.path)}</code>${deprecated}${summary}`
+  return `<div class="blk"><div class="endpoint${removed}"><div class="head">`
+    + `<span class="method">${escapeHtml(block.method)}</span><code>${escapeHtml(block.path)}</code>${change}${deprecated}${summary}`
     + `</div><div class="body">${description}${params}${responses}</div></div></div>`;
 }
 

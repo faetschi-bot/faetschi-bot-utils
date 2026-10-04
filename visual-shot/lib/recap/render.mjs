@@ -13,6 +13,8 @@ import {
   renderNotes,
   renderTable,
 } from './blocks-content.mjs';
+import { renderJson } from './blocks-json.mjs';
+import { renderWireframe } from './blocks-wireframe.mjs';
 import { escapeHtml, renderMarkdown } from './html.mjs';
 import { baseCss, DEFAULT_MAX_TABS, normalizeTheme } from './theme.mjs';
 
@@ -114,6 +116,7 @@ const RENDERERS = {
   'image-pair': renderImagePair,
   mermaid: renderMermaid,
   diagram: renderDiagram,
+  wireframe: renderWireframe,
   'data-model': renderDataModel,
   'api-endpoint': renderEndpoint,
   callout: renderCallout,
@@ -122,6 +125,7 @@ const RENDERERS = {
   notes: renderNotes,
   code: renderCode,
   'annotated-code': renderAnnotatedCode,
+  json: renderJson,
   columns: renderColumns,
   tabs: renderTabs,
 };

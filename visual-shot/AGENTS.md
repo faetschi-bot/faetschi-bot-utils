@@ -176,11 +176,31 @@ npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png -
 
 The JSON contract is `{ version: 1, title, brief?, meta?, blocks: [...] }`; block
 types are `file-tree`, `diff`, `patch`, `image`, `image-pair`, `mermaid`,
-`diagram`, `data-model`, `api-endpoint`, `callout`, `table`, `checklist`,
-`notes`, `code`, `annotated-code`, and the `columns`/`tabs` containers. `--diff`
-adds a `file-tree` (unless the JSON already has one) and one `patch` per changed
-file. Validation errors name the exact block path (`blocks[2].after`) and exit 2
-without rendering.
+`diagram`, `wireframe`, `data-model`, `api-endpoint`, `callout`, `table`,
+`checklist`, `notes`, `code`, `annotated-code`, `json`, and the `columns`/`tabs`
+containers. `--diff` adds a `file-tree` (unless the JSON already has one) and one
+`patch` per changed file. Validation errors name the exact block path
+(`blocks[2].after`) and exit 2 without rendering.
+
+`wireframe` renders a framed UI mockup from author `html` (optional `css`,
+`caption`, `height`); `surface` is one of `browser` (default), `desktop`, `tablet`,
+`mobile`, `popover`, `panel`, and `height` (a positive integer px, at most `2000`)
+overrides the per-surface body height. The body renders in a `sandbox` iframe via
+`srcdoc`, so author `html`/`css` is isolated to that mockup and scripts are
+disabled; for a before/after, place two `wireframe` blocks in one `columns` block.
+The iframe starts from a light base, so keep mockup colors light-safe or
+theme-aware.
+
+`json` renders `{ type: "json", data: <any JSON>, title?, collapsedDepth? }` as a
+collapsible tree — use it for API request/response payloads or config objects
+instead of a code block. `data` is required (and may be `null`, `false`, `0`, or
+`""`). Keys/values are escaped. `collapsedDepth` (non-negative, ≤ `50`) sets the
+initial expansion; omit it to expand everything for a `--png` screenshot.
+
+`api-endpoint` is diff-aware: the root and each `params[]`/`responses[]` entry
+accept `change` (`added`/`removed`/`modified`/`renamed`), and param/response
+entries also accept `was` (the previous name/status). A removed endpoint is
+outlined red and its path struck through.
 
 - The HTML is the primary artifact and is offline-capable: local images become
   data URIs, and Mermaid SVG + syntax highlighting are baked in.
@@ -190,13 +210,15 @@ without rendering.
   A failed PNG screenshot is a `warning` (HTML is still written), not a failure.
 - Syntax highlighting and Mermaid are pinned cache assets; if a download fails,
   the recap renders unhighlighted with a warning instead of failing.
-- `--png` reveals every tab panel in the screenshot; the HTML keeps interactive
-  tabs.
+- `--png` reveals every tab panel and every collapsed JSON `<details>` in the
+  screenshot; the HTML keeps interactive tabs and the author's `collapsedDepth`.
 
 ### Recap trust boundaries (the JSON is untrusted)
 
-- `diagram` `html`/`css` is embedded **raw** and runs as HTML in the artifact.
-  Treat it as trusted author content; never interpolate diff text into it.
+- `diagram` `html`/`css` is embedded **raw** and runs as HTML in the artifact;
+  `wireframe` `html`/`css` renders in a `sandbox` iframe, so it is isolated and
+  scripts are disabled. Both are trusted author content; never interpolate diff
+  text into either.
 - Local `image`/`image-pair` `src` is confined to `--asset-root` (default: the
   `--from` file's directory, else cwd). Only real files with an allowlisted
   image extension and `<= MAX_RECAP_IMAGE_BYTES` (10 MiB) are inlined; anything
