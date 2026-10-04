@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,10 +20,6 @@ export const CHROMIUM_ARGS = [
   '--enable-unsafe-swiftshader',
   '--ignore-gpu-blocklist',
 ];
-
-export function num(value, fallback) {
-  return Number.isFinite(value) ? value : fallback;
-}
 
 export function positive(value, fallback, flag) {
   if (value === undefined) return fallback;
@@ -157,15 +153,6 @@ export async function waitForServer(url, timeoutMs) {
   );
 }
 
-export async function downloadFile(url, dest) {
-  const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(120000) });
-  if (!res.ok) throw new Error(`download failed: HTTP ${res.status} for ${url}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  ensureDir(dest);
-  writeFileSync(dest, buf);
-  return dest;
-}
-
 export function sha256File(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
@@ -180,6 +167,31 @@ export function verifyFileSha256(path, expected) {
   } catch {
     return false;
   }
+}
+
+// A cached asset must clear a size floor and match its pinned digest, or the
+// caller re-downloads. Hashing the whole file on every command is wasteful once
+// it has passed, so a verified (size, mtimeMs) pair is memoized and only
+// re-hashed when either changes. A null pin (custom version) skips the digest.
+export const MIN_CACHED_ASSET_BYTES = 1000;
+
+const verifiedAssets = new Map();
+
+export function usableCachedAsset(file, expectedSha256, minBytes = MIN_CACHED_ASSET_BYTES) {
+  let stat;
+  try {
+    stat = statSync(file);
+  } catch {
+    return false;
+  }
+  if (!stat.isFile() || stat.size < minBytes) return false;
+  if (!expectedSha256) return true;
+
+  const seen = verifiedAssets.get(file);
+  if (seen && seen.size === stat.size && seen.mtimeMs === stat.mtimeMs) return true;
+  if (!verifyFileSha256(file, expectedSha256)) return false;
+  verifiedAssets.set(file, { size: stat.size, mtimeMs: stat.mtimeMs });
+  return true;
 }
 
 // Download an asset and only publish it to `dest` when its SHA-256 matches the

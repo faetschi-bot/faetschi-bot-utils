@@ -1,4 +1,4 @@
-import { escapeAttr, escapeHtml, imageHref, renderMarkdown } from './html.mjs';
+import { cellText, escapeAttr, escapeHtml, imageHref, renderMarkdown } from './html.mjs';
 import { CHANGE_VALUES } from './schema.mjs';
 
 // Rendering for structural and reference blocks: file maps, images, diagrams,
@@ -143,20 +143,8 @@ export function renderCallout(block) {
   return `<div class="blk"><div class="callout ${tone}">${title}${renderMarkdown(block.body)}</div></div>`;
 }
 
-// Table cells are untrusted and may be any JSON value. Render text as-is,
-// null/undefined as empty, and structured values as JSON so a cell never
-// collapses to "[object Object]".
-function cellText(value) {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  try {
-    const json = JSON.stringify(value);
-    return json === undefined ? String(value) : json;
-  } catch {
-    return String(value);
-  }
-}
-
+// Table cells are untrusted and may be any JSON value; `cellText` renders text
+// as-is, null/undefined as empty, and structured values as JSON.
 export function renderTable(block) {
   const head = block.columns.map((c) => `<th>${escapeHtml(cellText(c))}</th>`).join('');
   const rows = (block.rows ?? [])

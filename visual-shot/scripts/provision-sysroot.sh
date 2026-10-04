@@ -53,11 +53,23 @@ while read -r p; do
   fi
 done < "$CACHE/deps.txt"
 
+# Drop the Mesa/LLVM software-rasterizer chain. Headless Chromium renders via
+# SwiftShader (bundled ANGLE) and never dlopen()s these, so they are ~200 MB of
+# dead sysroot weight. Everything else is kept.
+filtered="$CACHE/need.txt.filtered"
+grep -vE '^(libllvm[^ ]*|mesa-libgallium|libz3-[^ ]*|libslang2|libegl-mesa0)$' \
+  "$CACHE/need.txt" > "$filtered" || true
+mv "$filtered" "$CACHE/need.txt"
+
 echo "[visual-shot] downloading $(wc -l < "$CACHE/need.txt") packages..."
 ( cd "$DEBS" && xargs -a "$CACHE/need.txt" apt-get "${APT_OPTS[@]}" download >/dev/null 2>&1 )
 
 echo "[visual-shot] extracting sysroot..."
 for d in "$DEBS"/*.deb; do dpkg-deb -x "$d" "$SYSROOT"; done
+
+# The .debs and apt metadata are never read again once unpacked; dpkg-deb reads
+# straight from the .deb. Keep the tiny deps.txt/need.txt/fonts.conf for debug.
+rm -rf "$DEBS" "$APT_DIR"
 
 mkdir -p "$CACHE/fontcache"
 cat > "$CACHE/fonts.conf" <<EOF

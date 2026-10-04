@@ -14,7 +14,7 @@ import {
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
 import { ensureHighlight } from '../highlight.mjs';
-import { ensureMermaid } from '../mermaid.mjs';
+import { ensureMermaid, initMermaid, renderMermaidInPage } from '../mermaid.mjs';
 import { assembleRecap } from '../recap/assemble.mjs';
 import { VISUAL_BLOCK_TYPES, filterRecapByTypes } from '../recap/filter.mjs';
 import { renderRecapGfm } from '../recap/gfm.mjs';
@@ -311,26 +311,21 @@ async function renderInBrowser(plan, built, highlightAsset) {
 
     if (built.mermaid.length > 0) {
       const asset = await ensureMermaid(cache);
-      await page.addScriptTag({ content: readFileSync(asset, 'utf8') });
-      await page.evaluate((theme) => {
-        window.mermaid.initialize({
-          startOnLoad: false,
-          theme: theme === 'dark' ? 'dark' : 'default',
-          securityLevel: 'strict',
-        });
-      }, built.theme);
-      for (const item of built.mermaid) {
-        const result = await page.evaluate(async ({ id, source }) => {
-          try {
-            const { svg } = await window.mermaid.render(`r-${id}`, source);
+      const theme = built.theme === 'dark' ? 'dark' : 'default';
+      if (await initMermaid(page, { scriptSource: readFileSync(asset, 'utf8'), theme })) {
+        for (const item of built.mermaid) {
+          const rendered = await renderMermaidInPage(page, { id: `r-${item.id}`, source: item.source });
+          if (rendered.error) {
+            built.warnings.push(`mermaid render failed (${item.id}): ${rendered.error}`);
+            continue;
+          }
+          await page.evaluate(({ id, svg }) => {
             const slot = document.querySelector(`[data-mermaid-id="${id}"]`);
             if (slot) slot.innerHTML = svg;
-            return true;
-          } catch (e) {
-            return e && e.message ? e.message : String(e);
-          }
-        }, item);
-        if (result !== true) built.warnings.push(`mermaid render failed (${item.id}): ${result}`);
+          }, { id: item.id, svg: rendered.svg });
+        }
+      } else {
+        built.warnings.push('failed to load Mermaid into the page');
       }
     }
 

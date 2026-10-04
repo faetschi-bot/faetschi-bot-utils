@@ -21,8 +21,17 @@ runs:
     - name: Cache visual-shot provisioning
       uses: actions/cache@v4
       with:
-        path: ~/.local/share/visual-shot
-        key: visual-shot-${{ runner.os }}-pw${{ inputs.playwright-version }}
+        path: |
+          ~/.local/share/visual-shot/browsers/chromium_headless_shell-*
+          ~/.local/share/visual-shot/browsers/.links
+          ~/.local/share/visual-shot/sysroot
+          ~/.local/share/visual-shot/pw
+          ~/.local/share/visual-shot/mermaid
+          ~/.local/share/visual-shot/highlight
+          ~/.local/share/visual-shot/env.sh
+          ~/.local/share/visual-shot/fonts.conf
+          ~/.local/share/visual-shot/.provisioned
+        key: visual-shot-${{ runner.os }}-${{ runner.arch }}-pw${{ inputs.playwright-version }}-v2
     - name: Provision
       if: inputs.setup == 'true'
       shell: bash

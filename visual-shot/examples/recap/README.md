@@ -1,7 +1,8 @@
 # recap examples
 
-A rendered showcase of the recap blocks, generated with `visual-shot recap`.
-Use it to review behavior without rendering anything yourself.
+A rendered showcase of the recap blocks, generated with `visual-shot recap`
+(`visual-shot 0.10.0`, default 1100px width and scale 1). Use it to review
+behavior without rendering anything yourself.
 
 ## Files
 
@@ -16,11 +17,12 @@ Use it to review behavior without rendering anything yourself.
 
 Dark is the recap default, so pass `--theme` explicitly to keep both committed
 PNGs reproducible (and to regenerate `demo.html` in the light theme it was
-rendered with):
+rendered with). The dark pass writes its throwaway HTML to a temp path so it
+cannot clobber the committed light `demo.html`:
 
 ```bash
 npx visual-shot recap --from examples/recap/demo.json --theme light --out examples/recap/demo.html --png --png-out examples/recap/demo-light.png
-npx visual-shot recap --from examples/recap/demo.json --theme dark --png --png-out examples/recap/demo-dark.png
+npx visual-shot recap --from examples/recap/demo.json --theme dark --out /tmp/visual-shot-demo-dark.html --png --png-out examples/recap/demo-dark.png
 ```
 
 ## What to look for

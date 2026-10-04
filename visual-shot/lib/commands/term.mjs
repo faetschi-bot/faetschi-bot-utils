@@ -9,7 +9,8 @@ import {
   MAX_TERM_LINES,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
-import { ensureDir, launchBrowser } from '../shared.mjs';
+import { escapeHtml } from '../recap/html.mjs';
+import { ensureDir, launchBrowser, positive } from '../shared.mjs';
 
 export const name = 'term';
 export const aliases = ['terminal', 'terminal-shot'];
@@ -72,22 +73,14 @@ export function parse(argv) {
   return o;
 }
 
-function positiveNumber(value, fallback, flag) {
-  const n = value === undefined ? fallback : Number(value);
-  if (!Number.isFinite(n) || n <= 0) {
-    throw new CliError(`--${flag} must be greater than 0 (got ${value})`);
-  }
-  return n;
-}
-
 export function validate(opts) {
-  const width = positiveNumber(opts.width, DEFAULT_TERM_WIDTH, 'width');
-  const fontSize = positiveNumber(opts.fontSize, DEFAULT_TERM_FONT_SIZE, 'font-size');
-  const maxLines = positiveNumber(opts.maxLines, MAX_TERM_LINES, 'max-lines');
+  const width = positive(opts.width, DEFAULT_TERM_WIDTH, 'width');
+  const fontSize = positive(opts.fontSize, DEFAULT_TERM_FONT_SIZE, 'font-size');
+  const maxLines = positive(opts.maxLines, MAX_TERM_LINES, 'max-lines');
   if (!Number.isInteger(maxLines)) {
     throw new CliError(`--max-lines must be an integer (got ${opts.maxLines})`);
   }
-  const timeout = positiveNumber(opts.timeout, DEFAULT_TERM_TIMEOUT, 'timeout');
+  const timeout = positive(opts.timeout, DEFAULT_TERM_TIMEOUT, 'timeout');
 
   const command = opts.command ?? [];
   const shell = opts.shell ?? null;
@@ -141,14 +134,6 @@ function xterm256(n) {
     return `rgb(${v},${v},${v})`;
   }
   return null;
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 export function ansiToHtml(text) {

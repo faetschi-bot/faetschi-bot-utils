@@ -33,4 +33,46 @@ jobs:
       - name: Tests
         run: npm test
       - name: Pack check
-        run: npm pack --dry-run
+        run: npm pack --dry-run --ignore-scripts
+
+  # Browser integration: provisions the shared Chromium cache so the recap
+  # browser tests (gated on .provisioned) actually run instead of skipping.
+  # Cache key must match visual-shot/action.yml so CI and the action share it.
+  browser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: visual-shot
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '20'
+      - name: Cache visual-shot provisioning
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/visual-shot/browsers/chromium_headless_shell-*
+            ~/.local/share/visual-shot/browsers/.links
+            ~/.local/share/visual-shot/sysroot
+            ~/.local/share/visual-shot/pw
+            ~/.local/share/visual-shot/mermaid
+            ~/.local/share/visual-shot/highlight
+            ~/.local/share/visual-shot/env.sh
+            ~/.local/share/visual-shot/fonts.conf
+            ~/.local/share/visual-shot/.provisioned
+          key: visual-shot-${{ runner.os }}-${{ runner.arch }}-pw1.49.1-v2
+      - name: Provision
+        run: npm run setup
+      # The gated `recap --png` test skips unless BOTH the mermaid and highlight
+      # assets are cached, but provision.sh only prepares Chromium. Render a tiny
+      # mermaid + code recap (no --png) so ensureMermaid/ensureHighlight populate
+      # the cache first; stdout is discarded to keep the step quiet.
+      - name: Prefetch mermaid + highlight assets
+        run: |
+          cat > /tmp/visual-shot-prefetch.json <<'JSON'
+          {"version":1,"title":"prefetch","blocks":[{"type":"mermaid","source":"graph TD; A-->B"},{"type":"code","language":"js","code":"const x = 1;\n"}]}
+          JSON
+          node bin/visual-shot.mjs recap --from /tmp/visual-shot-prefetch.json --out /tmp/visual-shot-prefetch.html --json > /dev/null
+      - name: Browser tests
+        run: npm test

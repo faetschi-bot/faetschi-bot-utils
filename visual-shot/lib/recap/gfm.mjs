@@ -1,4 +1,5 @@
 import { computeLineDiff } from './diff.mjs';
+import { cellText } from './html.mjs';
 
 // GitHub-flavoured Markdown output for a validated recap. GitHub renders
 // Mermaid fences, <details>, tables, and images natively, so a GFM comment is a
@@ -85,20 +86,6 @@ function inlineCode(text) {
 // collapsed to one line.
 function details(summary, body) {
   return `<details>\n<summary>${oneLine(escapeProse(summary))}</summary>\n\n${body}\n\n</details>`;
-}
-
-// Same text coercion the HTML table renderer uses: strings verbatim, missing
-// values empty, structured values as compact JSON so a cell never says
-// "[object Object]".
-function cellText(value) {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  try {
-    const json = JSON.stringify(value);
-    return json === undefined ? String(value) : json;
-  } catch {
-    return String(value);
-  }
 }
 
 // "PK" / "FK → users.id" / "FK" / "". Uses a literal arrow rather than the HTML

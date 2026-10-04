@@ -5,10 +5,10 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CACHE="${VISUAL_SHOT_CACHE:-${BRUTAL_VISUAL_CACHE:-${XDG_DATA_HOME:-$HOME/.local/share}/visual-shot}}"
+CACHE="${VISUAL_SHOT_CACHE:-${XDG_DATA_HOME:-$HOME/.local/share}/visual-shot}"
 BROWSERS="$CACHE/browsers"
 SYSROOT="$CACHE/sysroot"
-PW_VERSION="${VISUAL_SHOT_PLAYWRIGHT_VERSION:-${BRUTAL_PLAYWRIGHT_VERSION:-1.49.1}}"
+PW_VERSION="${VISUAL_SHOT_PLAYWRIGHT_VERSION:-1.49.1}"
 
 mkdir -p "$BROWSERS" "$SYSROOT" "$CACHE/pw"
 export PLAYWRIGHT_BROWSERS_PATH="$BROWSERS"
@@ -25,14 +25,23 @@ fi
 
 shell_bin="$(find "$BROWSERS" -type f -name headless_shell 2>/dev/null | head -1 || true)"
 if [ -z "$shell_bin" ]; then
-  echo "[visual-shot] downloading Chromium..."
-  node "$PW_CLI" install chromium
+  echo "[visual-shot] downloading Chromium headless shell..."
+  # headless:true launches chromium-headless-shell, never the full Chromium, so
+  # request only the shell (~309 MB vs ~858 MB). Older Playwright without the
+  # flag exits non-zero, in which case fall back to the full install.
+  if ! node "$PW_CLI" install --only-shell chromium; then
+    echo "[visual-shot] --only-shell unsupported; installing full Chromium" >&2
+    node "$PW_CLI" install chromium
+  fi
   shell_bin="$(find "$BROWSERS" -type f -name headless_shell 2>/dev/null | head -1 || true)"
 fi
 if [ -z "$shell_bin" ]; then
   echo "[visual-shot] could not find headless_shell after install" >&2
   exit 1
 fi
+# Drop the dead binaries: the glob "chromium-*" matches chromium-1148 but NOT
+# chromium_headless_shell-1148. Also prunes stale full-Chromium caches on re-run.
+rm -rf "$BROWSERS"/chromium-* "$BROWSERS"/ffmpeg-*
 
 existing_libs="$(find "$SYSROOT" -name '*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd: -)"
 if LD_LIBRARY_PATH="$existing_libs" ldd "$shell_bin" 2>/dev/null | grep -q 'not found'; then
