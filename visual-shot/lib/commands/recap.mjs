@@ -16,10 +16,11 @@ import { CliError } from '../errors.mjs';
 import { ensureHighlight } from '../highlight.mjs';
 import { ensureMermaid } from '../mermaid.mjs';
 import { assembleRecap } from '../recap/assemble.mjs';
+import { VISUAL_BLOCK_TYPES, filterRecapByTypes } from '../recap/filter.mjs';
 import { renderRecapGfm } from '../recap/gfm.mjs';
 import { collectGitDiff } from '../recap/git.mjs';
 import { RECAP_CSP, TABS_PRINT_CSS, buildRecap, renderDocument } from '../recap/render.mjs';
-import { validateRecap } from '../recap/schema.mjs';
+import { BLOCK_TYPES, validateRecap } from '../recap/schema.mjs';
 import { normalizeTheme } from '../recap/theme.mjs';
 import { applyEnvFile, ensureDir, ensureProvisioned, launchBrowser, loadPlaywright } from '../shared.mjs';
 
@@ -52,13 +53,24 @@ Options:
   --png-out <path>      explicit PNG path (default: alongside --out)
   --report-url <url>    gfm: link to the rendered HTML report
   --image-url <url>     gfm: embed an image of the report
+  --only <list>         render only these comma-separated block types
+  --visuals-only        shorthand for --only ${VISUAL_BLOCK_TYPES.join(',')}
   --title <text>        override the recap title
   --theme <light|dark>  report theme (default: ${DEFAULT_RECAP_THEME})
   --width <px>          page width, ${MIN_RECAP_WIDTH}-${MAX_RECAP_WIDTH} (default: ${DEFAULT_RECAP_WIDTH})
   --scale <n>           device scale factor for the PNG, 1-${MAX_RECAP_SCALE} (default: ${DEFAULT_RECAP_SCALE})
   --no-highlight        skip highlight.js (code stays uncolored)
   --json                print a machine-readable result object
-  --help                show this help`;
+  --help                show this help
+
+Non-redundant PR recaps: a GFM comment already reviews the text (files, diffs,
+tables, JSON, and Mermaid render natively), so pair it with a PNG of only the
+blocks a comment cannot render (wireframe/image/image-pair/diagram) instead of
+the whole report. Build the text and the visual companion separately:
+  visual-shot recap --from recap.json --format gfm --out recap.md
+  visual-shot recap --from recap.json --visuals-only --png --json
+Embed the second command's PNG only when --json reports a non-null png; when no
+visual block matches, blocks is 0 and no file is written.`;
 }
 
 export function parse(argv) {
@@ -80,6 +92,8 @@ export function parse(argv) {
     else if (a === '--png') o.png = true;
     else if (a === '--report-url') o.reportUrl = val();
     else if (a === '--image-url') o.imageUrl = val();
+    else if (a === '--only') o.only = val();
+    else if (a === '--visuals-only') o.visualsOnly = true;
     else if (a === '--title') o.title = val();
     else if (a === '--theme') o.theme = val();
     else if (a === '--width') o.width = val();
@@ -169,10 +183,41 @@ function readRecapJson(source) {
   return parsed;
 }
 
+// Container blocks are never `--only` targets: they are kept automatically when
+// they still hold a matching child, so filtering by them is a user error.
+const CONTAINER_BLOCK_TYPES = new Set(['columns', 'tabs']);
+
+// Resolves --only / --visuals-only into the concrete type list (or null when
+// neither was passed). Validates every requested type against the schema so a
+// typo fails with exit 2 before any rendering.
+function resolveOnlyTypes(opts) {
+  if (opts.only !== undefined && opts.visualsOnly) {
+    throw new CliError('--only and --visuals-only cannot be combined');
+  }
+  if (opts.visualsOnly) return [...VISUAL_BLOCK_TYPES];
+  if (opts.only === undefined) return null;
+  const types = opts.only.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+  if (types.length === 0) throw new CliError('--only requires at least one block type');
+  const unique = [...new Set(types)];
+  const valid = [...BLOCK_TYPES].filter((t) => !CONTAINER_BLOCK_TYPES.has(t)).sort().join(', ');
+  for (const type of unique) {
+    if (CONTAINER_BLOCK_TYPES.has(type)) {
+      throw new CliError(
+        `--only cannot target the container type "${type}" (containers are kept when they hold a matching block)`,
+      );
+    }
+    if (!BLOCK_TYPES.has(type)) {
+      throw new CliError(`invalid --only type "${type}" (valid types: ${valid})`);
+    }
+  }
+  return unique;
+}
+
 export function validate(opts) {
   if (!opts.from && !opts.diff) {
     throw new CliError('missing input (expected --from <file|-> and/or --diff <range>)');
   }
+  const only = resolveOnlyTypes(opts);
   const theme = opts.theme === undefined ? DEFAULT_RECAP_THEME : opts.theme;
   if (theme !== 'light' && theme !== 'dark') {
     throw new CliError(`invalid --theme "${opts.theme}" (expected light or dark)`);
@@ -219,6 +264,7 @@ export function validate(opts) {
     scale: boundedNumber(opts.scale, DEFAULT_RECAP_SCALE, 1, MAX_RECAP_SCALE, 'scale'),
     highlight: !opts.noHighlight,
     json: Boolean(opts.json),
+    only,
   };
 }
 
@@ -356,14 +402,41 @@ function writeOutput(path, content) {
 
 export async function run(plan, ctx) {
   plan.cache = ctx.cache;
-  const { recap, warnings } = assembleRecap({
+  const { recap: assembled, warnings } = assembleRecap({
     from: plan.from,
     gitData: plan.gitData,
     title: plan.title,
     range: plan.range,
   });
 
+  // Narrow the assembled recap before rendering so --only shapes HTML, GFM, and
+  // PNG alike (a filtered-out `mermaid` must not trigger a browser pass either).
+  const recap = plan.only ? filterRecapByTypes(assembled, plan.only) : assembled;
+
   const isGfm = plan.format === 'gfm';
+
+  // A --only/--visuals-only run that matches nothing writes no artifact. The
+  // JSON still reports ok: true with blocks: 0 and png: null, which is how an
+  // agent learns there is no visual companion to embed next to the GFM text.
+  if (plan.only && recap.blocks.length === 0) {
+    warnings.push(`no blocks matched --only ${plan.only.join(',')}; nothing rendered`);
+    if (plan.json) {
+      console.log(JSON.stringify({
+        ok: true,
+        format: isGfm ? 'gfm' : 'html',
+        ...(isGfm ? { markdown: null } : { html: null }),
+        png: null,
+        theme: normalizeTheme(plan.theme),
+        blocks: 0,
+        ...(isGfm ? {} : { mermaid: 0, highlight: false }),
+        only: plan.only,
+        warnings,
+      }, null, 2));
+    } else {
+      for (const warning of warnings) console.error(`[visual-shot] warning: ${warning}`);
+    }
+    return 0;
+  }
 
   // gfm without --png is pure text: no build pass, no highlight/mermaid assets,
   // and no browser. The HTML path inlines local images as data URIs, but a
@@ -379,6 +452,7 @@ export async function run(plan, ctx) {
         png: null,
         theme: normalizeTheme(plan.theme),
         blocks: recap.blocks.length,
+        only: plan.only,
         warnings,
       }, null, 2));
     } else {
@@ -459,6 +533,7 @@ export async function run(plan, ctx) {
       theme: normalizeTheme(plan.theme),
       blocks: recap.blocks.length,
       ...(isGfm ? {} : { mermaid: built.mermaid.length, highlight: Boolean(highlightAsset) }),
+      only: plan.only,
       warnings,
     }, null, 2));
   } else {

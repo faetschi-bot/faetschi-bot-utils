@@ -238,11 +238,13 @@ npx visual-shot recap --from recap.json --format gfm --out recap.md
 | `--png` / `--png-out <path>` | also write a PNG of the report (the PNG reveals every tab panel; the HTML keeps interactive tabs). In gfm mode a PNG is written only when `--png` is passed |
 | `--report-url <url>` | gfm: link to the rendered HTML report |
 | `--image-url <url>` | gfm: embed an image of the report (defaults to the PNG's local path when `--png` wrote one — pass an explicit URL for a working PR-comment image) |
+| `--only <list>` | render only these comma-separated block types (validated against the schema; e.g. `wireframe,image`) |
+| `--visuals-only` | shorthand for `--only wireframe,image,image-pair,diagram` |
 | `--title <text>` | override the recap title |
 | `--theme <light\|dark>` | report theme (default `dark`) |
 | `--width <px>` / `--scale <n>` | page width, `320`–`4000` / PNG scale, `1`–`4` (defaults `1100` / `2`) |
 | `--no-highlight` | skip highlight.js (code stays uncolored) |
-| `--json` | print `{ ok, format, html\|markdown, png, theme, blocks, mermaid, highlight, warnings }` |
+| `--json` | print `{ ok, format, html\|markdown, png, theme, blocks, mermaid, highlight, only, warnings }` |
 
 The HTML is the primary artifact and is **self-contained**: local images are
 inlined as data URIs, and Mermaid SVG + syntax highlighting are baked into the
@@ -254,6 +256,27 @@ pinned assets fetched into the cache on first use, like `diagram`; set
 `--png` screenshots the whole report with every tab panel revealed
 (`TABS_PRINT_CSS`) and every collapsed JSON `<details>` opened; the saved HTML
 keeps its interactive tabs and the author's `collapsedDepth`.
+
+#### Filter blocks (`--only` / `--visuals-only`)
+
+`--only <list>` keeps only the listed block types (comma-separated), and
+`--visuals-only` is the shorthand for `--only wireframe,image,image-pair,diagram`
+— the blocks a GitHub comment cannot render. Every requested type is validated
+against the schema list, so a typo exits `2` listing the valid types; passing
+both `--only` and `--visuals-only` also exits `2`. The filter is applied to the
+assembled recap before rendering, so it shapes HTML, GFM, and the PNG alike (a
+filtered-out `mermaid`/code block no longer forces a browser pass).
+
+If nothing matches, `recap` writes **no** output file, still exits `0`, and
+warns `no blocks matched --only <types>; nothing rendered`. With `--json` the
+result stays `ok: true` but reports the empty result — this is how an agent
+knows there is no visual companion to embed:
+
+```json
+{ "ok": true, "format": "gfm", "markdown": null, "png": null,
+  "theme": "dark", "blocks": 0, "only": ["wireframe", "image", "image-pair", "diagram"],
+  "warnings": ["no blocks matched --only wireframe,image,image-pair,diagram; nothing rendered"] }
+```
 
 #### GitHub Markdown output (`--format gfm`)
 
@@ -332,10 +355,30 @@ GitHub renders ` ```mermaid ` fences and `<details>` blocks natively, so a recap
 comment is interactive without a screenshot. The two exceptions are `diagram`
 and `wireframe`, whose author HTML/CSS cannot run in a comment — the renderer
 emits their caption as a placeholder and, with `--report-url`, links the rendered
-report. Pass `--png` (and commit the PNG) plus `--image-url` to embed a static
-image of the whole report alongside the comment. With `--format gfm --png` and
-no `--image-url`, the PNG is referenced by its local path — fine when the image
-is committed next to the comment body, but pass `--image-url` with the raw or
+report.
+
+**Avoid redundant recap PRs.** A full report PNG next to a GFM comment mostly
+duplicates it: GFM already renders files, diffs, tables, JSON, and Mermaid
+natively. Only `wireframe`, `image`/`image-pair`, and raw `diagram` HTML are
+uniquely valuable as pixels. Post the text and the visual companion separately:
+
+```bash
+# 1. The review text (no browser, no provisioning)
+npx visual-shot recap --from recap.json --format gfm --out recap.md --json
+
+# 2. The visual companion — only the blocks a comment cannot render
+npx visual-shot recap --from recap.json --visuals-only --png --png-out recap-visuals.png --json
+```
+
+Embed the second PNG **only when its `--json` reports a non-null `png`** (and
+commit it, then reference `--image-url`). When the recap has no
+wireframes/screenshots/diagrams, `--visuals-only` reports `blocks: 0` and
+`png: null` and writes no file, so there is nothing to embed — pass
+`recap.md` on its own and let GFM and `--report-url` carry the rest.
+
+If you do want the whole report as a static image, `--format gfm --png` with no
+`--image-url` references the PNG by its local path — fine when the image is
+committed next to the comment body, but pass `--image-url` with the raw or
 rendered URL for an image that actually loads in a PR comment.
 
 #### Render trust boundaries
