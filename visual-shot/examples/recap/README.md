@@ -14,8 +14,12 @@ Use it to review behavior without rendering anything yourself.
 
 ## Regenerate
 
+Dark is the recap default, so pass `--theme` explicitly to keep both committed
+PNGs reproducible (and to regenerate `demo.html` in the light theme it was
+rendered with):
+
 ```bash
-npx visual-shot recap --from examples/recap/demo.json --out examples/recap/demo.html --png --png-out examples/recap/demo-light.png
+npx visual-shot recap --from examples/recap/demo.json --theme light --out examples/recap/demo.html --png --png-out examples/recap/demo-light.png
 npx visual-shot recap --from examples/recap/demo.json --theme dark --png --png-out examples/recap/demo-dark.png
 ```
 

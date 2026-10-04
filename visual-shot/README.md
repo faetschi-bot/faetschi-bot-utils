@@ -66,7 +66,7 @@ visual-shot capture [options]        screenshot a URL to a PNG (default command)
 visual-shot diff <before> <after>    compare two images and write a diff PNG
 visual-shot term -- <command...>     render a command's output as a PNG
 visual-shot diagram <input>          render Mermaid diagrams to PNG or SVG
-visual-shot recap --from <json>      render a visual recap to HTML (and PNG)
+visual-shot recap --from <json>      render a visual recap to HTML/Markdown (and PNG)
 visual-shot setup                    provision Chromium + libraries, then exit
 visual-shot doctor [--json]          check the environment, then exit
 ```
@@ -209,10 +209,12 @@ later renders work offline. Override the pin with `VISUAL_SHOT_MERMAID_VERSION`.
 `recap` turns a diff into a self-contained HTML report — file map, annotated
 diffs, diagrams, schema/API summaries, real before/after screenshots, and review
 notes — and optionally a PNG of the whole report. It renders a structured
-`recap.json` and can fold in a git diff for the mechanical parts:
+`recap.json` and can fold in a git diff for the mechanical parts. With
+`--format gfm` the same input is emitted as a GitHub-flavoured Markdown comment
+instead, which is usually more useful in a PR than a screenshot.
 
 ```bash
-# From an agent-authored recap.json
+# From an agent-authored recap.json (self-contained HTML + PNG)
 npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png
 
 # From a git range only (file map + raw patches)
@@ -220,6 +222,9 @@ npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png -
 
 # Combine both: the JSON supplies the rich blocks, --diff appends the patches
 npx visual-shot recap --from recap.json --diff main...HEAD --png
+
+# A GitHub comment instead of an HTML report (no browser, no provisioning)
+npx visual-shot recap --from recap.json --format gfm --out recap.md
 ```
 
 | Flag | Meaning |
@@ -228,13 +233,16 @@ npx visual-shot recap --from recap.json --diff main...HEAD --png
 | `--diff <range>` | git range (e.g. `main...HEAD`) to add a file map + patches |
 | `--repo <dir>` | repository for `--diff` (default: cwd) |
 | `--asset-root <dir>` | root confining local image reads (default: the `--from` file's directory, else cwd) |
-| `--out <path>` | output HTML (default `$VISUAL_OUT_DIR/recap.html`) |
-| `--png` / `--png-out <path>` | also write a PNG of the report (the PNG reveals every tab panel; the HTML keeps interactive tabs) |
+| `--format <html\|gfm>` | `html` (default) writes a self-contained report; `gfm` writes a GitHub Markdown comment |
+| `--out <path>` | output file (default `$VISUAL_OUT_DIR/recap.html` for html, `$VISUAL_OUT_DIR/recap.md` for gfm) |
+| `--png` / `--png-out <path>` | also write a PNG of the report (the PNG reveals every tab panel; the HTML keeps interactive tabs). In gfm mode a PNG is written only when `--png` is passed |
+| `--report-url <url>` | gfm: link to the rendered HTML report |
+| `--image-url <url>` | gfm: embed an image of the report (defaults to the PNG's local path when `--png` wrote one — pass an explicit URL for a working PR-comment image) |
 | `--title <text>` | override the recap title |
-| `--theme <light\|dark>` | report theme (default `light`) |
+| `--theme <light\|dark>` | report theme (default `dark`) |
 | `--width <px>` / `--scale <n>` | page width, `320`–`4000` / PNG scale, `1`–`4` (defaults `1100` / `2`) |
 | `--no-highlight` | skip highlight.js (code stays uncolored) |
-| `--json` | print `{ ok, html, png, theme, blocks, mermaid, highlight, warnings }` |
+| `--json` | print `{ ok, format, html\|markdown, png, theme, blocks, mermaid, highlight, warnings }` |
 
 The HTML is the primary artifact and is **self-contained**: local images are
 inlined as data URIs, and Mermaid SVG + syntax highlighting are baked into the
@@ -246,6 +254,89 @@ pinned assets fetched into the cache on first use, like `diagram`; set
 `--png` screenshots the whole report with every tab panel revealed
 (`TABS_PRINT_CSS`) and every collapsed JSON `<details>` opened; the saved HTML
 keeps its interactive tabs and the author's `collapsedDepth`.
+
+#### GitHub Markdown output (`--format gfm`)
+
+`--format gfm` renders the same `recap.json` (and `--diff`) as a GitHub comment.
+It needs no browser: the output is plain Markdown plus the structural tags GitHub
+renders natively, so it does not provision or launch Chromium unless `--png` is
+also passed. The block mapping is:
+
+| Block | GFM output |
+|-------|------------|
+| `notes` | the Markdown as-is |
+| `callout` | a blockquote, with the tone in italics and the title in bold |
+| `file-tree` | a table with an `A`/`M`/`D`/`R` badge column (an unknown change value falls back to `M`) |
+| `diff` | `<details>` + a ` ```diff ` fence (built from `before`/`after`) + annotation bullets |
+| `patch` | `<details>` + a ` ```diff ` fence with the raw git patch (or `_No textual changes._` when empty) |
+| `code` / `annotated-code` | `<details>` + a language-tagged fence + annotation bullets |
+| `mermaid` | a ` ```mermaid ` fence (GitHub renders Mermaid natively) + caption |
+| `json` | `<details>` + a pretty-printed ` ```json ` fence |
+| `table` | a Markdown table |
+| `checklist` | `- [x]` / `- [ ]` items |
+| `data-model` | `### {name}` + a `Field \| Type \| Keys \| Change` table, plus relations |
+| `api-endpoint` | an `### METHOD path` heading + params and responses tables (diff-aware) |
+| `image` / `image-pair` | `![]()` embeds whose destinations are angle-bracketed and percent-encoded (a two-column table for a pair) |
+| `columns` / `tabs` | each label as bold text, then its blocks (tabs flatten, like the PNG) |
+| `diagram` / `wireframe` | an italic placeholder with the caption — their live HTML cannot render in a comment |
+
+Table cells escape `\|` and turn newlines into `<br>`; code fences grow past any
+backtick run in the content; link/image destinations are wrapped in angle
+brackets with `<`/`>` percent-encoded, so a URL with `)`, spaces, or parens
+cannot break out. Prose and inline fields may contain Markdown (`` `code` ``,
+`**bold**`, links) but their `<`/`>` are neutralised (`&lt;`/`&gt;`), so no JSON
+value can inject an HTML tag; only `<details>`, `<summary>`, and `<br>` are ever
+emitted structurally by the renderer. Text inside fenced code blocks (`diff`,
+`patch`, `code`, `annotated-code`, `json`, `mermaid`) is passed through
+literally.
+
+The output always begins with the sticky marker `<!-- visual-shot-recap -->`, so
+a workflow can find and update its own comment instead of posting a new one.
+
+#### Posting a recap to a PR
+
+Render the comment (and optionally a committed PNG) with `--format gfm`, then
+upsert a single comment keyed on the marker. For example:
+
+```yaml
+- uses: faetschi-bot/faetschi-bot-utils/visual-shot@main
+  with:
+    args: --from recap.json --format gfm --report-url ${{ steps.pages.outputs.url }} --out recap.md --json
+
+- uses: peter-evans/find-comment@v3
+  id: find
+  with:
+    issue-number: ${{ github.event.pull_request.number }}
+    body-includes: '<!-- visual-shot-recap -->'
+
+- uses: peter-evans/create-or-update-comment@v4
+  with:
+    issue-number: ${{ github.event.pull_request.number }}
+    comment-id: ${{ steps.find.outputs.comment-id }}
+    body-path: recap.md
+    edit-mode: replace
+```
+
+`find-comment` locates the previous recap by its hidden marker and returns its
+`comment-id`; `create-or-update-comment` updates that comment in place (and
+creates a new one when `comment-id` is empty). Without those actions, `gh`
+works the same way but you must find the previous comment yourself:
+
+```bash
+id=$(gh pr view "$PR" --json comments --jq '.comments[] | select(.body | contains("<!-- visual-shot-recap -->")) | .id')
+if [ -n "$id" ]; then gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body=@"recap.md"; \
+else gh pr comment "$PR" --body-file recap.md; fi
+```
+
+GitHub renders ` ```mermaid ` fences and `<details>` blocks natively, so a recap
+comment is interactive without a screenshot. The two exceptions are `diagram`
+and `wireframe`, whose author HTML/CSS cannot run in a comment — the renderer
+emits their caption as a placeholder and, with `--report-url`, links the rendered
+report. Pass `--png` (and commit the PNG) plus `--image-url` to embed a static
+image of the whole report alongside the comment. With `--format gfm --png` and
+no `--image-url`, the PNG is referenced by its local path — fine when the image
+is committed next to the comment body, but pass `--image-url` with the raw or
+rendered URL for an image that actually loads in a PR comment.
 
 #### Render trust boundaries
 
