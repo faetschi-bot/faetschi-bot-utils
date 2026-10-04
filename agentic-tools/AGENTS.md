@@ -105,6 +105,15 @@ npx agentic-tools list
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |
 | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a large, multi-file, UI/schema/API/architecture change into a visual recap. Authors the `recap.json` that `visual-shot recap` renders. |
 | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
+| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+
+## Vendored skills
+
+A skill can be copied from upstream instead of written here. Keep the source
+files verbatim, ship its `LICENSE`/`NOTICE.md` inside the skill directory so the
+attribution travels with `install`, and point at the upstream repo in the
+provenance note here. `simple-english` is vendored this way from
+[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english).
 
 ## Adding a skill (maintainers)
 

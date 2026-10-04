@@ -82,6 +82,7 @@ $ npx agentic-tools doctor --json
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
 | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
 | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
+| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 
 ### agent-friendly-code
 
@@ -149,6 +150,19 @@ CLI**: `npm install -g unsnooze && unsnooze setup`, then verify with
 of `config set` keys worth knowing, day-to-day commands, and the trust caveats
 (it types into your terminal; it is not an auto-approver). The pack does not ship
 or vendor unsnooze — the skill just points at upstream.
+
+### simple-english
+
+Vendored verbatim from
+[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english)
+(renamed to `simple-english` for a shorter install name; MIT, and the ASD-STE100
+word list stays ASD property — see the skill's `NOTICE.md`). It makes the agent
+write and rewrite technical documentation in ASD-STE100 Simplified Technical
+English: the verb, sentence, word, and safety rules, an 869-word approved list,
+substitutions, before/after examples, and an optional `scripts/ste_check.py`
+checker. Because the whole skill directory is copied, `install simple-english`
+brings its references, examples, and script along; it is text plus one optional
+Python 3 checker.
 
 ## Use a skill
 
