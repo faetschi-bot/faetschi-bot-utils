@@ -18,7 +18,7 @@ inline chat prose — the artifact is the deliverable.
 
 ## Requirements
 
-- `visual-shot` >= 0.6.0 (`visual-shot recap --help`).
+- `visual-shot` >= 0.9.0 (`visual-shot recap --help`).
 - This skill installed (e.g. `npx agentic-tools install visual-recap`).
 
 ## When to use
@@ -65,11 +65,13 @@ Skip it for small, single-file, or obvious diffs — a recap is review overhead.
 6. **Render and verify.**
 
    ```bash
-   npx visual-shot recap --from recap.json --out tmp/images/PRs/recap.html --png --json
+   npx visual-shot recap --from recap.json --format gfm --out recap.md --json
+   npx visual-shot recap --from recap.json --visuals-only --png --out recap-visuals.html --json
    ```
 
-   Require `"ok": true`. Then hand the reviewer the HTML/PNG path, or the raw
-   markdown/URL your environment uses for PR attachments.
+   Require `"ok": true`. Post the GFM text, and embed the visuals-only PNG only
+   when the second run reports a non-null `png` (see
+   [Posting to a PR](#posting-to-a-pr)).
 
 ## Recipe: fold in the mechanical parts
 
@@ -116,6 +118,15 @@ block types and missing required fields fail validation with the exact path
 Annotations on `diff`/`annotated-code` are `{ lines: "4" | "2-5", side?:
 "after"|"before", label?, note? }` and mark the referenced lines.
 
+The block types split by **which PR surface can carry them**. GitHub renders the
+text blocks natively — `file-tree`, `diff`, `patch`, `json`, `table`,
+`data-model`, `api-endpoint`, `callout`, `checklist`, `notes`, `code`, and
+`mermaid` (as a native ` ```mermaid ` fence) — so those belong in the GFM
+comment and are **redundant** in a PNG. Only `wireframe`, `image`,
+`image-pair`, and `diagram` cannot render in a comment; they are the reason to
+build a `--visuals-only --png` companion. Never screenshot the text blocks just
+to attach an image.
+
 `api-endpoint` is diff-aware: set `change` on the endpoint, or on any
 `params[]`/`responses[]` entry, to mark it added/removed/modified/renamed, and
 add `was` with the previous param name or response status. A `removed` endpoint
@@ -146,6 +157,36 @@ secrets (see Security).
   ]
 }
 ```
+
+## Posting to a PR
+
+A recap has two PR surfaces, and they must not duplicate each other:
+
+1. **Text — `--format gfm`.** GitHub renders the structural Markdown *and*
+   native ` ```mermaid ` fences, so the comment already reviews the file map,
+   diffs, tables, JSON, and diagrams. It needs no browser and does not
+   provision.
+2. **Visual companion — `--visuals-only --png`.** A PNG is only uniquely
+   valuable for what a comment **cannot** render: `wireframe` mockups, real
+   `image`/`image-pair` screenshots, and raw `diagram` HTML. `--visuals-only`
+   filters the recap to exactly those four block types.
+
+```bash
+# 1. The review text (files, diffs, tables, JSON, Mermaid render natively)
+npx visual-shot recap --from recap.json --format gfm --out recap.md --json
+
+# 2. The visual companion — only the blocks a comment cannot render
+npx visual-shot recap --from recap.json --visuals-only --png --png-out recap-visuals.png --json
+```
+
+Embed step 2's PNG **only when its `--json` reports a non-null `png`**, then
+commit it and point an image link at its raw URL. When the recap has no
+wireframes/screenshots/diagrams, that run reports `blocks: 0` and `png: null`
+and writes no file — post `recap.md` alone.
+
+Do **not** embed the full report PNG (`--png` without `--visuals-only`) next to
+the GFM comment; it duplicates the text. Reserve the whole-report PNG for when a
+single-image recap is explicitly wanted (e.g. an attachment or slide).
 
 ## Grounding and budgets
 
@@ -189,11 +230,18 @@ secrets (see Security).
 
 ## Verify before reporting success
 
+Verify the two surfaces you will actually post (see "Posting to a PR" above):
+
 ```bash
-npx visual-shot recap --from recap.json --png --json
+# text: the GFM comment body
+npx visual-shot recap --from recap.json --format gfm --out recap.md --json
+# visuals: the companion image (only embed it if png is non-null)
+npx visual-shot recap --from recap.json --visuals-only --png --png-out recap-visuals.png --json
 ```
 
 Require `"ok": true` and inspect the `warnings` array (`[]` when clean). A
 missing image or failed Mermaid render appears as a warning; fix the JSON and
 re-render rather than reporting a partial recap. Do not claim success from a
-non-zero exit or from hand-reviewed HTML alone.
+non-zero exit or from hand-reviewed HTML alone. If neither the GFM text nor a
+visuals-only PNG is needed, a plain `--png` smoke render is fine for local
+inspection — just do not embed it next to the GFM text.
