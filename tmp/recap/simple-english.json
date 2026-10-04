@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "title": "agentic-tools: add the simple-english skill",
+  "brief": "Vendors the ASD-STE100 Simplified Technical English skill as `agentic-tools/skills/simple-english` and registers it in the pack docs. Install it with `npx agentic-tools install simple-english`.",
+  "meta": "PR #52 · branch agentic-tools/simple-english · 11 files, +1906 / -1",
+  "blocks": [
+    {
+      "type": "callout",
+      "tone": "info",
+      "title": "What this adds",
+      "body": "`simple-english` makes an agent write, rewrite, review, and check technical documentation in **ASD-STE100 Simplified Technical English**. It is vendored from [`0xpili/simplified-technical-english`](https://github.com/0xpili/simplified-technical-english) and renamed for a shorter install name."
+    },
+    {
+      "type": "file-tree",
+      "entries": [
+        {
+          "path": "agentic-tools/AGENTS.md",
+          "change": "modified",
+          "note": "Skills-table row + new \"Vendored skills\" note"
+        },
+        {
+          "path": "agentic-tools/README.md",
+          "change": "modified",
+          "note": "Skills-table row + simple-english section"
+        },
+        {
+          "path": "agentic-tools/package.json",
+          "change": "modified",
+          "note": "0.5.0 -> 0.6.0 so merging publishes the tarball"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/SKILL.md",
+          "change": "added",
+          "note": "Trigger + verb/sentence/word/safety rules (124 lines)"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/references/writing-rules.md",
+          "change": "added",
+          "note": "53 rules + 4 recommendations (209 lines)"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/references/word-list.md",
+          "change": "added",
+          "note": "869 approved words (994 lines)"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/references/substitutions.md",
+          "change": "added",
+          "note": "Replacements for unapproved words (113 lines)"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/examples/before-after.md",
+          "change": "added",
+          "note": "5 before/after rewrites (86 lines)"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/scripts/ste_check.py",
+          "change": "added",
+          "note": "Optional Python 3 checker (301 lines)"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/LICENSE",
+          "change": "added",
+          "note": "MIT for the skill text and script"
+        },
+        {
+          "path": "agentic-tools/skills/simple-english/NOTICE.md",
+          "change": "added",
+          "note": "ASD-STE100 word list stays ASD property"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Path",
+        "Role"
+      ],
+      "rows": [
+        [
+          "SKILL.md",
+          "Trigger + the verb, sentence, word, and safety rules"
+        ],
+        [
+          "references/writing-rules.md",
+          "The 53 writing rules + 4 recommendations"
+        ],
+        [
+          "references/word-list.md",
+          "The 869 approved words"
+        ],
+        [
+          "references/substitutions.md",
+          "Replacements for frequent unapproved words"
+        ],
+        [
+          "examples/before-after.md",
+          "5 before/after rewrites"
+        ],
+        [
+          "scripts/ste_check.py",
+          "Optional Python 3 checker (rule numbers in output)"
+        ],
+        [
+          "LICENSE + NOTICE.md",
+          "MIT text/script; ASD-STE100 dictionary stays ASD property"
+        ]
+      ]
+    },
+    {
+      "type": "diff",
+      "filename": "examples/before-after.md — Example 1 (procedural)",
+      "language": "text",
+      "summary": "Real example from the skill: the rewrite the agent is taught to produce.",
+      "before": "Prior to commencing the installation, it should be ensured that all components\nhave been thoroughly inspected for damage, and any defective parts should be\nreplaced immediately; failure to do so may result in system malfunction.\n",
+      "after": "Before you start the installation, examine all the components for damage.\nIf you find a defective part, replace it immediately.\nA defective part can cause a system malfunction.\n",
+      "annotations": [
+        {
+          "lines": "2-3",
+          "side": "after",
+          "label": "Imperative",
+          "note": "Commands, active voice, no \"should\"."
+        },
+        {
+          "lines": "3",
+          "side": "before",
+          "label": "Semicolon",
+          "note": "Semicolons are banned — split into sentences."
+        }
+      ]
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "label": "package.json",
+          "blocks": [
+            {
+              "type": "patch",
+              "filename": "agentic-tools/package.json",
+              "summary": "Version bump triggers the release workflow on merge.",
+              "patch": "diff --git a/agentic-tools/package.json b/agentic-tools/package.json\nindex 449b323..6d2892f 100644\n--- a/agentic-tools/package.json\n+++ b/agentic-tools/package.json\n@@ -1,6 +1,6 @@\n {\n   \"name\": \"agentic-tools\",\n-  \"version\": \"0.5.0\",\n+  \"version\": \"0.6.0\",\n   \"description\": \"Reusable skills and hooks for AI coding agents.\",\n   \"keywords\": [\n     \"agent\",\n"
+            }
+          ]
+        },
+        {
+          "label": "AGENTS.md",
+          "blocks": [
+            {
+              "type": "patch",
+              "filename": "agentic-tools/AGENTS.md",
+              "summary": "New table row + a \"Vendored skills\" maintainer note.",
+              "patch": "diff --git a/agentic-tools/AGENTS.md b/agentic-tools/AGENTS.md\nindex 912c8de..b9d165c 100644\n--- a/agentic-tools/AGENTS.md\n+++ b/agentic-tools/AGENTS.md\n@@ -105,6 +105,15 @@ npx agentic-tools list\n | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |\n | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a large, multi-file, UI/schema/API/architecture change into a visual recap. Authors the `recap.json` that `visual-shot recap` renders. |\n | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |\n+| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |\n+\n+## Vendored skills\n+\n+A skill can be copied from upstream instead of written here. Keep the source\n+files verbatim, ship its `LICENSE`/`NOTICE.md` inside the skill directory so the\n+attribution travels with `install`, and point at the upstream repo in the\n+provenance note here. `simple-english` is vendored this way from\n+[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english).\n \n ## Adding a skill (maintainers)\n \n"
+            }
+          ]
+        },
+        {
+          "label": "README.md",
+          "blocks": [
+            {
+              "type": "patch",
+              "filename": "agentic-tools/README.md",
+              "summary": "New table row + a simple-english section.",
+              "patch": "diff --git a/agentic-tools/README.md b/agentic-tools/README.md\nindex 3a6b21b..26f5f58 100644\n--- a/agentic-tools/README.md\n+++ b/agentic-tools/README.md\n@@ -82,6 +82,7 @@ $ npx agentic-tools doctor --json\n | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |\n | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |\n | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |\n+| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |\n \n ### agent-friendly-code\n \n@@ -150,6 +151,19 @@ of `config set` keys worth knowing, day-to-day commands, and the trust caveats\n (it types into your terminal; it is not an auto-approver). The pack does not ship\n or vendor unsnooze — the skill just points at upstream.\n \n+### simple-english\n+\n+Vendored verbatim from\n+[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english)\n+(renamed to `simple-english` for a shorter install name; MIT, and the ASD-STE100\n+word list stays ASD property — see the skill's `NOTICE.md`). It makes the agent\n+write and rewrite technical documentation in ASD-STE100 Simplified Technical\n+English: the verb, sentence, word, and safety rules, an 869-word approved list,\n+substitutions, before/after examples, and an optional `scripts/ste_check.py`\n+checker. Because the whole skill directory is copied, `install simple-english`\n+brings its references, examples, and script along; it is text plus one optional\n+Python 3 checker.\n+\n ## Use a skill\n \n `install <name...>` copies only the named skills; `install --all` copies every\n"
+            }
+          ]
+        },
+        {
+          "label": "SKILL.md",
+          "blocks": [
+            {
+              "type": "code",
+              "filename": "agentic-tools/skills/simple-english/SKILL.md",
+              "language": "yaml",
+              "summary": "Frontmatter: the install name must match the directory.",
+              "code": "---\nname: simple-english\ndescription: Writes and rewrites text in Simplified Technical English (ASD-STE100), a controlled language for clear technical documentation. Use when the user asks for STE, Simplified Technical English, controlled language, or plain technical writing, and when the user asks to write, rewrite, review, or check technical documentation, procedures, manuals, instructions, warnings, or reports.\nlicense: MIT for the text of this skill. The word list in references/word-list.md comes from the ASD-STE100 dictionary, which is the property of ASD. Refer to NOTICE.md.\nmetadata:\n  source-specification: ASD-STE100 Issue 7 (2017-01-25)\n---"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "mermaid",
+      "source": "flowchart TD\n  A[\"Classify procedural or descriptive\"] --> B[\"Verb rules\"]\n  B --> C[\"Sentence rules\"]\n  C --> D[\"Word rules\"]\n  D --> E[\"Safety instructions\"]\n  E --> F[\"Check with ste_check.py or a manual scan\"]",
+      "caption": "The six steps the skill instructs the agent to follow."
+    },
+    {
+      "type": "checklist",
+      "title": "Verified on this branch",
+      "items": [
+        {
+          "label": "`doctor --json` -> `ok: true` for all 5 skills",
+          "checked": true
+        },
+        {
+          "label": "`npm test` -> 17/17 pass",
+          "checked": true
+        },
+        {
+          "label": "`install simple-english` copies the full skill directory",
+          "checked": true
+        },
+        {
+          "label": "`npm pack --dry-run` includes every skill file",
+          "checked": true
+        },
+        {
+          "label": "`scripts/ste_check.py` runs and flags rule violations",
+          "checked": true
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "tone": "risk",
+      "title": "License scope",
+      "body": "The skill text, references, examples, and script are **MIT**. The `references/word-list.md` comes from the **ASD-STE100 dictionary, which is ASD property**. `LICENSE` and `NOTICE.md` are copied inside the skill directory so the attribution travels with `install`."
+    }
+  ]
+}
