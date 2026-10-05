@@ -6,14 +6,16 @@ task matches. Installer guides are separate upstream setup instructions, not
 installable agent skills. The pack is language-agnostic: its skills are text the
 agent reads, not programs that run in your project.
 
-## Skills
+## Tools/Skills
 
-| Skill | Use it when |
-|-------|-------------|
-| [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
-| [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
-| [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
-| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+| Type | Tool/skill | Use it when |
+|------|------------|-------------|
+| Skill | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
+| Skill | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
+| Skill | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
+| Skill | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+| Install guide (not a skill) | [`Plannotator`](./install/plannotator.md) | Installing Plannotator; its own installer adds supported agent integrations and skills. |
+| Install guide (not a skill) | [`unsnooze`](./install/unsnooze.md) | Installing, configuring, verifying, or removing unsnooze for Claude Code or Codex CLI. |
 
 ## Requirements
 
@@ -83,15 +85,6 @@ $ npx agentic-tools doctor --json
   ]
 }
 ```
-
-### Installer guides
-
-- [`install/plannotator.md`](./install/plannotator.md) — upstream install steps
-  for Plannotator. This is a guide, not a skill; Plannotator's installer adds
-  the supported agent integrations and skills.
-- [`install/unsnooze.md`](./install/unsnooze.md) — install, configure, verify,
-  and remove the unsnooze CLI for Claude Code or Codex CLI. This is a guide, not
-  an agent skill.
 
 ### agent-friendly-code
 
