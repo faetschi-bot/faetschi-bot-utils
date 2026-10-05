@@ -104,7 +104,6 @@ npx agentic-tools list
 | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |
 | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a large, multi-file, UI/schema/API/architecture change into a visual recap. Authors the `recap.json` that `visual-shot recap` renders. |
-| [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
 | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 
 ## Installer guides
@@ -112,6 +111,7 @@ npx agentic-tools list
 | Guide | Use it when |
 |-------|-------------|
 | [`install/plannotator.md`](./install/plannotator.md) | The user wants to install Plannotator. This is a setup guide, not an agent skill; Plannotator's own installer configures supported agent integrations. |
+| [`install/unsnooze.md`](./install/unsnooze.md) | The user wants to install, configure, verify, or remove the unsnooze CLI for Claude Code or Codex CLI. This is a setup guide, not an agent skill. |
 
 ## Vendored skills
 
