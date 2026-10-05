@@ -5,6 +5,16 @@ Reusable skills (and, later, hooks) for AI coding agents. Each skill is a
 task matches. The pack is language-agnostic: a skill is text the agent reads, not
 a program that runs in your project.
 
+## Skills
+
+| Skill | Use it when |
+|-------|-------------|
+| [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
+| [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
+| [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
+| [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
+| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+
 ## Requirements
 
 - **Node 20+** — only to run the `agentic-tools` validator.
@@ -74,15 +84,11 @@ $ npx agentic-tools doctor --json
 }
 ```
 
-## Skills
+### Installer guides
 
-| Skill | Use it when |
-|-------|-------------|
-| [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
-| [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
-| [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
-| [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
-| [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+- [`install/plannotator.md`](./install/plannotator.md) — upstream install steps
+  for Plannotator. This is a guide, not a skill; Plannotator's installer adds
+  the supported agent integrations and skills.
 
 ### agent-friendly-code
 

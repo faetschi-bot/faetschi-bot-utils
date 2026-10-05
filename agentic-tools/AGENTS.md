@@ -107,6 +107,12 @@ npx agentic-tools list
 | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
 | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 
+## Installer guides
+
+| Guide | Use it when |
+|-------|-------------|
+| [`install/plannotator.md`](./install/plannotator.md) | The user wants to install Plannotator. This is a setup guide, not an agent skill; Plannotator's own installer configures supported agent integrations. |
+
 ## Vendored skills
 
 A skill can be copied from upstream instead of written here. Keep the source
