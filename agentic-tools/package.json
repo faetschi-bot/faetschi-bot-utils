@@ -30,6 +30,7 @@
     "bin",
     "lib",
     "skills",
+    "install",
     "AGENTS.md",
     "README.md",
     "LICENSE"

@@ -52,7 +52,7 @@ test('doctor --json validates the packaged skills', () => {
   // pinning the exact inventory (adding a skill should not break this test).
   assert.ok(parsed.skills.every((s) => s.ok));
   const names = parsed.skills.map((s) => s.name);
-  for (const expected of ['agent-friendly-code', 'test-audit', 'visual-recap', 'unsnooze', 'plannotator']) {
+  for (const expected of ['agent-friendly-code', 'test-audit', 'visual-recap', 'unsnooze']) {
     assert.ok(names.includes(expected), `expected packaged skill ${expected}`);
   }
 });

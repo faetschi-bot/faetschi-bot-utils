@@ -1,15 +1,10 @@
----
-name: plannotator
-description: "Invoke when the user wants to install, configure, verify, or troubleshoot Plannotator for an AI coding agent."
----
-
-# Plannotator
+# Install Plannotator
 
 [Plannotator](https://github.com/backnotprop/plannotator) is a local browser
 interface for reviewing agent plans, Markdown/HTML documents, and code changes.
-It integrates with several coding agents through hooks, plugins, skills, and
-commands. This skill documents upstream installation; it does not contain or
-run Plannotator itself.
+It integrates with coding agents through hooks, plugins, skills, and commands.
+This guide documents upstream installation; it does not contain or run
+Plannotator itself.
 
 ## Install
 
@@ -74,6 +69,5 @@ documentation for platform-specific verification and cleanup details.
   needed by those features to their respective services. Review the upstream
   [privacy and network behavior](https://github.com/backnotprop/plannotator#privacy-and-network-behavior)
   before enabling them.
-- Keep Plannotator's install and configuration separate from this skill-pack
-  installation: `agentic-tools install plannotator` only copies these
-  instructions into the agent's skills directory.
+- This is an installation guide, not a skill. The Plannotator installer itself
+  adds the agent integrations and skills it supports.
