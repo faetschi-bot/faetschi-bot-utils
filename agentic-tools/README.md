@@ -82,6 +82,7 @@ $ npx agentic-tools doctor --json
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
 | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
 | [`unsnooze`](./skills/unsnooze/SKILL.md) | Installing, configuring, or troubleshooting [unsnooze](https://unsnooze.dev/docs/) so Claude Code / Codex CLI sessions auto-resume after a 5-hour or weekly usage limit. |
+| [`plannotator`](./skills/plannotator/SKILL.md) | Installing, configuring, verifying, or troubleshooting [Plannotator](https://github.com/backnotprop/plannotator), the browser-based agent plan and code review tool. |
 | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 
 ### agent-friendly-code
@@ -150,6 +151,16 @@ CLI**: `npm install -g unsnooze && unsnooze setup`, then verify with
 of `config set` keys worth knowing, day-to-day commands, and the trust caveats
 (it types into your terminal; it is not an auto-approver). The pack does not ship
 or vendor unsnooze — the skill just points at upstream.
+
+### plannotator
+
+An upstream-oriented install and setup guide for
+[Plannotator](https://github.com/backnotprop/plannotator), a local browser
+interface for reviewing agent plans, documents, and code changes. It explains
+the full and minimal installer paths, authorization before running remote
+install scripts, verification, uninstall, and relevant privacy/network behavior.
+The pack contains only instructions: installing this skill does not install
+Plannotator or change agent configuration.
 
 ### simple-english
 
