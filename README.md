@@ -25,6 +25,7 @@ tool's CI runs and release history, so the table doubles as a status board:
 | [`💬 mention-agent`](./mention-agent) | Turn `@mentions` in issues and pull requests into AI agent runs — comment, or commit to the same PR | [![mention-agent CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-mention-agent.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-mention-agent.yml) | [![mention-agent version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fmention-agent%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=mention-agent) |
 | [`🔎 session-search`](./session-search) | Lexical search over local AI coding-agent session history (OpenCode and Pi) | [![session-search CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-session-search.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-session-search.yml) | [![session-search version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fsession-search%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=session-search) |
 | [`🧩 pi-extensions`](./pi-extensions) | Install a curated set of Pi and OMP extensions through each harness's own installer | [![pi-extensions CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-pi-extensions.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-pi-extensions.yml) | [![pi-extensions version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fpi-extensions%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=pi-extensions) |
+| [`🔌 opencode-extensions`](./opencode-extensions) | Install a curated set of OpenCode plugins through OpenCode's own plugin manager | [![opencode-extensions CI](https://img.shields.io/github/actions/workflow/status/faetschi-bot/faetschi-bot-utils/ci-opencode-extensions.yml?branch=main&label=)](https://github.com/faetschi-bot/faetschi-bot-utils/actions/workflows/ci-opencode-extensions.yml) | [![opencode-extensions version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffaetschi-bot%2Ffaetschi-bot-utils%2Fmain%2Fopencode-extensions%2Fpackage.json&query=%24.version&label=&color=blue)](https://github.com/faetschi-bot/faetschi-bot-utils/releases?q=opencode-extensions) |
 
 Each tool is self-contained. Tools are distributed as **GitHub Release
 tarballs**, so installing or publishing them needs **no npm registry account and
@@ -46,6 +47,7 @@ newest release:
 | `mention-agent` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/mention-agent-latest/mention-agent.tgz` | `npx mention-agent setup --mention @example-bot` |
 | `session-search` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/session-search-latest/session-search.tgz` | `npx session-search doctor --json` |
 | `pi-extensions` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/pi-extensions-latest/pi-extensions.tgz` | `npx pi-extensions doctor --json` |
+| `opencode-extensions` | `npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/opencode-extensions-latest/opencode-extensions.tgz` | `npx opencode-extensions doctor --json` |
 
 - **Per project:** run the install inside that project. `-D` records it in
   `devDependencies`, so it survives reinstalls and an agent can set it up too.
@@ -100,6 +102,7 @@ To release a tool, bump its `<tool>/package.json` and merge:
 # agentic-tools  -> .../releases/tag/agentic-tools-v<version>
 # session-search -> .../releases/tag/session-search-v<version>
 # pi-extensions  -> .../releases/tag/pi-extensions-v<version>
+# opencode-extensions -> .../releases/tag/opencode-extensions-v<version>
 ```
 
 ## Adding a new tool

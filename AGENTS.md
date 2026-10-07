@@ -14,6 +14,7 @@ its own `AGENTS.md` next to it — start there.
 | [`mention-agent/`](./mention-agent) | [`mention-agent/AGENTS.md`](./mention-agent/AGENTS.md) |
 | [`session-search/`](./session-search) | [`session-search/AGENTS.md`](./session-search/AGENTS.md) |
 | [`pi-extensions/`](./pi-extensions) | [`pi-extensions/AGENTS.md`](./pi-extensions/AGENTS.md) |
+| [`opencode-extensions/`](./opencode-extensions) | [`opencode-extensions/AGENTS.md`](./opencode-extensions/AGENTS.md) |
 
 ## Golden rules
 
@@ -59,4 +60,9 @@ npx session-search doctor --json
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/pi-extensions-latest/pi-extensions.tgz
 npx pi-extensions doctor --json
 npx pi-extensions install --all   # install for the pi/omp CLIs found on PATH
+
+# opencode-extensions
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/opencode-extensions-latest/opencode-extensions.tgz
+npx opencode-extensions doctor --json
+npx opencode-extensions install --all   # install the curated OpenCode plugins
 ```
