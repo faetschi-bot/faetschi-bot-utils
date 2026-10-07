@@ -26,7 +26,8 @@ test('packaged catalog is valid and lists the curated extensions', () => {
   assert.equal(result.ok, true, result.errors.join('; '));
   const codex = result.extensions.find((entry) => entry.name === 'codex-multi-auth');
   assert.ok(codex, 'catalog should include codex-multi-auth');
-  assert.equal(codex.installer, 'opencode');
+  assert.equal(codex.installer, 'npx');
+  assert.deepEqual(codex.args, ['--modern']);
   const plannotator = result.extensions.find((entry) => entry.name === 'plannotator');
   assert.ok(plannotator, 'catalog should include plannotator');
   assert.equal(plannotator.installer, 'opencode');
@@ -61,6 +62,9 @@ test('validateCatalog rejects a malformed entry', () => {
     [{ spec: '' }, /"spec"/],
     [{ homepage: 'http://x' }, /https URL/],
     [{ license: '' }, /"license"/],
+    [{ installer: 'npx', args: '--modern' }, /"args" must be an array of non-empty strings/],
+    [{ installer: 'npx', args: [''] }, /"args" must be an array of non-empty strings/],
+    [{ installer: 'opencode', args: ['--x'] }, /the "opencode" installer does not accept "args"/],
   ];
   for (const [override, pattern] of cases) {
     const result = validateCatalog(sampleCatalog({ extensions: [{ ...base, ...override }] }));

@@ -2,7 +2,7 @@
 
 Install a curated set of [OpenCode](https://opencode.ai) plugins with one
 command. This tool is a catalog plus a thin installer: it does **not** copy
-plugin code, it runs OpenCode's own plugin manager (`opencode plugin add`), so
+plugin code, it runs an installer the upstream project already publishes — so
 updates, trust, and licenses stay with the upstream project.
 
 It is the OpenCode sibling of [`pi-extensions`](../pi-extensions), which does
@@ -10,23 +10,47 @@ the same for Pi and OMP.
 
 ## Why a catalog
 
-OpenCode plugins are packages that OpenCode's plugin manager installs and
-records in `opencode.json(c)`:
+OpenCode plugins arrive in two shapes.
+
+**Package plugins** are installed by OpenCode's own plugin manager and recorded
+in `opencode.json(c)`:
 
 ```text
-opencode plugin add @plannotator/opencode@latest
+opencode  opencode plugin add @plannotator/opencode@latest
 ```
 
-`catalog.json` records the spec for each curated plugin, and the tool hands it
-to `opencode plugin add`. The upstream repo stays the only copy of the plugin,
-so a license that forbids redistribution is respected.
+**Self-installing plugins** ship their own installer and need it to configure
+more than a plugin entry — for example
+[`oc-codex-multi-auth`](https://github.com/ndycode/oc-codex-multi-auth) writes a
+model catalog and a TUI quota component:
 
-Some plugins also ship their own installer for optional extras — for example
-[`oc-codex-multi-auth`](https://github.com/ndycode/oc-codex-multi-auth) has a
-standalone installer that can add a model catalog and a TUI quota component.
-This tool installs the plugin itself and points at the upstream for those
-extras, because OpenCode's own manager stays correct across OpenCode versions
-and config formats.
+```text
+npx       npx -y oc-codex-multi-auth@latest --modern
+```
+
+`catalog.json` records which installer each plugin uses, the spec, and any
+args. The upstream repo stays the only copy of the plugin, so a license that
+forbids redistribution is respected.
+
+## After installing codex-multi-auth
+
+Sign in to a ChatGPT account so the plugin can serve Codex/GPT models:
+
+```bash
+opencode auth login   # choose OpenAI, then a Codex OAuth method
+```
+
+Check the account pool and remaining quota at any time with the plugin's own
+standalone command:
+
+```bash
+npx -y oc-codex-multi-auth@latest limits
+```
+
+It prints each account's 5h and weekly headroom, renewal times, plan, resets,
+and the pool total. See
+[its Getting Started](https://github.com/ndycode/oc-codex-multi-auth/blob/main/docs/getting-started.md)
+for the full `codex-*` tool and CLI reference.
 
 ## Install (pick one)
 
@@ -50,9 +74,9 @@ npx opencode-extensions doctor --json
 ```
 
 It validates `catalog.json` (unique kebab-case names, a known installer, a
-non-empty spec, an https homepage, and a license per entry) and reports whether
-the `opencode` CLI is on `PATH`. A missing CLI is reported, not a failure; an
-invalid catalog exits non-zero.
+non-empty spec, valid optional args, an https homepage, and a license per
+entry) and reports whether the installer commands are on `PATH`. A missing
+installer is reported, not a failure; an invalid catalog exits non-zero.
 
 ## Use it
 
@@ -81,27 +105,16 @@ Flags for `install`:
 `--root <path>` points the tool at a different catalog, for a vendored copy or a
 fork.
 
-Installs are **global**: `opencode plugin add` writes the user's configuration,
-and OpenCode documents no project scope, so this tool does not invent one.
+Installs are **global**: OpenCode's plugin manager and the self-installing
+plugins write the user's configuration. Neither documents a project scope, so
+this tool does not invent one.
 
 `install` stops at the first failed step and reports the steps it did not reach:
 `notAttempted` in `--json`, or `not attempted` lines in text output.
 
-Scope, trust, and updates are OpenCode's job: after installing, manage a plugin
-with `opencode plugin list`, `opencode plugin update`, and
-`opencode plugin remove`.
-
-## After installing codex-multi-auth
-
-Sign in to a ChatGPT account so the plugin can serve Codex/GPT models:
-
-```bash
-opencode auth login   # choose OpenAI, then a Codex OAuth method
-```
-
-The upstream project documents optional extras, such as a model catalog that
-adds `--variant` presets and a TUI quota component; see
-[its Getting Started](https://github.com/ndycode/oc-codex-multi-auth/blob/main/docs/getting-started.md).
+Scope, trust, and updates are the upstream installer's job: after installing,
+manage a package plugin with `opencode plugin list`, `opencode plugin update`,
+and `opencode plugin remove`.
 
 ## Catalog format
 
@@ -114,8 +127,9 @@ owns it:
     {
       "name": "codex-multi-auth",
       "summary": "ChatGPT Plus/Pro OAuth with Codex/GPT routing, multi-account rotation, quota in the prompt line, and codex-* tools.",
-      "installer": "opencode",
+      "installer": "npx",
       "spec": "oc-codex-multi-auth@latest",
+      "args": ["--modern"],
       "homepage": "https://github.com/ndycode/oc-codex-multi-auth",
       "license": "MIT"
     }
@@ -127,6 +141,7 @@ owns it:
 - `installer` must be one of `INSTALLERS` (`lib/installers.mjs`).
 - `spec` is passed verbatim to the installer. It is not validated beyond being
   non-empty, because the installer owns its own source syntax.
+- `args` is optional and appended after the spec by installers that accept it.
 - `homepage` and `license` record the upstream project; do not copy code a
   license forbids.
 
@@ -137,8 +152,9 @@ after editing.
 
 1. Append an entry to `catalog.json` with its installer, spec, homepage, and
    license.
-2. Prefer `opencode plugin add <spec>`: an npm name with a version, tag, or
-   range, or an npm-compatible Git spec such as `github:owner/repo`.
+2. Prefer the `opencode` installer (OpenCode's own plugin manager) for package
+   plugins; use `npx` when the plugin ships an installer that configures setup
+   OpenCode's plugin entry cannot, as `codex-multi-auth` does.
 3. Run `npx opencode-extensions doctor --json` and require `"ok": true`.
 
 ## Releasing (maintainers)

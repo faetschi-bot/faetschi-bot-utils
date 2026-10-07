@@ -5,9 +5,11 @@ over reading the source.
 
 `opencode-extensions` installs a curated set of [OpenCode](https://opencode.ai)
 plugins. It is a catalog (`catalog.json`) plus a thin installer that delegates
-to OpenCode's own plugin manager, `opencode plugin add <spec>`. It never copies
-plugin code, so upstream licenses and updates stay with the upstream project.
-It is the OpenCode sibling of `pi-extensions`.
+to an installer the upstream project already publishes: OpenCode's own plugin
+manager (`opencode plugin add <spec>`), or a plugin's own `npx -y <spec> [args]`
+when it ships one. It never copies plugin code, so upstream licenses and
+updates stay with the upstream project. It is the OpenCode sibling of
+`pi-extensions`.
 
 ## What an agent needs
 
@@ -15,8 +17,8 @@ It is the OpenCode sibling of `pi-extensions`.
 |------------|-----|
 | Node 20+ | Run the CLI. |
 | Read access to this repo (or the release tarball) | To read `catalog.json`. |
-| `opencode` on `PATH` | To actually install; `list`, `doctor`, and `--dry-run` work without it. |
-| Network, once | `opencode plugin add` fetches the plugin. |
+| `opencode` and/or `npx` on `PATH` | To actually install; `list`, `doctor`, and `--dry-run` work without them. |
+| Network, once | The installer fetches the plugin. |
 
 ## Verify before reporting success
 
@@ -26,9 +28,9 @@ Always run the machine-readable check and require `"ok": true`:
 npx opencode-extensions doctor --json
 ```
 
-It validates the catalog and reports whether the `opencode` CLI is on `PATH`. A
-missing CLI is reported as `found: false`, not a failure; a malformed catalog
-prints `errors` and exits 1.
+It validates the catalog and reports installer detection. A missing
+`opencode`/`npx` command is reported as `found: false`, not a failure; a
+malformed catalog prints `errors` and exits 1.
 
 ## Commands
 
@@ -38,20 +40,24 @@ opencode-extensions doctor [--json]
 opencode-extensions install [<name>...] [--all] [--dry-run] [--json]
 ```
 
-- Installs are global: `opencode plugin add` writes the user's OpenCode config.
-  OpenCode documents no project scope, so this tool does not invent one.
-- `--dry-run` prints the installer commands and requires no `opencode` CLI.
+- Installer commands are detected on `PATH`; a step whose command is missing
+  fails with a clear error, so tell the user to install it.
+- Installs are global: OpenCode's plugin manager and the self-installing
+  plugins write the user's config. Neither documents a project scope, so this
+  tool does not invent one.
+- `--dry-run` prints the installer commands and requires no installer CLI.
 - `install` stops at the first failed step; the steps it never reached appear
   under `notAttempted` in `--json` and as `not attempted` lines in text output.
 - Exit codes: 0 success, 1 runtime/environment, 2 usage.
 - After installing `codex-multi-auth`, the user must run `opencode auth login`
-  (OpenAI, then a Codex OAuth method) before models are served.
+  (OpenAI, then a Codex OAuth method). Check quota with
+  `npx -y oc-codex-multi-auth@latest limits`.
 
 ## Do not
 
 - Do not copy plugin code into this repo. The catalog only points at it.
-- Do not shell out to an installer that is not in `INSTALLERS`, and do not edit
-  `opencode.json(c)` by hand; `opencode plugin add` owns that.
+- Do not shell out to an installer that is not in `INSTALLERS`, and do not
+  invent installer flags the upstream tool does not document.
 - Do not bypass `catalog.json` validation; `doctor` is the gate.
 
 ## Architecture
@@ -75,9 +81,11 @@ one entry in `catalog.json`. Keep both changes small and test them.
 ## Catalog schema
 
 Each entry: `name` (lowercase kebab-case, unique), `summary`, `installer` (one
-of `INSTALLERS`), `spec` (passed verbatim to the installer), `homepage` (https),
-and `license`. `spec` accepts an npm name with a version, tag, or range, or an
-npm-compatible Git spec such as `github:owner/repo`.
+of `INSTALLERS`), `spec` (passed verbatim to the installer), optional `args`
+(appended after the spec when the installer accepts them), `homepage` (https),
+and `license`. Prefer the `opencode` installer for package plugins; use `npx`
+only when the plugin ships an installer that adds setup OpenCode's plugin entry
+cannot.
 
 ## Testing and checks
 

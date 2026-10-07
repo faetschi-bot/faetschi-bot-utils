@@ -3,8 +3,9 @@
     {
       "name": "codex-multi-auth",
       "summary": "ChatGPT Plus/Pro OAuth with Codex/GPT routing, multi-account rotation, quota in the prompt line, and codex-* tools.",
-      "installer": "opencode",
+      "installer": "npx",
       "spec": "oc-codex-multi-auth@latest",
+      "args": ["--modern"],
       "homepage": "https://github.com/ndycode/oc-codex-multi-auth",
       "license": "MIT"
     },

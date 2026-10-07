@@ -37,14 +37,16 @@ Options:
   --version            print the version
   --help               show this help
 
-This tool does not copy plugin code. It runs OpenCode's own plugin manager:
+This tool does not copy plugin code. Each catalog entry names an installer, and
+the tool runs it:
 
-  opencode plugin add <spec>
+  opencode  opencode plugin add <spec>     (OpenCode's own plugin manager)
+  npx       npx -y <spec> [args]           (the plugin's own installer)
 
-The catalog (catalog.json) maps each plugin to the spec passed verbatim to
-\`opencode plugin add\`, so licenses and updates stay with the upstream project.
-Installs are global: OpenCode writes the user's configuration. Install stops at
-the first failed step and reports the rest as not attempted.`);
+Installs are global: the installer writes the user's OpenCode config. The
+catalog (catalog.json) maps each plugin to the spec passed verbatim to its
+installer, so licenses and updates stay with the upstream project. Install
+stops at the first failed step and reports the rest as not attempted.`);
 }
 
 function parse(argv) {
@@ -95,7 +97,8 @@ function runList(options, root) {
   }
   for (const extension of extensions) {
     console.log(`${extension.name}\t${extension.summary}`);
-    console.log(`  ${extension.installer}\t${extension.spec} (${extension.license})`);
+    const args = extension.args?.length ? ` ${extension.args.join(' ')}` : '';
+    console.log(`  ${extension.installer}\t${extension.spec}${args} (${extension.license})`);
   }
 }
 

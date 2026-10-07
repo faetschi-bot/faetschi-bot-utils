@@ -40,8 +40,9 @@ test('list --json includes the curated extensions', () => {
   const parsed = JSON.parse(result.stdout);
   const codex = parsed.extensions.find((entry) => entry.name === 'codex-multi-auth');
   assert.ok(codex);
-  assert.equal(codex.installer, 'opencode');
+  assert.equal(codex.installer, 'npx');
   assert.equal(codex.spec, 'oc-codex-multi-auth@latest');
+  assert.deepEqual(codex.args, ['--modern']);
   const plannotator = parsed.extensions.find((entry) => entry.name === 'plannotator');
   assert.equal(plannotator.installer, 'opencode');
   assert.equal(plannotator.spec, '@plannotator/opencode@latest');
@@ -53,7 +54,7 @@ test('doctor --json validates the packaged catalog', () => {
   const parsed = JSON.parse(result.stdout);
   assert.equal(parsed.ok, true, parsed.errors.join('; '));
   assert.ok(parsed.extensions.some((entry) => entry.name === 'codex-multi-auth'));
-  assert.ok('opencode' in parsed.installers);
+  assert.ok('opencode' in parsed.installers && 'npx' in parsed.installers);
 });
 
 test('doctor fails on an invalid catalog', () => {
@@ -67,7 +68,7 @@ test('install --dry-run prints the installer command and installs nothing', () =
   assert.equal(result.status, 0);
   const parsed = JSON.parse(result.stdout);
   assert.equal(parsed.dryRun, true);
-  assert.deepEqual(parsed.steps[0].command, ['opencode', 'plugin', 'add', 'oc-codex-multi-auth@latest']);
+  assert.deepEqual(parsed.steps[0].command, ['npx', '-y', 'oc-codex-multi-auth@latest', '--modern']);
 });
 
 test('install --dry-run works with no installer on PATH', () => {

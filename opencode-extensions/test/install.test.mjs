@@ -12,7 +12,7 @@ test('planInstall builds each entry command from its installer', () => {
   assert.deepEqual(
     steps.map((step) => step.command),
     [
-      ['opencode', 'plugin', 'add', 'oc-codex-multi-auth@latest'],
+      ['npx', '-y', 'oc-codex-multi-auth@latest', '--modern'],
       ['opencode', 'plugin', 'add', '@plannotator/opencode@latest'],
     ],
   );
@@ -49,8 +49,10 @@ test('resolveCommandPath finds an executable on a fake PATH', () => {
 
 test('missingInstallers reports commands absent from PATH', () => {
   const { steps } = planInstall({ catalog, all: true });
-  const missing = missingInstallers(steps, { resolve: () => undefined });
-  assert.deepEqual(missing, ['opencode']);
+  const missing = missingInstallers(steps, {
+    resolve: (command) => (command === 'opencode' ? '/usr/bin/opencode' : undefined),
+  });
+  assert.deepEqual(missing, ['npx']);
 });
 
 test('executePlan runs steps in order and stops after the first failure', () => {
@@ -62,7 +64,7 @@ test('executePlan runs steps in order and stops after the first failure', () => 
       return { status: 1, stderr: 'boom' };
     },
   });
-  assert.deepEqual(seen, [['opencode', 'plugin', 'add', 'oc-codex-multi-auth@latest']]);
+  assert.deepEqual(seen, [['npx', '-y', 'oc-codex-multi-auth@latest', '--modern']]);
   assert.equal(results.length, 1);
   assert.equal(results[0].ok, false);
   assert.equal(results[0].stderr, 'boom');

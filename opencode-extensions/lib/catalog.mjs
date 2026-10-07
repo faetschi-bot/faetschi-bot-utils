@@ -1,14 +1,14 @@
 // Catalog loading and validation for opencode-extensions.
 //
 // The catalog is data (catalog.json): one entry per logical OpenCode plugin,
-// naming the installer that owns installation and the spec handed to it. The
-// installer owns installation, so this tool never copies plugin code; it only
-// records where OpenCode (or the plugin's own installer) should fetch it from.
-// Validation is pure so the CLI, `doctor`, and the tests share one definition
-// of a valid catalog.
+// naming the installer that owns installation and the spec (plus optional
+// args) handed to it. The installer owns installation, so this tool never
+// copies plugin code; it only records where OpenCode (or the plugin's own
+// installer) should fetch it from. Validation is pure so the CLI, `doctor`,
+// and the tests share one definition of a valid catalog.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { INSTALLER_NAMES } from './installers.mjs';
+import { INSTALLERS, INSTALLER_NAMES } from './installers.mjs';
 
 export const CATALOG_FILE = 'catalog.json';
 export const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -70,6 +70,7 @@ function validateExtension(extension, index, seen) {
   if (typeof extension.spec !== 'string' || extension.spec.trim() === '') {
     errors.push(`${label}: missing non-empty "spec"`);
   }
+  errors.push(...validateArgs(extension.args, installer, label));
   if (typeof extension.homepage !== 'string' || !extension.homepage.startsWith('https://')) {
     errors.push(`${label}: "homepage" must be an https URL`);
   }
@@ -77,6 +78,20 @@ function validateExtension(extension, index, seen) {
     errors.push(`${label}: missing "license"`);
   }
   return { name, installer, ok: errors.length === 0, errors };
+}
+
+// `args` is optional and appended after the spec by installers that accept
+// them (for example `npx -y <spec> --modern`).
+function validateArgs(args, installer, label) {
+  if (args === undefined) return [];
+  if (!Array.isArray(args) || args.some((arg) => typeof arg !== 'string' || arg.trim() === '')) {
+    return [`${label}: "args" must be an array of non-empty strings`];
+  }
+  const known = installer && INSTALLERS[installer];
+  if (known && !known.acceptsArgs) {
+    return [`${label}: the "${installer}" installer does not accept "args"`];
+  }
+  return [];
 }
 
 // Returns entries shaped for display and JSON output. A malformed entry is
@@ -87,13 +102,15 @@ export function listExtensions(catalog) {
     if (!extension || typeof extension !== 'object') {
       return { name: '(invalid)', summary: '', installer: null, spec: null };
     }
-    return {
+    const entry = {
       name: extension.name,
       summary: extension.summary,
       installer: extension.installer,
       spec: extension.spec,
-      homepage: extension.homepage,
-      license: extension.license,
     };
+    if (Array.isArray(extension.args) && extension.args.length > 0) entry.args = extension.args;
+    entry.homepage = extension.homepage;
+    entry.license = extension.license;
+    return entry;
   });
 }

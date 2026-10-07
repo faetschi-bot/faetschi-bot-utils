@@ -75,7 +75,7 @@ export function planInstall({ catalog, names = [], all = false }) {
     steps.push({
       extension: name,
       installer: extension.installer,
-      command: [installer.command, ...installer.buildArgs({ spec: extension.spec })],
+      command: [installer.command, ...installer.buildArgs({ spec: extension.spec, args: extension.args })],
     });
   }
   return { steps };
