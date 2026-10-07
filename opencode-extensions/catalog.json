@@ -1,0 +1,20 @@
+{
+  "extensions": [
+    {
+      "name": "codex-multi-auth",
+      "summary": "ChatGPT Plus/Pro OAuth with Codex/GPT routing, multi-account rotation, quota in the prompt line, and codex-* tools.",
+      "installer": "opencode",
+      "spec": "oc-codex-multi-auth@latest",
+      "homepage": "https://github.com/ndycode/oc-codex-multi-auth",
+      "license": "MIT"
+    },
+    {
+      "name": "plannotator",
+      "summary": "Review agent plans, documents, and code changes in a local browser UI.",
+      "installer": "opencode",
+      "spec": "@plannotator/opencode@latest",
+      "homepage": "https://github.com/backnotprop/plannotator",
+      "license": "MIT OR Apache-2.0"
+    }
+  ]
+}

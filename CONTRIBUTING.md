@@ -34,6 +34,7 @@ All tools require **Node 20+**. Run these from inside the tool's directory:
 | [`mention-agent/`](./mention-agent) | `npm test` | `npm run check`, `npm run self-check` |
 | [`session-search/`](./session-search) | `npm test` | `npm run check`, `npm run eval` |
 | [`pi-extensions/`](./pi-extensions) | `npm test` | `npm run validate` |
+| [`opencode-extensions/`](./opencode-extensions) | `npm test` | `npm run validate` |
 
 ## Adding a new tool
 
