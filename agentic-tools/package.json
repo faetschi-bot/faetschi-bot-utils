@@ -1,6 +1,6 @@
 {
   "name": "agentic-tools",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Reusable skills and hooks for AI coding agents.",
   "keywords": [
     "agent",
@@ -30,6 +30,7 @@
     "bin",
     "lib",
     "skills",
+    "commands",
     "install",
     "AGENTS.md",
     "README.md",

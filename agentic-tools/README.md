@@ -1,12 +1,14 @@
 # agentic-tools
 
-Reusable skills (and, later, hooks) for AI coding agents. Each skill is a
-`SKILL.md` with YAML frontmatter and a body of instructions an agent loads when a
-task matches. Installer guides are separate upstream setup instructions, not
-installable agent skills. The pack is language-agnostic: its skills are text the
-agent reads, not programs that run in your project.
+Reusable skills and slash commands (and, later, hooks) for AI coding agents.
+Each skill is a `SKILL.md` with YAML frontmatter and a body of instructions an
+agent loads when a task matches; each command is a markdown prompt installed as
+a slash command in OpenCode, Pi, or Codex CLI. Installer guides are separate
+upstream setup instructions, not installable agent skills. The pack is
+language-agnostic: its skills and commands are text the agent reads, not
+programs that run in your project.
 
-## Tools/Skills
+## Tools/Skills/Commands
 
 | Type | Tool/skill | Use it when |
 |------|------------|-------------|
@@ -14,14 +16,25 @@ agent reads, not programs that run in your project.
 | Skill | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
 | Skill | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
 | Skill | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+| Command | [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
+| Command | [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
+| Command | [`craft-goal`](./commands/craft-goal.md) | Turning an idea or task into a clear, verifiable Goal through a guided dialogue. |
+| Command | [`debug`](./commands/debug.md) | Investigating an issue to root cause before any fix is proposed. |
+| Command | [`explore`](./commands/explore.md) | Getting a high-level orientation tour of an unfamiliar codebase. |
+| Command | [`handoff-review`](./commands/handoff-review.md) | Producing a review handoff for another agent to review the work. |
+| Command | [`plan-feature`](./commands/plan-feature.md) | Turning a feature idea into a concrete implementation plan through a guided dialogue. |
+| Command | [`schedule-task`](./commands/schedule-task.md) | Defining a scheduled task (self-contained prompt, schedule, model) through a guided dialogue. |
+| Command | [`summary`](./commands/summary.md) | Summarizing the current session, optionally focused on a topic. |
+| Command | [`weigh`](./commands/weigh.md) | Comparing distinct approaches with trade-offs and a recommendation. |
+| Command | [`workspace-review`](./commands/workspace-review.md) | Reviewing workspace changes for correctness, adequacy, and security. |
 | Install guide (not a skill) | [`Plannotator`](./install/plannotator.md) | Installing Plannotator; its own installer adds supported agent integrations and skills. |
 | Install guide (not a skill) | [`unsnooze`](./install/unsnooze.md) | Installing, configuring, verifying, or removing unsnooze for Claude Code or Codex CLI. |
 
 ## Requirements
 
 - **Node 20+** — only to run the `agentic-tools` validator.
-- An agent that can load skills (e.g. OpenCode). See
-  [Use a skill](#use-a-skill).
+- An agent that can load skills or commands (e.g. OpenCode, Pi, Codex CLI).
+  See [Use a skill](#use-a-skill) and [Use a command](#use-a-command).
 
 ## Install
 
@@ -52,27 +65,30 @@ node tools/faetschi-bot-utils/agentic-tools/bin/agentic-tools.mjs doctor
 ## CLI
 
 ```
-agentic-tools list [options]                 list the skills in this package
-agentic-tools doctor [options]               validate every SKILL.md, then exit
-agentic-tools install <skill...> [options]   copy skills into an agent skills dir
-agentic-tools install --all [options]        copy every skill in the pack
+agentic-tools list [--commands] [options]        list the skills (or commands) in this package
+agentic-tools doctor [options]                   validate every SKILL.md and command, then exit
+agentic-tools install <name...> [options]        copy skills (or commands) into an agent directory
+agentic-tools install --all [options]            copy every skill (or command) in the pack
 ```
 
 | Flag | Meaning |
 |------|---------|
 | `--root <path>` | package root to inspect (default: this package) |
-| `--target <name>` | install preset: `opencode` (default), `claude`, `agents` |
+| `--commands` | work with the commands pack instead of the skills pack |
+| `--target <name>` | install preset: skills — `opencode` (default), `claude`, `agents`; commands — `opencode` (default), `pi`, `codex` |
 | `--global` | install to the user-global dir instead of the project |
-| `--dir <path>` | explicit destination skills dir (overrides `--target`/`--global`) |
-| `--all` | select every skill in the pack |
-| `--force` | overwrite existing skill directories |
+| `--dir <path>` | explicit destination dir (overrides `--target`/`--global`) |
+| `--all` | select every skill or command in the pack |
+| `--force` | overwrite existing skills or commands |
 | `--dry-run` | report what would be installed without writing anything |
 | `--json` | print a machine-readable result object |
 
 `doctor` validates every `skills/*/SKILL.md`: frontmatter has a `name` that
 matches the directory plus a non-empty `description`, and all relative links and
-in-page anchors resolve. It exits non-zero on any problem, so CI and agents can
-verify a skill before trusting it.
+in-page anchors resolve. It validates every `commands/*.md`: a non-empty
+`description` and a non-empty body with no unresolved `{{` template variables.
+It exits non-zero on any problem, so CI and agents can verify the pack before
+trusting it.
 
 ```bash
 $ npx agentic-tools doctor --json
@@ -82,6 +98,9 @@ $ npx agentic-tools doctor --json
   "skills": [
     { "name": "agent-friendly-code", "ok": true, "errors": [], "warnings": [] },
     { "name": "test-audit", "ok": true, "errors": [], "warnings": [] }
+  ],
+  "commands": [
+    { "name": "catch-up", "ok": true, "errors": [] }
   ]
 }
 ```
@@ -196,6 +215,44 @@ To copy by hand instead, OpenCode reads `.opencode/skills/`, and also auto-loads
 directory directly via `skills.paths` in `opencode.json`. Alternatively point the
 agent at the file for a single task: "follow
 `node_modules/agentic-tools/skills/test-audit/SKILL.md`".
+
+## Use a command
+
+`install --commands <name...>` installs slash-command prompts, rendered into
+each CLI's own command format; `install --all --commands` installs every
+command in the pack. See [`commands/README.md`](./commands/README.md) for the
+full list, the OpenChamber provenance, and the per-CLI mapping.
+
+```bash
+# OpenCode project commands: <project>/.opencode/commands/<name>.md -> /catch-up
+npx agentic-tools install catch-up --commands
+
+# Pi user prompts: ~/.pi/agent/prompts/<name>.md -> /catch-up
+npx agentic-tools install catch-up --commands --target pi --global
+
+# Codex CLI user skills: ~/.agents/skills/<name>/SKILL.md -> $catch-up
+npx agentic-tools install clean-codebase-loop --commands --target codex --global
+```
+
+Command targets (project / global):
+
+| Target | Project | Global | Written as |
+|--------|---------|--------|------------|
+| `opencode` (default) | `.opencode/commands` | `~/.config/opencode/commands` | `<name>.md` |
+| `pi` | `.pi/prompts` | `~/.pi/agent/prompts` | `<name>.md` |
+| `codex` | `.agents/skills` | `~/.agents/skills` | `<name>/SKILL.md` |
+
+Commands carry the same guarantees as skills: the selection is validated before
+anything is written, existing destinations are refused without `--force`, and
+`--dry-run` and `--json` behave the same. Run `/reload` in Pi after installing
+so the new prompt templates register.
+
+## Adding a command
+
+1. Create `commands/<name>.md` (lowercase kebab-case) with a `description`
+   (plus an optional `argument-hint` for Pi) and a non-empty prompt body.
+2. Resolve every template variable; `doctor` rejects a body containing `{{`.
+3. Run `npx agentic-tools doctor` and require `ok`.
 
 ## Adding a skill
 
