@@ -1,4 +1,4 @@
-// Catalog loading and validation for opencode-extensions.
+// Catalog loading and validation for opencode-collection.
 //
 // The catalog is data (catalog.json): one entry per logical OpenCode plugin,
 // naming the installer that owns installation and the spec (plus optional

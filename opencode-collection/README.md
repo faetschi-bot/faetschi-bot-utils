@@ -1,11 +1,11 @@
-# opencode-extensions
+# opencode-collection
 
 Install a curated set of [OpenCode](https://opencode.ai) plugins with one
 command. This tool is a catalog plus a thin installer: it does **not** copy
 plugin code, it runs an installer the upstream project already publishes — so
 updates, trust, and licenses stay with the upstream project.
 
-It is the OpenCode sibling of [`pi-extensions`](../pi-extensions), which does
+It is the OpenCode sibling of [`pi-collection`](../pi-collection), which does
 the same for Pi and OMP.
 
 ## Why a catalog
@@ -56,10 +56,10 @@ for the full `codex-*` tool and CLI reference.
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/opencode-extensions-latest/opencode-extensions.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/opencode-collection-latest/opencode-collection.tgz
 
 # B. Vendored copy
-cp -r opencode-extensions /path/to/project/tools/opencode-extensions
+cp -r opencode-collection /path/to/project/tools/opencode-collection
 
 # C. Git submodule
 git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faetschi-bot-utils
@@ -70,7 +70,7 @@ git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faets
 Always run the machine-readable check and require `"ok": true`:
 
 ```bash
-npx opencode-extensions doctor --json
+npx opencode-collection doctor --json
 ```
 
 It validates `catalog.json` (unique kebab-case names, a known installer, a
@@ -82,16 +82,16 @@ installer is reported, not a failure; an invalid catalog exits non-zero.
 
 ```bash
 # List what the catalog offers, with each plugin's installer and spec.
-npx opencode-extensions list
+npx opencode-collection list
 
 # Install every plugin in the catalog.
-npx opencode-extensions install --all
+npx opencode-collection install --all
 
 # Install one plugin.
-npx opencode-extensions install codex-multi-auth
+npx opencode-collection install codex-multi-auth
 
 # See the exact installer commands without running them.
-npx opencode-extensions install --all --dry-run
+npx opencode-collection install --all --dry-run
 ```
 
 Flags for `install`:
@@ -145,7 +145,7 @@ owns it:
 - `homepage` and `license` record the upstream project; do not copy code a
   license forbids.
 
-Enforcement lives in `lib/catalog.mjs`; run `npx opencode-extensions doctor`
+Enforcement lives in `lib/catalog.mjs`; run `npx opencode-collection doctor`
 after editing.
 
 ## Adding an extension
@@ -155,10 +155,10 @@ after editing.
 2. Prefer the `opencode` installer (OpenCode's own plugin manager) for package
    plugins; use `npx` when the plugin ships an installer that configures setup
    OpenCode's plugin entry cannot, as `codex-multi-auth` does.
-3. Run `npx opencode-extensions doctor --json` and require `"ok": true`.
+3. Run `npx opencode-collection doctor --json` and require `"ok": true`.
 
 ## Releasing (maintainers)
 
-Do not tag by hand. Bump `version` in `opencode-extensions/package.json`, merge
+Do not tag by hand. Bump `version` in `opencode-collection/package.json`, merge
 to `main`; the release workflow detects the new version and publishes the
 tarball.

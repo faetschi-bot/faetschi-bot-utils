@@ -1,9 +1,9 @@
-# pi-extensions — agent guide
+# pi-collection — agent guide
 
-The canonical recipe for agents. Prefer it and `pi-extensions --help` over
+The canonical recipe for agents. Prefer it and `pi-collection --help` over
 reading the source.
 
-`pi-extensions` installs a curated set of [Pi](https://pi.dev) and OMP
+`pi-collection` installs a curated set of [Pi](https://pi.dev) and OMP
 extensions. It is a catalog (`catalog.json`) plus a thin installer that
 delegates to each harness's own package manager: `pi install <spec>` and
 `omp plugin install <spec>`. It never copies extension code, so upstream
@@ -23,7 +23,7 @@ licenses and updates stay with the upstream project.
 Always run the machine-readable check and require `"ok": true`:
 
 ```bash
-npx pi-extensions doctor --json
+npx pi-collection doctor --json
 ```
 
 It validates the catalog and reports harness detection. A missing `pi`/`omp` CLI
@@ -33,9 +33,9 @@ is reported as `found: false`, not a failure; a malformed catalog prints
 ## Commands
 
 ```text
-pi-extensions list [--harness pi|omp|both] [--json]
-pi-extensions doctor [--json]
-pi-extensions install [<name>...] [--all] [--harness pi|omp|both|auto] [--global|--local] [--dry-run] [--json]
+pi-collection list [--harness pi|omp|both] [--json]
+pi-collection doctor [--json]
+pi-collection install [<name>...] [--all] [--harness pi|omp|both|auto] [--global|--local] [--dry-run] [--json]
 ```
 
 - Default harness for `install` is `auto`: every CLI found on `PATH`. Erroring
@@ -59,7 +59,7 @@ pi-extensions install [<name>...] [--all] [--harness pi|omp|both|auto] [--global
 ## Architecture
 
 ```text
-bin/pi-extensions.mjs   CLI entry: parse, dispatch, print, exit codes
+bin/pi-collection.mjs   CLI entry: parse, dispatch, print, exit codes
 lib/harnesses.mjs       HARNESSES + INSTALLERS (single source of truth)
 lib/catalog.mjs         catalog JSON read + validation (pure) + list/filter
 lib/install.mjs         PATH lookup, plan (pure), execute
@@ -85,8 +85,8 @@ harness; `install` skips missing harnesses with a reason.
 
 ```bash
 npm test          # node --test test/ (headless; never runs a real installer)
-npm run validate  # node bin/pi-extensions.mjs doctor
-node --check bin/pi-extensions.mjs && node --check lib/catalog.mjs && node --check lib/install.mjs
+npm run validate  # node bin/pi-collection.mjs doctor
+node --check bin/pi-collection.mjs && node --check lib/catalog.mjs && node --check lib/install.mjs
 ```
 
 Tests inject the PATH lookup and the command runner, so they stay offline. To
@@ -95,5 +95,5 @@ keep them from ever finding a real `pi`/`omp`, the CLI tests spawn with an empty
 
 ## Releasing (maintainers)
 
-Do not tag by hand. Bump `pi-extensions/package.json`, merge to `main`; the
+Do not tag by hand. Bump `pi-collection/package.json`, merge to `main`; the
 release workflow publishes the tarball and refreshes the `-latest` pointer.

@@ -1,4 +1,4 @@
-# pi-extensions
+# pi-collection
 
 Install a curated set of [Pi](https://pi.dev) and OMP extensions with one
 command. This tool is a catalog plus a thin installer: it
@@ -20,10 +20,10 @@ omp  omp plugin install github:ubranch/omp-you-should-know
 
 ```bash
 # A. Release tarball (recommended)
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/pi-extensions-latest/pi-extensions.tgz
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/pi-collection-latest/pi-collection.tgz
 
 # B. Vendored copy
-cp -r pi-extensions /path/to/project/tools/pi-extensions
+cp -r pi-collection /path/to/project/tools/pi-collection
 
 # C. Git submodule
 git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faetschi-bot-utils
@@ -34,7 +34,7 @@ git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faets
 Always run the machine-readable check and require `"ok": true`:
 
 ```bash
-npx pi-extensions doctor --json
+npx pi-collection doctor --json
 ```
 
 It validates `catalog.json` (unique kebab-case names, at least one known harness
@@ -46,16 +46,16 @@ reported, not a failure; an invalid catalog exits non-zero.
 
 ```bash
 # List what the catalog offers, with each harness source.
-npx pi-extensions list
+npx pi-collection list
 
 # Install for every harness found on PATH (global by default).
-npx pi-extensions install --all
+npx pi-collection install --all
 
 # Install one extension for a specific harness.
-npx pi-extensions install you-should-know --harness omp
+npx pi-collection install you-should-know --harness omp
 
 # See the exact native commands without running them.
-npx pi-extensions install --all --dry-run
+npx pi-collection install --all --dry-run
 ```
 
 Flags for `install`:
@@ -112,7 +112,7 @@ harness:
   harness, and `install` then skips it with a reason instead of failing.
 - `spec` is passed verbatim to the harness installer. It is not validated
   beyond being non-empty, because each harness owns its own source syntax.
-- Enforcement lives in `lib/catalog.mjs`; run `npx pi-extensions doctor` after
+- Enforcement lives in `lib/catalog.mjs`; run `npx pi-collection doctor` after
   editing.
 
 ## Adding an extension
@@ -121,9 +121,9 @@ harness:
    you can support.
 2. Record the upstream `homepage` and `license`; do not copy code that a license
    forbids.
-3. Run `npx pi-extensions doctor --json` and require `"ok": true`.
+3. Run `npx pi-collection doctor --json` and require `"ok": true`.
 
 ## Releasing (maintainers)
 
-Do not tag by hand. Bump `version` in `pi-extensions/package.json`, merge to
+Do not tag by hand. Bump `version` in `pi-collection/package.json`, merge to
 `main`; the release workflow detects the new version and publishes the tarball.

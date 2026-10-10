@@ -21,13 +21,13 @@ const packageRoot = resolve(here, '..');
 const version = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version;
 
 function usage() {
-  console.log(`pi-extensions - install a curated set of Pi and OMP extensions.
+  console.log(`pi-collection - install a curated set of Pi and OMP extensions.
 
 Usage:
-  pi-extensions list [--harness pi|omp|both] [--json]
-  pi-extensions doctor [--json]
-  pi-extensions install <name...> [options]
-  pi-extensions install --all [options]
+  pi-collection list [--harness pi|omp|both] [--json]
+  pi-collection doctor [--json]
+  pi-collection install <name...> [options]
+  pi-collection install --all [options]
 
 Options:
   --root <path>        catalog root to use (default: this package)
@@ -104,7 +104,7 @@ function runList(options, root) {
     return;
   }
   if (extensions.length === 0) {
-    console.log(`[pi-extensions] no extensions for harness ${harness}`);
+    console.log(`[pi-collection] no extensions for harness ${harness}`);
     return;
   }
   for (const extension of extensions) {
@@ -140,7 +140,7 @@ function runDoctor(options, root) {
     console.log(`${entry.ok ? '[ok]  ' : '[FAIL]'} ${entry.name ?? '(invalid)'}${suffix}`);
   }
   for (const error of validation.errors) console.log(`        error: ${error}`);
-  console.log(result.ok ? '[pi-extensions] catalog valid' : '[pi-extensions] catalog validation failed');
+  console.log(result.ok ? '[pi-collection] catalog valid' : '[pi-collection] catalog validation failed');
   process.exitCode = result.ok ? 0 : 1;
 }
 
@@ -178,9 +178,9 @@ function runInstall(options, root) {
       );
       return;
     }
-    for (const step of steps) console.log(`[pi-extensions] would run: ${step.command.join(' ')}`);
-    for (const skip of skipped) console.log(`[pi-extensions] skip ${skip.extension} for ${skip.harness}: ${skip.reason}`);
-    console.log('[pi-extensions] dry run: nothing installed');
+    for (const step of steps) console.log(`[pi-collection] would run: ${step.command.join(' ')}`);
+    for (const skip of skipped) console.log(`[pi-collection] skip ${skip.extension} for ${skip.harness}: ${skip.reason}`);
+    console.log('[pi-collection] dry run: nothing installed');
     return;
   }
 
@@ -206,12 +206,12 @@ function runInstall(options, root) {
     return;
   }
   for (const result of results) {
-    console.log(`[pi-extensions] ${result.ok ? 'installed' : 'failed'} ${result.extension} for ${result.harness}`);
-    if (!result.ok && result.error) console.log(`[pi-extensions]   ${result.error}`);
+    console.log(`[pi-collection] ${result.ok ? 'installed' : 'failed'} ${result.extension} for ${result.harness}`);
+    if (!result.ok && result.error) console.log(`[pi-collection]   ${result.error}`);
   }
-  for (const skip of skipped) console.log(`[pi-extensions] skip ${skip.extension} for ${skip.harness}: ${skip.reason}`);
+  for (const skip of skipped) console.log(`[pi-collection] skip ${skip.extension} for ${skip.harness}: ${skip.reason}`);
   for (const step of notAttempted) {
-    console.log(`[pi-extensions] not attempted: ${step.extension} for ${step.harness}`);
+    console.log(`[pi-collection] not attempted: ${step.extension} for ${step.harness}`);
   }
   process.exitCode = ok ? 0 : 1;
 }
@@ -254,7 +254,7 @@ try {
   if (json) {
     process.stdout.write(JSON.stringify({ ok: false, error: error.message }, null, 2) + '\n');
   } else {
-    process.stderr.write(`[pi-extensions] ${error.message}\n`);
+    process.stderr.write(`[pi-collection] ${error.message}\n`);
   }
   process.exitCode = code;
 }

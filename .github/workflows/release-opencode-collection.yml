@@ -1,14 +1,14 @@
-name: Release opencode-extensions
+name: Release opencode-collection
 
 on:
   push:
     branches:
       - main
     tags:
-      - 'opencode-extensions-v*'
+      - 'opencode-collection-v*'
     paths:
-      - 'opencode-extensions/**'
-      - '.github/workflows/release-opencode-extensions.yml'
+      - 'opencode-collection/**'
+      - '.github/workflows/release-opencode-collection.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,20 +26,20 @@ jobs:
 
       - name: Resolve release tag
         id: release
-        working-directory: opencode-extensions
+        working-directory: opencode-collection
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           if [ "$REF_TYPE" = "tag" ]; then
             tag="$REF_NAME"
-            expected="opencode-extensions-v$(node -p "require('./package.json').version")"
+            expected="opencode-collection-v$(node -p "require('./package.json').version")"
             if [ "$tag" != "$expected" ]; then
               echo "tag $tag does not match package.json version ($expected)" >&2
               exit 1
             fi
           else
-            tag="opencode-extensions-v$(node -p "require('./package.json').version")"
+            tag="opencode-collection-v$(node -p "require('./package.json').version")"
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "resolved release tag: $tag"
@@ -59,10 +59,10 @@ jobs:
 
       - name: Pack
         if: steps.check.outputs.exists == 'false'
-        working-directory: opencode-extensions
+        working-directory: opencode-collection
         run: |
           npm pack
-          echo "TGZ=opencode-extensions/$(ls opencode-extensions-*.tgz)" >> "$GITHUB_ENV"
+          echo "TGZ=opencode-collection/$(ls opencode-collection-*.tgz)" >> "$GITHUB_ENV"
 
       - name: Publish release
         if: steps.check.outputs.exists == 'false'
@@ -75,10 +75,10 @@ jobs:
             --title "$TAG" \
             --generate-notes
 
-      - name: Update opencode-extensions-latest alias
+      - name: Update opencode-collection-latest alias
         env:
           GH_TOKEN: ${{ github.token }}
-          TOOL: opencode-extensions
+          TOOL: opencode-collection
           TAG: ${{ steps.release.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |

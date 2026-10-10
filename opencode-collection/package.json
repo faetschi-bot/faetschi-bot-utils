@@ -1,0 +1,44 @@
+{
+  "name": "opencode-collection",
+  "version": "0.2.0",
+  "description": "Install a curated set of OpenCode plugins through OpenCode's own plugin manager.",
+  "keywords": [
+    "opencode",
+    "plugins",
+    "extensions",
+    "agent",
+    "cli"
+  ],
+  "homepage": "https://github.com/faetschi-bot/faetschi-bot-utils/tree/main/opencode-collection#readme",
+  "bugs": {
+    "url": "https://github.com/faetschi-bot/faetschi-bot-utils/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faetschi-bot/faetschi-bot-utils.git",
+    "directory": "opencode-collection"
+  },
+  "author": "faetschi-bot",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "opencode-collection": "bin/opencode-collection.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "catalog.json",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "validate": "node bin/opencode-collection.mjs doctor",
+    "prepack": "node --check bin/opencode-collection.mjs && node --check lib/catalog.mjs && node --check lib/installers.mjs && node --check lib/install.mjs && node bin/opencode-collection.mjs doctor",
+    "prepublishOnly": "node --check bin/opencode-collection.mjs && node --check lib/catalog.mjs && node --check lib/installers.mjs && node --check lib/install.mjs && node bin/opencode-collection.mjs doctor"
+  }
+}
