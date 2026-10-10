@@ -1,16 +1,16 @@
-name: CI opencode-extensions
+name: CI opencode-collection
 
 on:
   pull_request:
     paths:
-      - 'opencode-extensions/**'
-      - '.github/workflows/ci-opencode-extensions.yml'
+      - 'opencode-collection/**'
+      - '.github/workflows/ci-opencode-collection.yml'
   push:
     branches:
       - main
     paths:
-      - 'opencode-extensions/**'
-      - '.github/workflows/ci-opencode-extensions.yml'
+      - 'opencode-collection/**'
+      - '.github/workflows/ci-opencode-collection.yml'
 
 permissions:
   contents: read
@@ -20,16 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: opencode-extensions
+        working-directory: opencode-collection
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check bin/opencode-extensions.mjs && node --check lib/catalog.mjs && node --check lib/installers.mjs && node --check lib/install.mjs
+        run: node --check bin/opencode-collection.mjs && node --check lib/catalog.mjs && node --check lib/installers.mjs && node --check lib/install.mjs
       - name: Validate catalog
-        run: node bin/opencode-extensions.mjs doctor
+        run: node bin/opencode-collection.mjs doctor
       - name: Tests
         run: npm test
       - name: Pack check

@@ -18,16 +18,16 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');
 const version = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version;
-const TOOL = 'opencode-extensions';
+const TOOL = 'opencode-collection';
 
 function usage() {
-  console.log(`opencode-extensions - install a curated set of OpenCode plugins.
+  console.log(`opencode-collection - install a curated set of OpenCode plugins.
 
 Usage:
-  opencode-extensions list [--json]
-  opencode-extensions doctor [--json]
-  opencode-extensions install <name...> [options]
-  opencode-extensions install --all [options]
+  opencode-collection list [--json]
+  opencode-collection doctor [--json]
+  opencode-collection install <name...> [options]
+  opencode-collection install --all [options]
 
 Options:
   --root <path>        catalog root to use (default: this package)
