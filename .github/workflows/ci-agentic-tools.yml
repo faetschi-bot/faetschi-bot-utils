@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check bin/agentic-tools.mjs && node --check lib/skills.mjs
+        run: node --check bin/agentic-tools.mjs && node --check lib/skills.mjs && node --check lib/commands.mjs
       - name: Validate skills
         run: node bin/agentic-tools.mjs doctor
       - name: Tests

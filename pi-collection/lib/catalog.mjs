@@ -1,4 +1,4 @@
-// Catalog loading and validation for pi-extensions.
+// Catalog loading and validation for pi-collection.
 //
 // The catalog is data (catalog.json): one entry per logical extension, with one
 // native install source per harness. The harness owns installation, so this

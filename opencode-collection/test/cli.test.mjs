@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const bin = fileURLToPath(new URL('../bin/opencode-extensions.mjs', import.meta.url));
+const bin = fileURLToPath(new URL('../bin/opencode-collection.mjs', import.meta.url));
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 
 function run(args, options = {}) {
@@ -79,7 +79,7 @@ test('install --dry-run works with no installer on PATH', () => {
 });
 
 test('install --json captures installer output as one JSON document', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'opencode-extensions-fake-'));
+  const dir = mkdtempSync(join(tmpdir(), 'opencode-collection-fake-'));
   const fake = join(dir, 'opencode');
   writeFileSync(fake, '#!/bin/sh\necho "fake opencode stdout"\necho "fake opencode stderr" >&2\nexit 0\n');
   chmodSync(fake, 0o755);
@@ -98,11 +98,11 @@ test('install --json captures installer output as one JSON document', () => {
 });
 
 test('install --json reports steps not attempted after a failure', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'opencode-extensions-fail-'));
+  const dir = mkdtempSync(join(tmpdir(), 'opencode-collection-fail-'));
   const fake = join(dir, 'opencode');
   writeFileSync(fake, '#!/bin/sh\necho "boom" >&2\nexit 3\n');
   chmodSync(fake, 0o755);
-  const catalogDir = mkdtempSync(join(tmpdir(), 'opencode-extensions-catalog-'));
+  const catalogDir = mkdtempSync(join(tmpdir(), 'opencode-collection-catalog-'));
   writeFileSync(
     join(catalogDir, 'catalog.json'),
     JSON.stringify({

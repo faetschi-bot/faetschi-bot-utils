@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const bin = fileURLToPath(new URL('../bin/pi-extensions.mjs', import.meta.url));
+const bin = fileURLToPath(new URL('../bin/pi-collection.mjs', import.meta.url));
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 
 function run(args, options = {}) {
@@ -84,7 +84,7 @@ test('install --dry-run with auto previews both when no harness is on PATH', () 
 });
 
 test('install --json captures harness output as one JSON document', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'pi-extensions-fake-pi-'));
+  const dir = mkdtempSync(join(tmpdir(), 'pi-collection-fake-pi-'));
   const fake = join(dir, 'pi');
   writeFileSync(fake, '#!/bin/sh\necho "fake pi stdout"\necho "fake pi stderr" >&2\nexit 0\n');
   chmodSync(fake, 0o755);
@@ -105,11 +105,11 @@ test('install --json captures harness output as one JSON document', () => {
 });
 
 test('install --json reports steps not attempted after a failure', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'pi-extensions-fail-pi-'));
+  const dir = mkdtempSync(join(tmpdir(), 'pi-collection-fail-pi-'));
   const fake = join(dir, 'pi');
   writeFileSync(fake, '#!/bin/sh\necho "boom" >&2\nexit 3\n');
   chmodSync(fake, 0o755);
-  const catalogDir = mkdtempSync(join(tmpdir(), 'pi-extensions-catalog-'));
+  const catalogDir = mkdtempSync(join(tmpdir(), 'pi-collection-catalog-'));
   writeFileSync(
     join(catalogDir, 'catalog.json'),
     JSON.stringify({

@@ -49,12 +49,12 @@ export function parseFrontmatter(text) {
   const data = {};
   if (!text.startsWith('---')) {
     errors.push('missing YAML frontmatter (file must start with ---)');
-    return { data, errors };
+    return { data, body: text, errors };
   }
   const end = text.indexOf('\n---', 3);
   if (end === -1) {
     errors.push('unterminated frontmatter (no closing ---)');
-    return { data, errors };
+    return { data, body: '', errors };
   }
   for (const raw of text.slice(3, end).split('\n')) {
     const line = raw.trim();
@@ -67,7 +67,7 @@ export function parseFrontmatter(text) {
     }
     data[match[1]] = value;
   }
-  return { data, errors };
+  return { data, body: text.slice(end + 4), errors };
 }
 
 export function relativeLinks(text) {

@@ -1,16 +1,16 @@
-name: CI pi-extensions
+name: CI pi-collection
 
 on:
   pull_request:
     paths:
-      - 'pi-extensions/**'
-      - '.github/workflows/ci-pi-extensions.yml'
+      - 'pi-collection/**'
+      - '.github/workflows/ci-pi-collection.yml'
   push:
     branches:
       - main
     paths:
-      - 'pi-extensions/**'
-      - '.github/workflows/ci-pi-extensions.yml'
+      - 'pi-collection/**'
+      - '.github/workflows/ci-pi-collection.yml'
 
 permissions:
   contents: read
@@ -20,16 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: pi-extensions
+        working-directory: pi-collection
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
       - name: Syntax check
-        run: node --check bin/pi-extensions.mjs && node --check lib/catalog.mjs && node --check lib/harnesses.mjs && node --check lib/install.mjs
+        run: node --check bin/pi-collection.mjs && node --check lib/catalog.mjs && node --check lib/harnesses.mjs && node --check lib/install.mjs
       - name: Validate catalog
-        run: node bin/pi-extensions.mjs doctor
+        run: node bin/pi-collection.mjs doctor
       - name: Tests
         run: npm test
       - name: Pack check

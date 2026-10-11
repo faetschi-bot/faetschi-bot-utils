@@ -1,9 +1,10 @@
 # agentic-tools — agent guide
 
-A small, language-agnostic pack of skills (and, later, hooks) that AI coding
+A small, language-agnostic pack of skills and slash commands that AI coding
 agents can load. Each skill is a `SKILL.md` with YAML frontmatter
-(`name`, `description`) and a body of instructions. This file is the canonical
-recipe; prefer it and `agentic-tools --help` over reading the source.
+(`name`, `description`) and a body of instructions; each command is a
+`commands/<name>.md` prompt installed as a CLI slash command. This file is the
+canonical recipe; prefer it and `agentic-tools --help` over reading the source.
 
 ## What an agent needs
 
@@ -39,7 +40,9 @@ npx agentic-tools doctor --json
 
 It validates every `skills/*/SKILL.md`: frontmatter has a `name` that matches the
 directory plus a non-empty `description`, and all relative links and in-page
-anchors resolve. It exits non-zero on any problem.
+anchors resolve. It validates every `commands/*.md`: a non-empty `description`
+and a non-empty body with no unresolved `{{` template variables. It exits
+non-zero on any problem.
 
 ## Use a skill
 
@@ -94,8 +97,40 @@ Alternatives when you do not want to install:
 List what is available with:
 
 ```bash
-npx agentic-tools list
+npx agentic-tools list            # skills
+npx agentic-tools list --commands # commands
 ```
+
+## Use a command
+
+`install --commands <name...>` installs slash-command prompts; `--all` installs
+every command in the pack. Each command is rendered for the target CLI's own
+format:
+
+```bash
+# OpenCode project commands: <project>/.opencode/commands/<name>.md -> /catch-up
+npx agentic-tools install catch-up --commands
+
+# Pi user prompts: ~/.pi/agent/prompts/<name>.md -> /catch-up
+npx agentic-tools install catch-up --commands --target pi --global
+
+# Codex CLI user skills: ~/.agents/skills/<name>/SKILL.md -> $catch-up
+npx agentic-tools install catch-up --commands --target codex --global
+```
+
+Command targets (project / global):
+
+| Target | Project | Global | Written as |
+|--------|---------|--------|------------|
+| `opencode` (default) | `.opencode/commands` | `~/.config/opencode/commands` | `<name>.md` |
+| `pi` | `.pi/prompts` | `~/.pi/agent/prompts` | `<name>.md` |
+| `codex` | `.agents/skills` | `~/.agents/skills` | `<name>/SKILL.md` |
+
+The same guarantees as skills apply: the selection is validated before anything
+is written, existing destinations are refused without `--force`, and
+`--dry-run` and `--json` behave the same. See
+[`commands/README.md`](./commands/README.md) for what each command is and how
+the OpenChamber port maps onto each CLI.
 
 ## Skills
 
@@ -105,6 +140,22 @@ npx agentic-tools list
 | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests and audits low-value, implementation-coupled, or duplicative coverage. |
 | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a large, multi-file, UI/schema/API/architecture change into a visual recap. Authors the `recap.json` that `visual-shot recap` renders. |
 | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+
+## Commands
+
+| Command | Use it when |
+|---------|-------------|
+| [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
+| [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
+| [`craft-goal`](./commands/craft-goal.md) | Turning an idea or task into a clear, verifiable Goal through a guided dialogue. |
+| [`debug`](./commands/debug.md) | Investigating an issue to root cause before any fix is proposed. |
+| [`explore`](./commands/explore.md) | Getting a high-level orientation tour of an unfamiliar codebase. |
+| [`handoff-review`](./commands/handoff-review.md) | Producing a review handoff for another agent to review the work. |
+| [`plan-feature`](./commands/plan-feature.md) | Turning a feature idea into a concrete implementation plan through a guided dialogue. |
+| [`schedule-task`](./commands/schedule-task.md) | Defining a scheduled task (self-contained prompt, schedule, model) through a guided dialogue. |
+| [`summary`](./commands/summary.md) | Summarizing the current session, optionally focused on a topic. |
+| [`weigh`](./commands/weigh.md) | Comparing distinct approaches with trade-offs and a recommendation. |
+| [`workspace-review`](./commands/workspace-review.md) | Reviewing workspace changes for correctness, adequacy, and security. |
 
 ## Installer guides
 
@@ -135,6 +186,22 @@ provenance note here. `simple-english` is vendored this way from
 2. The `name` must be lowercase kebab-case and equal the directory name.
 3. Keep relative links inside the skill directory so they resolve after copy.
 4. Run `npx agentic-tools doctor` and require `ok`.
+
+## Adding a command (maintainers)
+
+1. Create `commands/<name>.md` (lowercase kebab-case) with frontmatter:
+
+   ```markdown
+   ---
+   description: "One or two sentences saying when to invoke this command."
+   argument-hint: "[topic]"   # optional; Pi shows it in command completion
+   ---
+   ```
+
+2. Write the prompt body. Put the user-visible prompt first, then any
+   instructions, and resolve every template variable — `doctor` rejects a body
+   containing `{{`.
+3. Run `npx agentic-tools doctor` and require `ok`, then `npm test`.
 
 ## Releasing (maintainers)
 

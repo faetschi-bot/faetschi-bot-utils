@@ -13,8 +13,8 @@ its own `AGENTS.md` next to it — start there.
 | [`agentic-tools/`](./agentic-tools) | [`agentic-tools/AGENTS.md`](./agentic-tools/AGENTS.md) |
 | [`mention-agent/`](./mention-agent) | [`mention-agent/AGENTS.md`](./mention-agent/AGENTS.md) |
 | [`session-search/`](./session-search) | [`session-search/AGENTS.md`](./session-search/AGENTS.md) |
-| [`pi-extensions/`](./pi-extensions) | [`pi-extensions/AGENTS.md`](./pi-extensions/AGENTS.md) |
-| [`opencode-extensions/`](./opencode-extensions) | [`opencode-extensions/AGENTS.md`](./opencode-extensions/AGENTS.md) |
+| [`pi-collection/`](./pi-collection) | [`pi-collection/AGENTS.md`](./pi-collection/AGENTS.md) |
+| [`opencode-collection/`](./opencode-collection) | [`opencode-collection/AGENTS.md`](./opencode-collection/AGENTS.md) |
 
 ## Golden rules
 
@@ -45,7 +45,8 @@ npx outbound doctor --json
 # agentic-tools
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz
 npx agentic-tools doctor --json
-npx agentic-tools install --all   # copy the skills into .opencode/skills/
+npx agentic-tools install --all                 # copy the skills into .opencode/skills/
+npx agentic-tools install catch-up --commands   # copy one slash command (--target pi|codex|opencode)
 
 # mention-agent
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/mention-agent-latest/mention-agent.tgz
@@ -56,13 +57,13 @@ npx mention-agent doctor --json
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/session-search-latest/session-search.tgz
 npx session-search doctor --json
 
-# pi-extensions
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/pi-extensions-latest/pi-extensions.tgz
-npx pi-extensions doctor --json
-npx pi-extensions install --all   # install for the pi/omp CLIs found on PATH
+# pi-collection
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/pi-collection-latest/pi-collection.tgz
+npx pi-collection doctor --json
+npx pi-collection install --all   # install for the pi/omp CLIs found on PATH
 
-# opencode-extensions
-npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/opencode-extensions-latest/opencode-extensions.tgz
-npx opencode-extensions doctor --json
-npx opencode-extensions install --all   # install the curated OpenCode plugins
+# opencode-collection
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/opencode-collection-latest/opencode-collection.tgz
+npx opencode-collection doctor --json
+npx opencode-collection install --all   # install the curated OpenCode plugins
 ```

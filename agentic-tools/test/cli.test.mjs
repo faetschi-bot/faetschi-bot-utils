@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -210,5 +210,158 @@ test('install --global writes to the home config for the target', () => {
     assert.ok(existsSync(join(home, '.config', 'opencode', 'skills', 'test-audit', 'SKILL.md')));
   } finally {
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('doctor --json validates the packaged commands', () => {
+  const r = run(['doctor', '--json', '--root', packageRoot]);
+  assert.equal(r.status, 0);
+  const parsed = JSON.parse(r.stdout);
+  assert.equal(parsed.ok, true);
+  // Every packaged command must validate, and the known inventory must survive.
+  assert.ok(parsed.commands.length > 0);
+  assert.ok(parsed.commands.every((c) => c.ok));
+  const names = parsed.commands.map((c) => c.name);
+  for (const expected of ['catch-up', 'clean-codebase-loop', 'weigh']) {
+    assert.ok(names.includes(expected), `expected packaged command ${expected}`);
+  }
+});
+
+test('doctor fails on a command with an unresolved template variable', () => {
+  const dir = tempDir();
+  try {
+    const commandFile = join(dir, 'commands', 'sample.md');
+    mkdirSync(join(dir, 'commands'), { recursive: true });
+    writeFileSync(commandFile, '---\ndescription: "x"\n---\n\nUse {{idea_block}}.\n');
+    const r = run(['doctor', '--json', '--root', dir]);
+    assert.equal(r.status, 1);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, false);
+    assert.ok(parsed.commands[0].errors.some((e) => /unresolved template variable/.test(e)));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('list --commands prints the packaged commands', () => {
+  const r = run(['list', '--commands', '--root', packageRoot]);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /catch-up/);
+  assert.match(r.stdout, /clean-codebase-loop/);
+  const json = run(['list', '--commands', '--json', '--root', packageRoot]);
+  assert.equal(json.status, 0);
+  assert.ok(JSON.parse(json.stdout).commands.some((c) => c.name === 'weigh'));
+});
+
+test('install --commands writes an OpenCode command file', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', 'catch-up', '--commands', '--target', 'opencode', '--dir', dest, '--json']);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.kind, 'commands');
+    assert.equal(parsed.installed[0].name, 'catch-up');
+    const file = join(dest, 'catch-up.md');
+    assert.ok(existsSync(file));
+    const text = readFileSync(file, 'utf8');
+    // OpenCode reads description from frontmatter and the body as the template.
+    assert.match(text, /^---\ndescription: "/);
+    assert.match(text, /Catch me up on where this project is right now\./);
+    // No placeholder syntax may leak: OpenCode appends typed arguments itself.
+    assert.ok(!text.includes('$@'));
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install --commands --target pi writes a prompt template with the argument trailer', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', 'craft-goal', '--commands', '--target', 'pi', '--dir', dest, '--json']);
+    assert.equal(r.status, 0);
+    const text = readFileSync(join(dest, 'craft-goal.md'), 'utf8');
+    assert.match(text, /argument-hint: "\[idea\]"/);
+    // Pi expands $@ for everything typed after the command.
+    assert.match(text, /\n\$@\n$/);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install --commands --target codex writes a SKILL.md skill directory', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', 'weigh', '--commands', '--target', 'codex', '--dir', dest, '--json']);
+    assert.equal(r.status, 0);
+    const file = join(dest, 'weigh', 'SKILL.md');
+    assert.ok(existsSync(file));
+    const text = readFileSync(file, 'utf8');
+    assert.match(text, /^---\nname: "weigh"\n/);
+    assert.match(text, /Help me decide how to approach this\./);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install --commands --dry-run writes nothing', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', '--all', '--commands', '--dir', dest, '--dry-run', '--json']);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.dryRun, true);
+    assert.ok(parsed.installed.length > 0);
+    assert.deepEqual(readdirSync(dest), []);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install --commands refuses to overwrite without --force', () => {
+  const dest = tempDir();
+  try {
+    assert.equal(run(['install', 'catch-up', '--commands', '--dir', dest]).status, 0);
+    const again = run(['install', 'catch-up', '--commands', '--dir', dest]);
+    assert.equal(again.status, 1);
+    assert.match(again.stderr, /already exists/);
+    const forced = run(['install', 'catch-up', '--commands', '--dir', dest, '--force', '--json']);
+    assert.equal(forced.status, 0);
+    assert.equal(JSON.parse(forced.stdout).installed[0].action, 'overwrite');
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install --commands rejects an unknown command', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', 'nope', '--commands', '--dir', dest]);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /Unknown command/);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
+test('install --commands rejects --all combined with command names', () => {
+  const r = run(['install', '--all', '--commands', 'catch-up']);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /Cannot combine --all/);
+});
+
+test('install rejects an unknown target for commands', () => {
+  const r = run(['install', 'catch-up', '--commands', '--target', 'claude']);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /Unknown target/);
+});
+
+test('installing a command as a skill suggests --commands', () => {
+  const dest = tempDir();
+  try {
+    const r = run(['install', 'catch-up', '--dir', dest]);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /Unknown skill: catch-up; did you mean --commands\?/);
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
   }
 });
