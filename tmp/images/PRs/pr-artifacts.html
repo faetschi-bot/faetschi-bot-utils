@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; font-src data:">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentic-tools: add the pr-artifacts skill</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --border: #d1d9e0;
+  --card: #f6f8fa; --accent: #0969da; --code-bg: #f6f8fa;
+  --add-bg: #e6ffec; --add-fg: #1a7f37; --rem-bg: #ffebe9; --rem-fg: #cf222e;
+  --pill-bg: #ddf4ff;
+}
+body.theme-dark {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #30363d;
+  --card: #161b22; --accent: #4493f8; --code-bg: #161b22;
+  --add-bg: #12261e; --add-fg: #3fb950; --rem-bg: #25171c; --rem-fg: #f85149;
+  --pill-bg: #121d2f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+body {
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#recap { width: 1100px; max-width: 100%; margin: 0 auto; padding: 40px 44px 56px; }
+h1 { font-size: 26px; line-height: 1.25; margin: 0 0 6px; }
+h2 { font-size: 18px; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 15px; margin: 22px 0 8px; }
+p { margin: 8px 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+.blk { margin: 16px 0; }
+.brief { color: var(--muted); font-size: 15px; margin: 0 0 8px; }
+.meta-line { color: var(--muted); font-size: 12px; margin: 0 0 22px; }
+.muted { color: var(--muted); }
+
+/* file tree */
+.file-tree { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 10px 12px; }
+.file-tree ul { list-style: none; margin: 0; padding: 0; }
+.file-tree li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.file-tree .path { color: var(--fg); }
+.file-tree .note { color: var(--muted); font-size: 12px; }
+.badge { display: inline-block; width: 18px; text-align: center; border-radius: 4px; font-size: 11px; font-weight: 700; padding: 1px 0; }
+.badge.added { background: var(--add-bg); color: var(--add-fg); }
+.badge.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.badge.modified { background: var(--pill-bg); color: var(--accent); }
+.badge.renamed { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+
+/* diff */
+.diff { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.diff-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--border); font-size: 12px; }
+.diff-head .file { font-weight: 600; }
+.diff-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.diff-col { min-width: 0; overflow: auto; }
+.diff-col + .diff-col { border-left: 1px solid var(--border); }
+.diff-col .col-title { padding: 4px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--card); }
+.line { display: flex; white-space: pre; }
+.line .ln { flex: 0 0 42px; text-align: right; padding: 0 8px 0 6px; color: var(--muted); user-select: none; border-right: 1px solid var(--border); }
+.line .code { flex: 1; padding: 0 10px; white-space: pre; }
+.line.add, .line.add .code { background: var(--add-bg); }
+.line.rem, .line.rem .code { background: var(--rem-bg); }
+.line.empty { background: var(--card); }
+.mark { color: var(--accent); font-weight: 700; }
+.annot { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.annot li { padding: 6px 10px; border-left: 3px solid var(--accent); background: var(--card); margin: 4px 0; border-radius: 0 6px 6px 0; }
+.annot .tag { font-weight: 700; }
+.patch { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; overflow: auto; }
+.patch .line .ln { display: none; }
+.patch.numbered .line .ln { display: block; }
+.code-block { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; font-size: 13px; }
+.code-block code { white-space: pre; }
+
+/* images */
+.img-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.img-pair figure, .img-single figure { margin: 0; }
+.img-pair figcaption, .img-single figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.img-pair img, .img-single img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+.img-missing { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 8px; }
+
+/* mermaid / diagram */
+.mermaid-slot { display: flex; justify-content: center; padding: 10px; overflow: auto; }
+.mermaid-slot svg { max-width: 100%; height: auto; }
+.diagram-frame { border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; }
+
+/* wireframe: author HTML/CSS renders inside a sandboxed srcdoc iframe
+   (.wf-body) so it cannot restyle the report; the frame chrome stays CSS-only. */
+.wf { max-width: 100%; }
+.wf-frame { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg); }
+.wf-bar { background: var(--card); border-bottom: 1px solid var(--border); }
+.wf-body { display: block; width: 100%; border: 0; background: #fff; }
+.wf-caption { font-size: 12px; margin-top: 6px; }
+/* Surface widths; JS only picks the class, never sets a width. */
+.wf-browser, .wf-desktop { width: 100%; }
+.wf-tablet, .wf-mobile, .wf-popover, .wf-panel { margin-left: auto; margin-right: auto; }
+.wf-tablet { width: 768px; }
+.wf-mobile { width: 375px; }
+.wf-popover { width: 360px; }
+.wf-panel { width: 420px; }
+/* CSS-only chrome per surface. */
+.wf-browser .wf-bar { height: 28px; }
+.wf-browser .wf-bar::before {
+  content: "";
+  display: block;
+  width: 9px; height: 9px;
+  margin: 9px 0 0 12px;
+  border-radius: 50%;
+  background: var(--rem-fg);
+  box-shadow: 16px 0 0 var(--muted), 32px 0 0 var(--add-fg);
+}
+.wf-desktop .wf-bar { height: 26px; }
+.wf-desktop .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+.wf-tablet .wf-bar { height: 18px; }
+.wf-tablet .wf-bar::before {
+  content: "";
+  display: block;
+  width: 6px; height: 6px;
+  margin: 5px auto 0;
+  border-radius: 50%;
+  background: var(--border);
+}
+.wf-mobile .wf-bar { height: 22px; }
+.wf-mobile .wf-bar::before {
+  content: "";
+  display: block;
+  width: 90px; height: 8px;
+  margin: 6px auto 0;
+  border-radius: 6px;
+  background: var(--border);
+}
+.wf-popover .wf-bar { height: 16px; }
+.wf-popover .wf-bar::before {
+  content: "";
+  display: block;
+  width: 40px; height: 4px;
+  margin: 6px auto 0;
+  border-radius: 3px;
+  background: var(--border);
+}
+.wf-panel .wf-bar { height: 26px; }
+.wf-panel .wf-bar::before {
+  content: "";
+  display: block;
+  width: 55%; height: 8px;
+  margin: 9px 12px 0;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+/* data model */
+.data-model { display: flex; flex-wrap: wrap; gap: 14px; }
+.entity { border: 1px solid var(--border); border-radius: 8px; min-width: 240px; background: var(--card); overflow: hidden; }
+.entity > .name { padding: 8px 12px; font-weight: 700; background: var(--pill-bg); border-bottom: 1px solid var(--border); }
+.entity table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.entity td { padding: 4px 12px; border-top: 1px solid var(--border); }
+.entity td.key { color: var(--muted); width: 44px; }
+.entity td.type { color: var(--muted); }
+.chg { font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 4px; margin-left: 6px; }
+.chg.added { background: var(--add-bg); color: var(--add-fg); }
+.chg.removed { background: var(--rem-bg); color: var(--rem-fg); }
+.chg.modified, .chg.renamed { background: var(--pill-bg); color: var(--accent); }
+
+/* endpoint */
+.endpoint { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.endpoint .head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--card); }
+.method { font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--pill-bg); color: var(--accent); }
+.endpoint .body { padding: 10px 12px; }
+.endpoint table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+.endpoint th, .endpoint td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+/* A removed endpoint is outlined red and its path struck through. */
+.endpoint.removed { border-color: var(--rem-fg); }
+.endpoint.removed .head { background: var(--rem-bg); }
+.endpoint.removed code { text-decoration: line-through; }
+
+/* json explorer */
+.json-title { font-weight: 700; margin-bottom: 6px; }
+.json-tree {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  padding: 10px 12px; overflow: auto; font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.jv-node > summary { cursor: pointer; list-style: none; }
+.jv-node > summary::-webkit-details-marker { display: none; }
+.jv-node > summary::before { content: "\25B8"; display: inline-block; width: 12px; color: var(--muted); }
+.jv-node[open] > summary::before { content: "\25BE"; }
+.jv-children { margin-left: 14px; padding-left: 10px; border-left: 1px solid var(--border); }
+.jv-row { padding: 1px 0; }
+.jv-key { color: var(--muted); }
+.jv-index { color: var(--muted); }
+.jv-punct { color: var(--muted); }
+.jv-string { color: var(--add-fg); }
+.jv-number { color: var(--accent); }
+.jv-bool { color: var(--rem-fg); }
+.jv-null { color: var(--muted); font-style: italic; }
+
+/* callout */
+.callout { border-left: 4px solid var(--accent); background: var(--card); padding: 10px 14px; border-radius: 0 8px 8px 0; }
+.callout.risk, .callout.warning { border-left-color: var(--rem-fg); }
+.callout.success, .callout.decision { border-left-color: var(--add-fg); }
+.callout .title { font-weight: 700; margin-bottom: 2px; }
+
+/* table */
+table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.grid th, table.grid td { text-align: left; padding: 7px 10px; border: 1px solid var(--border); }
+table.grid th { background: var(--card); }
+
+/* checklist */
+.checklist { list-style: none; margin: 0; padding: 0; }
+.checklist li { padding: 4px 0 4px 26px; position: relative; }
+.checklist li::before { content: "\2610"; position: absolute; left: 4px; color: var(--muted); }
+.checklist li.done::before { content: "\2611"; color: var(--add-fg); }
+.checklist .note { color: var(--muted); font-size: 12px; display: block; }
+
+/* columns + tabs */
+.columns { display: grid; gap: 14px; align-items: start; }
+.columns .col-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+.tabs { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tabs > input { display: none; }
+.tabbar { display: flex; flex-wrap: wrap; gap: 2px; background: var(--card); border-bottom: 1px solid var(--border); padding: 4px 6px 0; }
+.tabbar label { padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; }
+.tab-panels { padding: 12px; }
+.tab-panels > .panel { display: none; }
+
+
+  .hljs { background: transparent; padding: 0; }
+#recap { width: 1100px; }
+</style>
+</head>
+<body class="theme-dark">
+<div id="recap">
+
+<h1>agentic-tools: add the pr-artifacts skill</h1><div class="brief"><p>Every PR now carries evidence: the skill defines the before/after artifact contract, maps change types to a headline artifact, and ships a zero-dependency checker plus a CI gate.</p></div><p class="meta-line">branch agentic-tools/pr-artifacts · 8 files, +627 / -1</p><div class="blk"><div class="callout info"><div class="title">What this adds</div><p><code>pr-artifacts</code> makes evidence the definition of done for <strong>every</strong> PR, not only UI work. Install it with <code>npx agentic-tools install pr-artifacts</code>; it carries the contract, the before/after recipes per change type, the checker, and the CI gate.</p></div></div>
+<div class="blk"><div class="mermaid-slot" data-mermaid-id="mermaid-1"><svg aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="0 0 2184 400" style="max-width: 2184px;" class="flowchart" xmlns="http://www.w3.org/2000/svg" width="100%" id="r-mermaid-1"><style>#r-mermaid-1{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#ccc;}#r-mermaid-1 .error-icon{fill:#a44141;}#r-mermaid-1 .error-text{fill:#ddd;stroke:#ddd;}#r-mermaid-1 .edge-thickness-normal{stroke-width:1px;}#r-mermaid-1 .edge-thickness-thick{stroke-width:3.5px;}#r-mermaid-1 .edge-pattern-solid{stroke-dasharray:0;}#r-mermaid-1 .edge-thickness-invisible{stroke-width:0;fill:none;}#r-mermaid-1 .edge-pattern-dashed{stroke-dasharray:3;}#r-mermaid-1 .edge-pattern-dotted{stroke-dasharray:2;}#r-mermaid-1 .marker{fill:lightgrey;stroke:lightgrey;}#r-mermaid-1 .marker.cross{stroke:lightgrey;}#r-mermaid-1 svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#r-mermaid-1 p{margin:0;}#r-mermaid-1 .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#ccc;}#r-mermaid-1 .cluster-label text{fill:#F9FFFE;}#r-mermaid-1 .cluster-label span{color:#F9FFFE;}#r-mermaid-1 .cluster-label span p{background-color:transparent;}#r-mermaid-1 .label text,#r-mermaid-1 span{fill:#ccc;color:#ccc;}#r-mermaid-1 .node rect,#r-mermaid-1 .node circle,#r-mermaid-1 .node ellipse,#r-mermaid-1 .node polygon,#r-mermaid-1 .node path{fill:#1f2020;stroke:#ccc;stroke-width:1px;}#r-mermaid-1 .rough-node .label text,#r-mermaid-1 .node .label text,#r-mermaid-1 .image-shape .label,#r-mermaid-1 .icon-shape .label{text-anchor:middle;}#r-mermaid-1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#r-mermaid-1 .rough-node .label,#r-mermaid-1 .node .label,#r-mermaid-1 .image-shape .label,#r-mermaid-1 .icon-shape .label{text-align:center;}#r-mermaid-1 .node.clickable{cursor:pointer;}#r-mermaid-1 .root .anchor path{fill:lightgrey!important;stroke-width:0;stroke:lightgrey;}#r-mermaid-1 .arrowheadPath{fill:lightgrey;}#r-mermaid-1 .edgePath .path{stroke:lightgrey;stroke-width:2.0px;}#r-mermaid-1 .flowchart-link{stroke:lightgrey;fill:none;}#r-mermaid-1 .edgeLabel{background-color:hsl(0, 0%, 34.4117647059%);text-align:center;}#r-mermaid-1 .edgeLabel p{background-color:hsl(0, 0%, 34.4117647059%);}#r-mermaid-1 .edgeLabel rect{opacity:0.5;background-color:hsl(0, 0%, 34.4117647059%);fill:hsl(0, 0%, 34.4117647059%);}#r-mermaid-1 .labelBkg{background-color:rgba(87.75, 87.75, 87.75, 0.5);}#r-mermaid-1 .cluster rect{fill:hsl(180, 1.5873015873%, 28.3529411765%);stroke:rgba(255, 255, 255, 0.25);stroke-width:1px;}#r-mermaid-1 .cluster text{fill:#F9FFFE;}#r-mermaid-1 .cluster span{color:#F9FFFE;}#r-mermaid-1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(20, 1.5873015873%, 12.3529411765%);border:1px solid rgba(255, 255, 255, 0.25);border-radius:2px;pointer-events:none;z-index:100;}#r-mermaid-1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#ccc;}#r-mermaid-1 rect.text{fill:none;stroke-width:0;}#r-mermaid-1 .icon-shape,#r-mermaid-1 .image-shape{background-color:hsl(0, 0%, 34.4117647059%);text-align:center;}#r-mermaid-1 .icon-shape p,#r-mermaid-1 .image-shape p{background-color:hsl(0, 0%, 34.4117647059%);padding:2px;}#r-mermaid-1 .icon-shape rect,#r-mermaid-1 .image-shape rect{opacity:0.5;background-color:hsl(0, 0%, 34.4117647059%);fill:hsl(0, 0%, 34.4117647059%);}#r-mermaid-1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="5" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-1_flowchart-v2-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="8" markerWidth="8" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-1_flowchart-v2-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-1_flowchart-v2-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart-v2" id="r-mermaid-1_flowchart-v2-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="r-mermaid-1_flowchart-v2-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart-v2" id="r-mermaid-1_flowchart-v2-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_A_B_0" d="M228,255L232.167,255C236.333,255,244.667,255,252.333,255C260,255,267,255,270.5,255L274,255"></path><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_B_C_1" d="M528,255L532.167,255C536.333,255,544.667,255,552.333,255C560,255,567,255,570.5,255L574,255"></path><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_C_D_2" d="M769.684,294L785.236,303.833C800.789,313.667,831.895,333.333,850.947,343.167C870,353,877,353,880.5,353L884,353"></path><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_D_E_3" d="M1148,353L1157.167,353C1166.333,353,1184.667,353,1202.333,353C1220,353,1237,353,1245.5,353L1254,353"></path><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_E_F_4" d="M1443.972,314L1460.477,302.5C1476.981,291,1509.991,268,1538.836,249.253C1567.681,230.506,1592.362,216.012,1604.703,208.765L1617.043,201.518"></path><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_F_G_5" d="M1846.5,147.5L1855.583,147.417C1864.667,147.333,1882.833,147.167,1900.417,147.083C1918,147,1935,147,1943.5,147L1952,147"></path><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_F_C_6" d="M1576.489,139.511L1570.907,139.093C1565.326,138.674,1554.163,137.837,1522.748,137.419C1491.333,137,1439.667,137,1383,137C1326.333,137,1264.667,137,1203,137C1141.333,137,1079.667,137,1023,137C966.333,137,914.667,137,872.069,149.763C829.47,162.526,795.941,188.051,779.176,200.814L762.411,213.577"></path><path marker-end="url(#r-mermaid-1_flowchart-v2-pointEnd)" style="" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" id="L_E_H_7" d="M1518,361.387L1522.167,361.656C1526.333,361.925,1534.667,362.462,1544.667,362.731C1554.667,363,1566.333,363,1572.167,363L1578,363"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g><g transform="translate(1901, 147)" class="edgeLabel"><g transform="translate(-30, -12)" class="label"><foreignObject height="24" width="60"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>exit 0</p></span></div></foreignObject></g></g><g transform="translate(1203, 137)" class="edgeLabel"><g transform="translate(-30, -12)" class="label"><foreignObject height="24" width="60"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"><p>exit 1</p></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" class="labelBkg" xmlns="http://www.w3.org/1999/xhtml"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(118, 255)" id="flowchart-A-0" class="node default"><rect height="78" width="220" y="-39" x="-110" style="" class="basic label-container"></rect><g transform="translate(-80, -24)" style="" class="label"><rect></rect><foreignObject height="48" width="160"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Capture baseline<br>from base commit</p></span></div></foreignObject></g></g><g transform="translate(403, 255)" id="flowchart-B-1" class="node default"><rect height="54" width="250" y="-27" x="-125" style="" class="basic label-container"></rect><g transform="translate(-95, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="190"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Implement on branch</p></span></div></foreignObject></g></g><g transform="translate(708, 255)" id="flowchart-C-3" class="node default"><rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container"></rect><g transform="translate(-100, -24)" style="" class="label"><rect></rect><foreignObject height="48" width="200"><div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Pick headline artifact</p></span></div></foreignObject></g></g><g transform="translate(1018, 353)" id="flowchart-D-5" class="node default"><rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container"></rect><g transform="translate(-100, -24)" style="" class="label"><rect></rect><foreignObject height="48" width="200"><div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Render recap + evidence</p></span></div></foreignObject></g></g><g transform="translate(1388, 353)" id="flowchart-E-7" class="node default"><rect height="78" width="260" y="-39" x="-130" style="" class="basic label-container"></rect><g transform="translate(-100, -24)" style="" class="label"><rect></rect><foreignObject height="48" width="200"><div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>PR body: Artifact section</p></span></div></foreignObject></g></g><g transform="translate(1707, 147)" id="flowchart-F-9" class="node default"><polygon transform="translate(-139,139)" class="label-container" points="139,0 278,-139 139,-278 0,-139"></polygon><g transform="translate(-100, -24)" style="" class="label"><rect></rect><foreignObject height="48" width="200"><div style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>check-pr-artifact.mjs</p></span></div></foreignObject></g></g><g transform="translate(2066, 147)" id="flowchart-G-11" class="node default"><rect height="54" width="220" y="-27" x="-110" style="" class="basic label-container"></rect><g transform="translate(-80, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="160"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>Ready for review</p></span></div></foreignObject></g></g><g transform="translate(1707, 363)" id="flowchart-H-15" class="node default"><rect height="54" width="250" y="-27" x="-125" style="" class="basic label-container"></rect><g transform="translate(-95, -12)" style="" class="label"><rect></rect><foreignObject height="24" width="190"><div style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;" xmlns="http://www.w3.org/1999/xhtml"><span class="nodeLabel"><p>CI pr-artifact gate</p></span></div></foreignObject></g></g></g></g></g></svg></div><div class="muted">The enforcement loop: baseline before code, headline after, checked before review.</div></div>
+<div class="blk"><table class="grid"><thead><tr><th>Before</th><th>After</th></tr></thead><tbody><tr><td>PR body: a diff link and "tested locally"</td><td>PR body: a non-empty `## Artifact` section showing the delta</td></tr><tr><td>Enforcement: convention, different per agent</td><td>Enforcement: checker + CI gate, identical for Codex, OpenCode, Claude Code</td></tr><tr><td>Backend evidence: a green test screenshot</td><td>Backend evidence: failing-to-passing capture, before/after payloads, benchmark tables</td></tr><tr><td>Artifact cost: ad-hoc, skipped under pressure</td><td>Artifact cost: one baseline worktree plus one headline block</td></tr></tbody></table></div>
+<div class="blk"><div class="file-tree"><ul><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/pr-artifacts/SKILL.md</span><span class="note">Contract, workflow, artifact menu, quality bar</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/pr-artifacts/references/setup.md</span><span class="note">AGENTS.md block, PR template, CI workflow, checker usage</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/pr-artifacts/references/change-types.md</span><span class="note">Before/after recipes: UI, bug, API, schema, perf, infra, docs</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/skills/pr-artifacts/scripts/check-pr-artifact.mjs</span><span class="note">Zero-dependency body checker (file or stdin)</span></li><li><span class="badge added" title="added">A</span><span class="path">agentic-tools/test/pr-artifacts.test.mjs</span><span class="note">11 tests: evidence kinds, empty section, heading scope, JSON, stdin</span></li><li><span class="badge modified" title="modified">M</span><span class="path">agentic-tools/AGENTS.md</span><span class="note">Skills-table row</span></li><li><span class="badge modified" title="modified">M</span><span class="path">agentic-tools/README.md</span><span class="note">Skills-table row + pr-artifacts section</span></li><li><span class="badge modified" title="modified">M</span><span class="path">agentic-tools/package.json</span><span class="note">0.10.0 -&gt; 0.11.0 so merging publishes the tarball</span></li></ul></div></div>
+<div class="blk"><ul class="checklist"><li class="done">`agentic-tools doctor --json` reports `ok: true`</li><li class="done">Test suite green: 40 tests, 0 fail</li><li class="done">Checker accepts a table, rejects an empty `## Artifact`</li><li class="done">Gate checks presence, not format — quality stays with the template and the skill</li></ul></div>
+
+</div>
+</body>
+</html>
