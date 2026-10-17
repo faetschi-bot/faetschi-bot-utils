@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "title": "agentic-tools: add the pr-artifacts skill",
+  "brief": "Every PR now carries evidence: the skill defines the before/after artifact contract, maps change types to a headline artifact, and ships a zero-dependency checker plus a CI gate.",
+  "meta": "branch agentic-tools/pr-artifacts · 8 files, +627 / -1",
+  "blocks": [
+    {
+      "type": "callout",
+      "tone": "info",
+      "title": "What this adds",
+      "body": "`pr-artifacts` makes evidence the definition of done for **every** PR, not only UI work. Install it with `npx agentic-tools install pr-artifacts`; it carries the contract, the before/after recipes per change type, the checker, and the CI gate."
+    },
+    {
+      "type": "mermaid",
+      "caption": "The enforcement loop: baseline before code, headline after, checked before review.",
+      "source": "flowchart LR\n  A[Capture baseline<br/>from base commit] --> B[Implement on branch]\n  B --> C[Pick headline artifact]\n  C --> D[Render recap + evidence]\n  D --> E[PR body: Artifact section]\n  E --> F{check-pr-artifact.mjs}\n  F -- exit 0 --> G[Ready for review]\n  F -- exit 1 --> C\n  E --> H[CI pr-artifact gate]"
+    },
+    {
+      "type": "table",
+      "columns": ["Before", "After"],
+      "rows": [
+        ["PR body: a diff link and \"tested locally\"", "PR body: a non-empty `## Artifact` section showing the delta"],
+        ["Enforcement: convention, different per agent", "Enforcement: checker + CI gate, identical for Codex, OpenCode, Claude Code"],
+        ["Backend evidence: a green test screenshot", "Backend evidence: failing-to-passing capture, before/after payloads, benchmark tables"],
+        ["Artifact cost: ad-hoc, skipped under pressure", "Artifact cost: one baseline worktree plus one headline block"]
+      ]
+    },
+    {
+      "type": "file-tree",
+      "entries": [
+        { "path": "agentic-tools/skills/pr-artifacts/SKILL.md", "change": "added", "note": "Contract, workflow, artifact menu, quality bar" },
+        { "path": "agentic-tools/skills/pr-artifacts/references/setup.md", "change": "added", "note": "AGENTS.md block, PR template, CI workflow, checker usage" },
+        { "path": "agentic-tools/skills/pr-artifacts/references/change-types.md", "change": "added", "note": "Before/after recipes: UI, bug, API, schema, perf, infra, docs" },
+        { "path": "agentic-tools/skills/pr-artifacts/scripts/check-pr-artifact.mjs", "change": "added", "note": "Zero-dependency body checker (file or stdin)" },
+        { "path": "agentic-tools/test/pr-artifacts.test.mjs", "change": "added", "note": "11 tests: evidence kinds, empty section, heading scope, JSON, stdin" },
+        { "path": "agentic-tools/AGENTS.md", "change": "modified", "note": "Skills-table row" },
+        { "path": "agentic-tools/README.md", "change": "modified", "note": "Skills-table row + pr-artifacts section" },
+        { "path": "agentic-tools/package.json", "change": "modified", "note": "0.10.0 -> 0.11.0 so merging publishes the tarball" }
+      ]
+    },
+    {
+      "type": "checklist",
+      "items": [
+        { "label": "`agentic-tools doctor --json` reports `ok: true`", "checked": true },
+        { "label": "Test suite green: 40 tests, 0 fail", "checked": true },
+        { "label": "Checker accepts a table, rejects an empty `## Artifact`", "checked": true },
+        { "label": "Gate checks presence, not format — quality stays with the template and the skill", "checked": true }
+      ]
+    }
+  ]
+}

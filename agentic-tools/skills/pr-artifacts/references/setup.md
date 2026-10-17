@@ -1,0 +1,173 @@
+# Project setup
+
+Four files make the artifact contract real, once per repository. The skill
+supplies the recipes; these files supply the enforcement.
+
+## 1. `AGENTS.md`: the contract
+
+Paste this section into the project's `AGENTS.md` — the file Codex, OpenCode,
+and T3 Code read. For Claude Code, add a one-line `CLAUDE.md` containing
+`@AGENTS.md`, so every agent shares one source of truth.
+
+````md
+## PR contract: artifact required
+
+Every PR must contain a non-empty `## Artifact` section before it is marked
+ready for review. This applies to backend, data, infra, refactors, and docs —
+not only UI.
+
+An artifact is the smallest evidence that lets a reviewer understand the change
+without reading the diff. It must:
+- show the delta (before -> after), not only the final state;
+- be reproducible (include the command, or commit the source file);
+- answer: what changed, why, and how do we know it works?
+
+Capture the baseline BEFORE changing code, from the base commit in a separate
+worktree (`git worktree add /tmp/pr-before origin/main`). Do not reconstruct it
+from memory later.
+
+Before opening the PR:
+1. Run `npx visual-shot recap --diff origin/main...HEAD --format gfm --out .artifacts/recap.md`
+   (or author `recap.json` for a larger change).
+2. Add one headline artifact by change type: UI -> before/after image; bug ->
+   failing->passing test; API -> before/after request+response; schema ->
+   data-model; perf -> before/after table or chart; flow -> sequence diagram.
+3. Put the headline at the top of `## Artifact`, the full recap in a
+   `<details>` block, and commit images under `.artifacts/<slug>/`.
+4. Redact secrets, tokens, customer data, and `.env` values.
+5. Verify that `node scripts/check-pr-artifact.mjs <body-file>` exits 0.
+
+If no artifact is possible, do not open the PR. Leave it a draft and state what
+is missing. The `pr-artifacts` skill holds the full menu and recipes.
+````
+
+## 2. `.github/pull_request_template.md`
+
+The template puts the artifact first and gives the agent the exact shape to
+fill:
+
+```md
+<!-- The artifact contract is in AGENTS.md. A non-empty `## Artifact` section
+     is required before review; CI fails without it. -->
+
+## What changed
+
+<!-- One or two sentences. Link the issue. -->
+
+## Artifact
+
+<!-- REQUIRED. Headline evidence of the before -> after delta: image, terminal
+     capture, table, JSON, or diagram. Full recap in a <details> block below.
+     Redact secrets. -->
+
+## How to verify
+
+<!-- Exact commands a reviewer can run, and the expected result. -->
+
+## Risk and rollback
+
+<!-- What can break, and how to undo it. -->
+```
+
+## 3. `scripts/check-pr-artifact.mjs`
+
+Copy the checker out of the installed skill (or run it in place):
+
+```bash
+mkdir -p scripts
+cp .opencode/skills/pr-artifacts/scripts/check-pr-artifact.mjs scripts/
+```
+
+It validates a body from a file or stdin and exits `0` only when the
+`## Artifact` section exists, is non-empty, and holds evidence (image, Mermaid,
+code block, table, or link):
+
+```bash
+node scripts/check-pr-artifact.mjs .artifacts/body.md
+gh pr view 123 --json body -q .body | node scripts/check-pr-artifact.mjs -
+```
+
+## 4. `.github/workflows/pr-artifact.yml`
+
+The gate runs on body edits as well as pushes, so an agent can fix the
+description without a new commit. Drafts and PRs labeled `skip-artifact`
+(bots, dependabot) are exempt.
+
+```yaml
+name: pr-artifact
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  artifact:
+    if: >-
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-artifact')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the PR body artifact
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > pr-body.md
+          node scripts/check-pr-artifact.mjs pr-body.md
+```
+
+If you cannot commit the script, run the check inline with
+`actions/github-script` instead — but keep one implementation so CI and the
+agent agree on what passes.
+
+## 5. Install the skill for each agent
+
+The artifact recipes need to be loadable at PR time, not only at session start:
+
+```bash
+npx agentic-tools install pr-artifacts                  # .opencode/skills/
+npx agentic-tools install pr-artifacts --target claude  # .claude/skills/
+npx agentic-tools install pr-artifacts --target agents  # .agents/skills/ (Codex)
+```
+
+Or install once per machine for every project:
+
+```bash
+npx agentic-tools install pr-artifacts --global --target claude
+npx agentic-tools install pr-artifacts --global --target agents
+```
+
+OpenCode also auto-loads `.claude/skills/` and `.agents/skills/`, so one
+project copy covers more than one agent.
+
+## Optional: make the wrong path impossible
+
+A wrapper removes the chance to forget. Agents call `scripts/open-pr.sh`
+instead of `gh pr create`:
+
+```bash
+#!/usr/bin/env bash
+# Render the baseline recap, require the artifact section, then open the PR.
+set -euo pipefail
+base="${BASE:-origin/main}"
+npx visual-shot recap --diff "$base...HEAD" --format gfm --out .artifacts/recap.md --json
+test -s .artifacts/recap.md
+grep -q '^## Artifact' .artifacts/body.md || {
+  echo "pr-artifacts: .artifacts/body.md needs a '## Artifact' section" >&2
+  exit 1
+}
+gh pr create --body-file .artifacts/body.md "$@"
+```
+
+## Verify the setup
+
+```bash
+# The checker accepts evidence and rejects an empty section.
+printf '## Artifact\n\n| before | after |\n|---|---|\n| 500 | 200 |\n' > /tmp/body.md
+node scripts/check-pr-artifact.mjs /tmp/body.md          # exit 0
+printf '## Artifact\n\n<!-- todo -->\n' > /tmp/body.md
+node scripts/check-pr-artifact.mjs /tmp/body.md          # exit 1
+```
+
+In the `agentic-tools` pack itself, `npx agentic-tools doctor --json` must
+report `ok: true` after any skill edit.

@@ -15,6 +15,7 @@ programs that run in your project.
 | Skill | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | Skill | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
 | Skill | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
+| Skill | [`pr-artifacts`](./skills/pr-artifacts/SKILL.md) | Opening or updating any pull request, or setting up a project's artifact gate. Requires before/after evidence in every PR — backend, UI, docs — and ships the checker plus CI gate. |
 | Skill | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 | Command | [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
 | Command | [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
@@ -161,6 +162,23 @@ diagrams, schema/API summaries, and real before/after screenshots.
 The split is deliberate: the agent supplies judgment (what changed and why), and
 a deterministic renderer supplies the artifact, so a recap can be reproduced and
 diffed like any other file.
+
+### pr-artifacts
+
+Makes evidence the definition of done for every pull request, not only UI
+changes. The skill defines the contract, captures a real before -> after from
+the base commit, and maps each change type — backend, API, schema, perf, infra,
+refactor, docs — to a headline artifact rendered by `visual-shot` or plain
+Markdown.
+
+- The **contract**: a non-empty `## Artifact` section in every PR, showing the
+  delta, reproducible, with the baseline captured before the change.
+- **Enforcement ships with it**: a copy-paste `AGENTS.md` block, a PR template,
+  a CI workflow, and `scripts/check-pr-artifact.mjs` — a zero-dependency checker
+  that both CI and the agent run before review.
+- The artifact is **not always visual**: a failing->passing terminal capture, a
+  before/after payload, a schema diff, or a benchmark table satisfy it; a GIF is
+  only better when motion is the point.
 
 ### simple-english
 
