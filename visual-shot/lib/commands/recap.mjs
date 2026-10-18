@@ -44,13 +44,18 @@ Options:
   --repo <dir>          repository for --diff (default: cwd)
   --asset-root <dir>    root confining local image reads (default: the --from
                         file's directory, else cwd for stdin/--diff-only)
-  --format <html|gfm>   output format: HTML report or GitHub Markdown comment
+  --format <html|gfm>   primary output: HTML report or GitHub Markdown comment
                         (default: html)
-  --out <path>          output file (default: $VISUAL_OUT_DIR/recap.html for
-                        html, $VISUAL_OUT_DIR/recap.md for gfm)
+  --out <path>          primary output file (default: $VISUAL_OUT_DIR/recap.html
+                        for html, $VISUAL_OUT_DIR/recap.md for gfm)
+  --gfm-out <path>      also write a GitHub Markdown comment
+  --html-out <path>     also write the HTML report
   --png                 also write a PNG of the report (html always; gfm only
                         when explicitly given)
   --png-out <path>      explicit PNG path (default: alongside --out)
+  --png-filter <list>   filter only the PNG: block types, or "visuals"
+                        (requires --png; --only/--visuals-only still shape
+                        HTML and GFM)
   --report-url <url>    gfm: link to the rendered HTML report
   --image-url <url>     gfm: embed an image of the report
   --only <list>         render only these comma-separated block types
@@ -66,11 +71,13 @@ Options:
 Non-redundant PR recaps: a GFM comment already reviews the text (files, diffs,
 tables, JSON, and Mermaid render natively), so pair it with a PNG of only the
 blocks a comment cannot render (wireframe/image/image-pair/diagram) instead of
-the whole report. Build the text and the visual companion separately:
-  visual-shot recap --from recap.json --format gfm --out recap.md
-  visual-shot recap --from recap.json --visuals-only --png --json
-Embed the second command's PNG only when --json reports a non-null png; when no
-visual block matches, blocks is 0 and no file is written.`;
+the whole report. One run can now emit all surfaces:
+  visual-shot recap --from recap.json --format gfm --out recap.md \\
+    --png --png-filter visuals --json
+  visual-shot recap --from recap.json --format html --out recap.html \\
+    --gfm-out recap.md --png --png-filter visuals --json
+Embed the PNG only when --json reports a non-null png; when no visual block
+matches, png is null and no PNG is written.`;
 }
 
 export function parse(argv) {
@@ -88,8 +95,11 @@ export function parse(argv) {
     else if (a === '--asset-root') o.assetRoot = val();
     else if (a === '--format') o.format = val();
     else if (a === '--out') o.out = val();
+    else if (a === '--gfm-out') o.gfmOut = val();
+    else if (a === '--html-out') o.htmlOut = val();
     else if (a === '--png-out') o.pngOut = val();
     else if (a === '--png') o.png = true;
+    else if (a === '--png-filter') o.pngFilter = val();
     else if (a === '--report-url') o.reportUrl = val();
     else if (a === '--image-url') o.imageUrl = val();
     else if (a === '--only') o.only = val();
@@ -183,34 +193,47 @@ function readRecapJson(source) {
   return parsed;
 }
 
-// Container blocks are never `--only` targets: they are kept automatically when
+// Container blocks are never filter targets: they are kept automatically when
 // they still hold a matching child, so filtering by them is a user error.
 const CONTAINER_BLOCK_TYPES = new Set(['columns', 'tabs']);
 
-// Resolves --only / --visuals-only into the concrete type list (or null when
-// neither was passed). Validates every requested type against the schema so a
-// typo fails with exit 2 before any rendering.
+// Resolves a comma-separated type list into concrete types. Validates every
+// requested type against the schema so a typo fails with exit 2 before any
+// rendering.
+function resolveTypes(value, flag) {
+  const types = value.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+  if (types.length === 0) throw new CliError(`${flag} requires at least one block type`);
+  const unique = [...new Set(types)];
+  const valid = [...BLOCK_TYPES].filter((t) => !CONTAINER_BLOCK_TYPES.has(t)).sort().join(', ');
+  for (const type of unique) {
+    if (CONTAINER_BLOCK_TYPES.has(type)) {
+      throw new CliError(
+        `${flag} cannot target the container type "${type}" (containers are kept when they hold a matching block)`,
+      );
+    }
+    if (!BLOCK_TYPES.has(type)) {
+      throw new CliError(`invalid ${flag} type "${type}" (valid types: ${valid})`);
+    }
+  }
+  return unique;
+}
+
+// --only / --visuals-only shape the HTML and GFM outputs (null = no filter).
 function resolveOnlyTypes(opts) {
   if (opts.only !== undefined && opts.visualsOnly) {
     throw new CliError('--only and --visuals-only cannot be combined');
   }
   if (opts.visualsOnly) return [...VISUAL_BLOCK_TYPES];
   if (opts.only === undefined) return null;
-  const types = opts.only.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
-  if (types.length === 0) throw new CliError('--only requires at least one block type');
-  const unique = [...new Set(types)];
-  const valid = [...BLOCK_TYPES].filter((t) => !CONTAINER_BLOCK_TYPES.has(t)).sort().join(', ');
-  for (const type of unique) {
-    if (CONTAINER_BLOCK_TYPES.has(type)) {
-      throw new CliError(
-        `--only cannot target the container type "${type}" (containers are kept when they hold a matching block)`,
-      );
-    }
-    if (!BLOCK_TYPES.has(type)) {
-      throw new CliError(`invalid --only type "${type}" (valid types: ${valid})`);
-    }
-  }
-  return unique;
+  return resolveTypes(opts.only, '--only');
+}
+
+// --png-filter shapes only the PNG, so a run can post the full GFM text next to
+// a visuals-only image in one invocation.
+function resolvePngFilterTypes(opts) {
+  if (opts.pngFilter === undefined) return null;
+  if (opts.pngFilter === 'visuals') return [...VISUAL_BLOCK_TYPES];
+  return resolveTypes(opts.pngFilter, '--png-filter');
 }
 
 export function validate(opts) {
@@ -218,6 +241,10 @@ export function validate(opts) {
     throw new CliError('missing input (expected --from <file|-> and/or --diff <range>)');
   }
   const only = resolveOnlyTypes(opts);
+  const pngFilter = resolvePngFilterTypes(opts);
+  if (pngFilter && !opts.png) {
+    throw new CliError('--png-filter requires --png');
+  }
   const theme = opts.theme === undefined ? DEFAULT_RECAP_THEME : opts.theme;
   if (theme !== 'light' && theme !== 'dark') {
     throw new CliError(`invalid --theme "${opts.theme}" (expected light or dark)`);
@@ -233,6 +260,8 @@ export function validate(opts) {
   const pngOut = opts.pngOut
     ? resolve(opts.pngOut)
     : out.replace(/\.(html?|md)$/i, '') + '.png';
+  const gfmOut = opts.gfmOut ? resolve(opts.gfmOut) : null;
+  const htmlOut = opts.htmlOut ? resolve(opts.htmlOut) : null;
 
   const from = opts.from ? readRecapJson(opts.from) : null;
   const gitData = opts.diff ? collectGitDiff({ repo: opts.repo, range: opts.diff }) : null;
@@ -254,8 +283,11 @@ export function validate(opts) {
     title: opts.title || null,
     assetRoot,
     out,
+    gfmOut,
+    htmlOut,
     png: Boolean(opts.png),
     pngOut,
+    pngFilter,
     format,
     reportUrl: opts.reportUrl || null,
     imageUrl: opts.imageUrl || null,
@@ -282,20 +314,24 @@ function recapHasCode(blocks) {
   return false;
 }
 
-async function renderInBrowser(plan, built, highlightAsset) {
+async function openRenderBrowser(plan) {
   const cache = plan.cache;
   ensureProvisioned(cache, { json: plan.json });
   applyEnvFile(join(cache, 'env.sh'));
   const playwright = loadPlaywright(cache);
   if (!playwright || !playwright.chromium) throw new CliError('playwright not found. Run: visual-shot setup', 1);
+  return launchBrowser(playwright.chromium);
+}
 
-  const browser = await launchBrowser(playwright.chromium);
+// Renders one built recap in one page: bakes Mermaid and highlighting, then
+// serializes the DOM and (optionally) screenshots it. The caller owns the
+// browser so a run with several surfaces shares a single launch.
+async function renderPage(browser, plan, built, { highlightAsset, png, pngPath }) {
+  const page = await browser.newPage({
+    viewport: { width: plan.width + 40, height: 900 },
+    deviceScaleFactor: plan.scale,
+  });
   try {
-    const page = await browser.newPage({
-      viewport: { width: plan.width + 40, height: 900 },
-      deviceScaleFactor: plan.scale,
-    });
-
     // The render pass must not egress: the recap JSON is untrusted, so a crafted
     // diagram/markdown <img> could beacon or SSRF from the headless browser.
     // Allow only inline (data:), navigation (about:), and local (file:) URLs and
@@ -310,7 +346,7 @@ async function renderInBrowser(plan, built, highlightAsset) {
     await page.setContent(built.html, { waitUntil: 'load' });
 
     if (built.mermaid.length > 0) {
-      const asset = await ensureMermaid(cache);
+      const asset = await ensureMermaid(plan.cache);
       const theme = built.theme === 'dark' ? 'dark' : 'default';
       if (await initMermaid(page, { scriptSource: readFileSync(asset, 'utf8'), theme })) {
         for (const item of built.mermaid) {
@@ -347,7 +383,7 @@ async function renderInBrowser(plan, built, highlightAsset) {
     const content = await page.evaluate(() => document.getElementById('recap').innerHTML);
     let pngError = null;
     let pngWritten = false;
-    if (plan.png) {
+    if (png) {
       try {
         // Reveal every tab panel only for the screenshot, after serializing, so
         // the .html file keeps working tabs while the PNG holds all panels.
@@ -372,8 +408,8 @@ async function renderInBrowser(plan, built, highlightAsset) {
           );
         } else {
           await page.setViewportSize({ width: Math.max(1, size.width), height: Math.max(1, size.height) });
-          ensureDir(plan.pngOut);
-          await page.locator('#recap').screenshot({ path: plan.pngOut });
+          ensureDir(pngPath);
+          await page.locator('#recap').screenshot({ path: pngPath });
           pngWritten = true;
         }
       } catch (e) {
@@ -382,7 +418,7 @@ async function renderInBrowser(plan, built, highlightAsset) {
     }
     return { content, pngError, pngWritten };
   } finally {
-    await browser.close();
+    await page.close();
   }
 }
 
@@ -404,11 +440,16 @@ export async function run(plan, ctx) {
     range: plan.range,
   });
 
-  // Narrow the assembled recap before rendering so --only shapes HTML, GFM, and
-  // PNG alike (a filtered-out `mermaid` must not trigger a browser pass either).
+  // --only / --visuals-only shape the text surfaces; --png-filter can shape the
+  // PNG differently, so one run can post the full GFM text plus a small visual
+  // companion without a second recap invocation.
   const recap = plan.only ? filterRecapByTypes(assembled, plan.only) : assembled;
+  const pngRecap = plan.pngFilter ? filterRecapByTypes(assembled, plan.pngFilter) : recap;
 
-  const isGfm = plan.format === 'gfm';
+  const primaryGfm = plan.format === 'gfm';
+  const wantsHtml = plan.format === 'html' || Boolean(plan.htmlOut);
+  const wantsGfm = plan.format === 'gfm' || Boolean(plan.gfmOut);
+  let wantsPng = plan.png;
 
   // A --only/--visuals-only run that matches nothing writes no artifact. The
   // JSON still reports ok: true with blocks: 0 and png: null, which is how an
@@ -418,12 +459,12 @@ export async function run(plan, ctx) {
     if (plan.json) {
       console.log(JSON.stringify({
         ok: true,
-        format: isGfm ? 'gfm' : 'html',
-        ...(isGfm ? { markdown: null } : { html: null }),
+        format: primaryGfm ? 'gfm' : 'html',
+        ...(primaryGfm ? { markdown: null } : { html: null }),
         png: null,
         theme: normalizeTheme(plan.theme),
         blocks: 0,
-        ...(isGfm ? {} : { mermaid: 0, highlight: false }),
+        ...(primaryGfm ? {} : { mermaid: 0, highlight: false }),
         only: plan.only,
         warnings,
       }, null, 2));
@@ -433,10 +474,16 @@ export async function run(plan, ctx) {
     return 0;
   }
 
-  // gfm without --png is pure text: no build pass, no highlight/mermaid assets,
-  // and no browser. The HTML path inlines local images as data URIs, but a
-  // comment cannot carry those, so we reference image sources directly instead.
-  if (isGfm && !plan.png) {
+  if (plan.pngFilter && pngRecap.blocks.length === 0) {
+    warnings.push(`no blocks matched --png-filter ${plan.pngFilter.join(',')}; no PNG written`);
+    wantsPng = false;
+  }
+
+  // gfm without any other surface is pure text: no build pass, no
+  // highlight/mermaid assets, and no browser. The HTML path inlines local
+  // images as data URIs, but a comment cannot carry those, so the GFM renderer
+  // references image sources directly instead.
+  if (primaryGfm && !wantsHtml && !wantsPng) {
     const markdown = renderRecapGfm(recap, { reportUrl: plan.reportUrl, imageUrl: plan.imageUrl });
     writeOutput(plan.out, markdown);
     if (plan.json) {
@@ -458,14 +505,17 @@ export async function run(plan, ctx) {
   }
 
   let highlightAsset = null;
-  if (plan.highlight && recapHasCode(recap.blocks)) {
+  const htmlHasCode = wantsHtml && recapHasCode(recap.blocks);
+  const pngHasCode = wantsPng && pngRecap !== recap && recapHasCode(pngRecap.blocks);
+  if (plan.highlight && (htmlHasCode || pngHasCode)) {
     try {
       highlightAsset = await ensureHighlight(ctx.cache, plan.theme);
     } catch (e) {
       warnings.push(`${e.message} — rendering code without syntax highlighting`);
     }
   }
-  const built = buildRecap(recap, {
+
+  const build = (source) => buildRecap(source, {
     theme: plan.theme,
     width: plan.width,
     extraCss: highlightAsset ? highlightAsset.css : '',
@@ -473,66 +523,96 @@ export async function run(plan, ctx) {
     maxImageBytes: MAX_RECAP_IMAGE_BYTES,
   });
 
-  // gfm only reaches here with --png; html reaches here whenever mermaid/code
-  // need baking or a PNG was requested. A gfm run never writes HTML.
-  const needBrowser = plan.png || (!isGfm && (built.mermaid.length > 0 || Boolean(highlightAsset)));
-  let finalHtml = null;
+  const builtMain = wantsHtml ? build(recap) : null;
+  const builtPng = wantsPng ? (builtMain && pngRecap === recap ? builtMain : build(pngRecap)) : null;
+
+  // A browser pass is needed for the screenshot, and for HTML whose Mermaid
+  // SVGs or highlighted code must be baked in. All pages share one launch.
+  const htmlNeedsBake = Boolean(builtMain) && (builtMain.mermaid.length > 0 || Boolean(highlightAsset));
+  const needBrowser = wantsPng || htmlNeedsBake;
+  let mainContent = null;
   let pngOk = false;
   if (needBrowser) {
-    const { content, pngError, pngWritten } = await renderInBrowser(plan, built, highlightAsset);
-    if (pngError) {
-      warnings.push(`PNG screenshot failed (${isGfm ? 'Markdown' : 'HTML'} still written): ${pngError}`);
+    const browser = await openRenderBrowser(plan);
+    try {
+      if (builtMain && builtPng === builtMain) {
+        // One render serves both surfaces: serialize the DOM, then screenshot.
+        const rendered = await renderPage(browser, plan, builtMain, {
+          highlightAsset,
+          png: wantsPng,
+          pngPath: plan.pngOut,
+        });
+        mainContent = rendered.content;
+        if (rendered.pngError) warnings.push(`PNG screenshot failed (HTML still written): ${rendered.pngError}`);
+        pngOk = rendered.pngWritten;
+      } else {
+        if (htmlNeedsBake) {
+          const rendered = await renderPage(browser, plan, builtMain, { highlightAsset, png: false });
+          mainContent = rendered.content;
+        }
+        if (builtPng) {
+          const rendered = await renderPage(browser, plan, builtPng, {
+            highlightAsset,
+            png: true,
+            pngPath: plan.pngOut,
+          });
+          if (rendered.pngError) {
+            warnings.push(`PNG screenshot failed${builtMain ? ' (HTML still written)' : ''}: ${rendered.pngError}`);
+          }
+          pngOk = rendered.pngWritten;
+        }
+      }
+    } finally {
+      await browser.close();
     }
-    pngOk = pngWritten;
-    if (!isGfm) {
-      finalHtml = renderDocument({
-        bodyHtml: content,
-        css: built.css,
+  }
+  // built.warnings collects render-pass findings (mermaid failures, a skipped
+  // oversized PNG, rejected images), so merge after the browser pass.
+  if (builtMain) warnings.push(...builtMain.warnings);
+  if (builtPng && builtPng !== builtMain) warnings.push(...builtPng.warnings);
+
+  // The GFM text may reference the PNG written above when no URL was supplied.
+  const imageUrl = plan.imageUrl || (pngOk ? plan.pngOut : null);
+  const markdown = wantsGfm ? renderRecapGfm(recap, { reportUrl: plan.reportUrl, imageUrl }) : null;
+  const finalHtml = builtMain
+    ? renderDocument({
+        bodyHtml: mainContent ?? builtMain.body,
+        css: builtMain.css,
         theme: plan.theme,
         width: plan.width,
         title: recap.title,
         csp: RECAP_CSP,
-      });
-    }
-  } else {
-    // No browser pass: the built body is already final, but the saved file must
-    // still carry the CSP. The initial render shell (built.html) intentionally
-    // has none because the browser pass injects inline scripts.
-    finalHtml = renderDocument({
-      bodyHtml: built.body,
-      css: built.css,
-      theme: plan.theme,
-      width: plan.width,
-      title: recap.title,
-      csp: RECAP_CSP,
-    });
-  }
-  // built.warnings also collects render-pass findings (mermaid failures, a
-  // skipped oversized PNG, rejected images), so merge after the browser pass.
-  warnings.push(...built.warnings);
+      })
+    : null;
 
-  if (isGfm) {
-    // Reference the rendered PNG only when the caller did not supply a URL.
-    const imageUrl = plan.imageUrl || (pngOk ? plan.pngOut : null);
-    writeOutput(plan.out, renderRecapGfm(recap, { reportUrl: plan.reportUrl, imageUrl }));
-  } else {
-    writeOutput(plan.out, finalHtml);
-  }
+  const writtenPaths = new Set();
+  const writeOnce = (path, content) => {
+    if (!path || writtenPaths.has(path)) return;
+    writtenPaths.add(path);
+    writeOutput(path, content);
+  };
+  if (primaryGfm) writeOnce(plan.out, markdown);
+  else writeOnce(plan.out, finalHtml);
+  if (plan.gfmOut) writeOnce(plan.gfmOut, markdown);
+  if (plan.htmlOut) writeOnce(plan.htmlOut, finalHtml);
 
   if (plan.json) {
     console.log(JSON.stringify({
       ok: true,
-      format: isGfm ? 'gfm' : 'html',
-      ...(isGfm ? { markdown: plan.out } : { html: plan.out }),
+      format: primaryGfm ? 'gfm' : 'html',
+      ...(primaryGfm ? { markdown: plan.out } : { html: plan.out }),
+      ...(plan.gfmOut ? { gfmOut: plan.gfmOut } : {}),
+      ...(plan.htmlOut ? { htmlOut: plan.htmlOut } : {}),
       png: pngOk ? plan.pngOut : null,
       theme: normalizeTheme(plan.theme),
       blocks: recap.blocks.length,
-      ...(isGfm ? {} : { mermaid: built.mermaid.length, highlight: Boolean(highlightAsset) }),
+      ...(plan.pngFilter ? { pngFilter: plan.pngFilter, pngBlocks: pngRecap.blocks.length } : {}),
+      ...(primaryGfm ? {} : { mermaid: builtMain ? builtMain.mermaid.length : 0, highlight: Boolean(highlightAsset) }),
       only: plan.only,
       warnings,
     }, null, 2));
   } else {
-    console.log(`saved ${plan.out}`);
+    for (const path of writtenPaths) console.log(`saved ${path}`);
     if (pngOk) console.log(`saved ${plan.pngOut}`);
     for (const warning of warnings) console.error(`[visual-shot] warning: ${warning}`);
   }

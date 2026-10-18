@@ -57,3 +57,42 @@ test('recap --png bakes mermaid and highlight into the HTML', { skip: browserAss
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+const provisioned = existsSync(join(sharedCache, '.provisioned'));
+
+test('recap emits HTML + GFM + visuals-only PNG in one run', { skip: provisioned ? false : 'not provisioned' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-one-run-'));
+  try {
+    const file = writeJson(dir, {
+      version: 1,
+      title: 'One run, three surfaces',
+      blocks: [
+        { type: 'notes', markdown: 'The text surface.' },
+        { type: 'wireframe', html: '<div class="box">visual only</div>', caption: 'Mock' },
+      ],
+    });
+    const html = join(dir, 'out.html');
+    const md = join(dir, 'out.md');
+    const png = join(dir, 'out-visuals.png');
+    const r = run([
+      'recap', '--from', file,
+      '--format', 'html', '--out', html,
+      '--gfm-out', md,
+      '--png', '--png-out', png, '--png-filter', 'visuals',
+      '--json',
+    ], { cache: sharedCache });
+    assert.equal(r.status, 0, r.stderr);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.html, html);
+    assert.equal(parsed.gfmOut, md);
+    assert.equal(parsed.png, png);
+    assert.equal(parsed.pngBlocks, 1);
+    assert.equal(existsSync(html), true);
+    assert.equal(existsSync(md), true);
+    assert.equal(existsSync(png), true);
+    assert.match(readFileSync(md, 'utf8'), /The text surface/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

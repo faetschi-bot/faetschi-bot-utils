@@ -89,6 +89,11 @@ Useful flags: `--full-page`, `--viewport WxH`, `--scale n`, `--device "iPhone 13
 `--header "Authorization: Bearer …"`, `--storage-state auth.json`,
 `--retries 2`, `--timeout 60000`.
 
+`--url` is repeatable: pass `--name-prefix pair` and one run captures every URL
+in one browser launch into `pair-1.png`, `pair-2.png`, …. The JSON becomes
+`{ ok, captures: [...] }`; one failing page sets `ok: false` while the others are
+still written — ideal for before/after pairs.
+
 ### The error gate (important)
 
 By default the process exits non-zero if the page logs **any** console or page
@@ -116,8 +121,15 @@ npx visual-shot diff tmp/images/PRs/before.png tmp/images/PRs/after.png \
 - `--threshold <0..1>` per-pixel color tolerance (default `0.1`).
 - `--fail-on-diff` exits `1` when anything changed (visual-regression gate); with
   `--json` it also reports `ok: false`.
-- `--json` returns `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch }`.
-- URL inputs are captured as page screenshots at `--viewport`, not downloaded.
+- `--json` returns
+  `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch, savedInputs? }`.
+- URL inputs are captured as page screenshots at `--viewport`, not downloaded,
+  and run the same error gate as `capture`. `--wait`, `--wait-for`, `--element`,
+  `--full-page`, `--header`, `--storage-state`, `--allow-console-error`, and
+  `--ignore-console` shape each URL capture; both URLs share one process and one
+  browser launch. `--save-inputs <dir>` keeps `before.png` / `after.png`.
+- A page that logs an error fails the diff before the composite is written
+  unless it is whitelisted; `--json` reports `consoleErrors` / `pageErrors`.
 
 Differing input dimensions are padded to the common max size and reported as
 `sizeMatch: false` rather than failing.
@@ -174,7 +186,17 @@ npx visual-shot recap --from recap.json --asset-root docs/screenshots --png
 npx visual-shot recap --diff main...HEAD --out tmp/images/PRs/recap.html --png --json
 # A GitHub comment instead of HTML (no browser, no provisioning)
 npx visual-shot recap --from recap.json --format gfm --out recap.md --json
+
+# One run for a PR: full GFM text + a visuals-only PNG for the comment
+npx visual-shot recap --from recap.json --format gfm --out recap.md \
+  --png --png-filter visuals --png-out recap-visuals.png --json
 ```
+
+`--gfm-out` and `--html-out` add those formats alongside whichever `--format`
+you picked, and `--png-filter <list|visuals>` filters only the PNG (requires
+`--png`). All surfaces share one browser launch. `--png-filter` therefore lets
+one run post the full text and a small visual companion instead of two
+invocations, while `--only`/`--visuals-only` keep shaping the HTML and GFM.
 
 `--only <list>` keeps only the listed (comma-separated) block types and
 `--visuals-only` is the shorthand for `--only wireframe,image,image-pair,diagram`

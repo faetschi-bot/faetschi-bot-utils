@@ -31,8 +31,9 @@ export function usage() {
 
 Options:
   --name <slug>        output file name, without extension (default: screenshot)
+  --name-prefix <slug>  output prefix per --url when --url is repeated (default: screenshot)
   --out <path>         explicit output path (overrides --name and $VISUAL_OUT_DIR)
-  --url <url>          page to open (default: $VISUAL_URL or ${DEFAULT_URL})
+  --url <url>          page to open (repeatable; default: $VISUAL_URL or ${DEFAULT_URL})
   --viewport <WxH>     viewport size (default: ${DEFAULT_VIEWPORT})
   --scale <n>          device scale factor (default: ${DEFAULT_SCALE})
   --device <name>      Playwright device preset, e.g. "iPhone 13"
@@ -43,7 +44,7 @@ Options:
   --key <key>          press a key (repeatable, in order)
   --element <sel>      capture only this element instead of the viewport
   --full-page          capture the full scrollable page
-  --wait-for-server    poll --url until it responds before navigating
+  --wait-for-server    poll each --url until it responds before navigating
   --server-timeout <ms>  how long to wait for the server (default: ${DEFAULT_SERVER_TIMEOUT})
   --timeout <ms>       navigation timeout (default: ${DEFAULT_NAV_TIMEOUT})
   --retries <n>        retry a failed capture n times (default: 0, max ${MAX_RETRIES})
@@ -52,11 +53,15 @@ Options:
   --allow-console-error <pattern>  ignore matching console errors (repeatable, regex or substring)
   --ignore-console     ignore all console errors (page errors still fail)
   --json               print a machine-readable result object
-  --help               show this help`;
+  --help               show this help
+
+With one --url the JSON result is a single capture object. With two or more it
+is { ok, captures: [...] } and files are numbered from --name-prefix
+(e.g. screenshot-1.png, screenshot-2.png); all URLs share one browser launch.`;
 }
 
 export function parse(argv) {
-  const o = { hover: [], click: [], key: [], allowConsoleError: [], header: [] };
+  const o = { urls: [], hover: [], click: [], key: [], allowConsoleError: [], header: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const val = () => {
@@ -65,8 +70,9 @@ export function parse(argv) {
       return v;
     };
     if (a === '--name') o.name = val();
+    else if (a === '--name-prefix') o.namePrefix = val();
     else if (a === '--out') o.out = val();
-    else if (a === '--url') o.url = val();
+    else if (a === '--url') o.urls.push(val());
     else if (a === '--viewport') o.viewport = val();
     else if (a === '--scale') o.scale = val();
     else if (a === '--device') o.device = val();
@@ -93,18 +99,37 @@ export function parse(argv) {
 }
 
 export function validate(opts) {
-  const url = opts.url || process.env.VISUAL_URL || DEFAULT_URL;
-  const name = opts.name || 'screenshot';
-  const out = resolve(opts.out || join(process.env.VISUAL_OUT_DIR || DEFAULT_OUT_DIR, `${name}.png`));
+  const urls = opts.urls && opts.urls.length > 0 ? opts.urls : [process.env.VISUAL_URL || DEFAULT_URL];
+  const multi = urls.length > 1;
+  if (multi && opts.out) {
+    throw new CliError('--out cannot be used with multiple --url; files are numbered from --name-prefix');
+  }
+  if (multi && opts.name) {
+    throw new CliError('--name cannot be used with multiple --url; use --name-prefix');
+  }
+  const prefix = opts.namePrefix || 'screenshot';
+  if (!/^[A-Za-z0-9._-]+$/.test(prefix)) {
+    throw new CliError(`invalid --name-prefix "${prefix}" (letters, digits, dot, dash, underscore)`);
+  }
+  const outDir = process.env.VISUAL_OUT_DIR || DEFAULT_OUT_DIR;
+  const jobs = urls.map((url, i) => ({
+    url,
+    out: resolve(
+      multi
+        ? join(outDir, `${prefix}-${i + 1}.png`)
+        : opts.out || join(outDir, `${opts.name || 'screenshot'}.png`),
+    ),
+  }));
+
   const [w, h] = (opts.viewport || DEFAULT_VIEWPORT).split('x').map(Number);
   if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
     throw new CliError(`invalid --viewport "${opts.viewport}" (expected WxH, e.g. 1280x720)`);
   }
   return {
     ...opts,
-    url,
-    name,
-    out,
+    jobs,
+    single: !multi,
+    name: multi ? prefix : opts.name || 'screenshot',
     width: w,
     height: h,
     scale: positive(opts.scale, DEFAULT_SCALE, 'scale'),
@@ -116,9 +141,93 @@ export function validate(opts) {
   };
 }
 
+async function attempt(browser, plan, job, contextOptions) {
+  const context = await browser.newContext(contextOptions);
+  try {
+    const page = await context.newPage();
+    const consoleErrors = [];
+    const pageErrors = [];
+    let consoleErrorCount = 0;
+    let pageErrorCount = 0;
+    page.on('console', (m) => {
+      if (m.type() !== 'error') return;
+      consoleErrorCount++;
+      if (consoleErrors.length < MAX_ERRORS) consoleErrors.push(m.text());
+    });
+    page.on('pageerror', (e) => {
+      pageErrorCount++;
+      if (pageErrors.length < MAX_ERRORS) pageErrors.push(String(e));
+    });
+
+    await page.goto(job.url, { waitUntil: 'load', timeout: plan.navTimeout });
+    if (plan.waitFor) await page.waitForSelector(plan.waitFor, { timeout: plan.navTimeout });
+    for (const sel of plan.hover) await page.hover(sel);
+    for (const sel of plan.click) await page.click(sel);
+    for (const k of plan.key) await page.keyboard.press(k);
+    await page.waitForTimeout(plan.wait);
+
+    if (plan.element) await page.locator(plan.element).screenshot({ path: job.out });
+    else await page.screenshot({ path: job.out, fullPage: Boolean(plan.fullPage) });
+
+    const ignored = [];
+    const fatalConsole = [];
+    for (const e of consoleErrors) {
+      if (plan.ignoreConsole || matchesAny(e, plan.allowConsoleError)) ignored.push(e);
+      else fatalConsole.push(e);
+    }
+    const truncated = consoleErrorCount > consoleErrors.length || pageErrorCount > pageErrors.length;
+    return { fatalConsole, fatalPage: pageErrors, ignored, truncated, consoleErrorCount, pageErrorCount };
+  } finally {
+    await context.close();
+  }
+}
+
+async function captureOne(browser, plan, job, contextOptions) {
+  ensureDir(job.out);
+  let lastError;
+  for (let i = 0; i <= plan.retries; i++) {
+    try {
+      if (plan.waitForServer) await waitForServer(job.url, plan.serverTimeout);
+      const result = await attempt(browser, plan, job, contextOptions);
+      const failed = result.fatalConsole.length > 0 || result.fatalPage.length > 0;
+      return {
+        ok: !failed,
+        out: job.out,
+        url: job.url,
+        ignoredConsoleErrors: result.ignored.length,
+        consoleErrors: result.fatalConsole,
+        pageErrors: result.fatalPage,
+        truncated: result.truncated,
+        consoleErrorCount: result.consoleErrorCount,
+        pageErrorCount: result.pageErrorCount,
+      };
+    } catch (e) {
+      lastError = e;
+      if (i < plan.retries && !plan.json) {
+        console.error(`[visual-shot] attempt ${i + 1} failed, retrying: ${e.message}`);
+      }
+    }
+  }
+  return { ok: false, out: job.out, url: job.url, error: lastError.message };
+}
+
+function jsonCapture(capture) {
+  if (capture.error !== undefined) {
+    return { ok: false, out: capture.out, url: capture.url, error: capture.error };
+  }
+  return {
+    ok: capture.ok,
+    out: capture.out,
+    url: capture.url,
+    ignoredConsoleErrors: capture.ignoredConsoleErrors,
+    consoleErrors: capture.consoleErrors,
+    pageErrors: capture.pageErrors,
+    truncated: capture.truncated,
+  };
+}
+
 export async function run(plan, ctx) {
   const { chromium, devices } = ctx;
-  const { url, out, width, height, scale, wait, navTimeout, serverTimeout, retries, headers } = plan;
 
   if (plan.device && !devices[plan.device]) {
     throw new CliError(
@@ -126,110 +235,62 @@ export async function run(plan, ctx) {
     );
   }
 
-  const contextOptions = { viewport: { width, height }, deviceScaleFactor: scale };
-  if (Object.keys(headers).length > 0) contextOptions.extraHTTPHeaders = headers;
+  const contextOptions = { viewport: { width: plan.width, height: plan.height }, deviceScaleFactor: plan.scale };
+  if (Object.keys(plan.headers).length > 0) contextOptions.extraHTTPHeaders = plan.headers;
   if (plan.storageState) contextOptions.storageState = plan.storageState;
   if (plan.device) {
     Object.assign(contextOptions, devices[plan.device]);
-    if (plan.viewport) contextOptions.viewport = { width, height };
-    if (plan.scale !== undefined) contextOptions.deviceScaleFactor = scale;
+    if (plan.viewport) contextOptions.viewport = { width: plan.width, height: plan.height };
+    if (plan.scale !== undefined) contextOptions.deviceScaleFactor = plan.scale;
   }
 
-  ensureDir(out);
-
-  async function attempt() {
-    const browser = await launchBrowser(chromium);
-    try {
-      const page = await browser.newPage(contextOptions);
-      const consoleErrors = [];
-      const pageErrors = [];
-      let consoleErrorCount = 0;
-      let pageErrorCount = 0;
-      page.on('console', (m) => {
-        if (m.type() !== 'error') return;
-        consoleErrorCount++;
-        if (consoleErrors.length < MAX_ERRORS) consoleErrors.push(m.text());
-      });
-      page.on('pageerror', (e) => {
-        pageErrorCount++;
-        if (pageErrors.length < MAX_ERRORS) pageErrors.push(String(e));
-      });
-
-      await page.goto(url, { waitUntil: 'load', timeout: navTimeout });
-      if (plan.waitFor) await page.waitForSelector(plan.waitFor, { timeout: navTimeout });
-      for (const sel of plan.hover) await page.hover(sel);
-      for (const sel of plan.click) await page.click(sel);
-      for (const k of plan.key) await page.keyboard.press(k);
-      await page.waitForTimeout(wait);
-
-      if (plan.element) await page.locator(plan.element).screenshot({ path: out });
-      else await page.screenshot({ path: out, fullPage: Boolean(plan.fullPage) });
-
-      const ignored = [];
-      const fatalConsole = [];
-      for (const e of consoleErrors) {
-        if (plan.ignoreConsole || matchesAny(e, plan.allowConsoleError)) ignored.push(e);
-        else fatalConsole.push(e);
-      }
-      const truncated = consoleErrorCount > consoleErrors.length || pageErrorCount > pageErrors.length;
-      return { fatalConsole, fatalPage: pageErrors, ignored, truncated, consoleErrorCount, pageErrorCount };
-    } finally {
-      await browser.close();
+  const browser = await launchBrowser(chromium);
+  const captures = [];
+  try {
+    for (const job of plan.jobs) {
+      captures.push(await captureOne(browser, plan, job, contextOptions));
     }
+  } finally {
+    await browser.close();
   }
 
-  let lastError;
-  let result;
-  for (let i = 0; i <= retries; i++) {
-    try {
-      if (plan.waitForServer) await waitForServer(url, serverTimeout);
-      result = await attempt();
-      lastError = undefined;
-      break;
-    } catch (e) {
-      lastError = e;
-      if (i < retries && !plan.json) {
-        console.error(`[visual-shot] attempt ${i + 1} failed, retrying: ${e.message}`);
-      }
-    }
-  }
+  const failed = captures.some((capture) => !capture.ok);
 
-  if (lastError) {
-    if (plan.json) {
-      console.log(JSON.stringify({ ok: false, out, url, error: lastError.message }, null, 2));
-    } else {
-      console.error(`[visual-shot] capture failed: ${lastError.message}`);
-    }
-    return 1;
-  }
-
-  const failed = result.fatalConsole.length > 0 || result.fatalPage.length > 0;
   if (plan.json) {
-    console.log(
-      JSON.stringify(
-        {
-          ok: !failed,
-          out,
-          url,
-          ignoredConsoleErrors: result.ignored.length,
-          consoleErrors: result.fatalConsole,
-          pageErrors: result.fatalPage,
-          truncated: result.truncated,
-        },
-        null,
-        2,
-      ),
-    );
-  } else {
-    console.log(`saved ${out}`);
-    if (result.truncated) {
-      console.error(
-        `[visual-shot] note: error lists truncated at ${MAX_ERRORS} (console: ${result.consoleErrorCount}, page: ${result.pageErrorCount})`,
-      );
+    if (plan.single) {
+      console.log(JSON.stringify(jsonCapture(captures[0]), null, 2));
+    } else {
+      console.log(JSON.stringify({ ok: !failed, captures: captures.map(jsonCapture) }, null, 2));
     }
-    if (failed) {
-      console.error('page errors:');
-      for (const e of [...result.fatalConsole, ...result.fatalPage]) console.error(`  ${e}`);
+  } else if (plan.single) {
+    const capture = captures[0];
+    if (capture.error !== undefined) {
+      console.error(`[visual-shot] capture failed: ${capture.error}`);
+    } else {
+      console.log(`saved ${capture.out}`);
+      if (capture.truncated) {
+        console.error(
+          `[visual-shot] note: error lists truncated at ${MAX_ERRORS} (console: ${capture.consoleErrorCount}, page: ${capture.pageErrorCount})`,
+        );
+      }
+      const errors = [...capture.consoleErrors, ...capture.pageErrors];
+      if (errors.length > 0) {
+        console.error('page errors:');
+        for (const e of errors) console.error(`  ${e}`);
+      }
+    }
+  } else {
+    for (const capture of captures) {
+      if (capture.error !== undefined) {
+        console.error(`[visual-shot] capture failed for ${capture.url}: ${capture.error}`);
+        continue;
+      }
+      console.log(`saved ${capture.out}`);
+      const errors = [...capture.consoleErrors, ...capture.pageErrors];
+      if (errors.length > 0) {
+        console.error(`page errors on ${capture.url}:`);
+        for (const e of errors) console.error(`  ${e}`);
+      }
     }
   }
   return failed ? 1 : 0;
