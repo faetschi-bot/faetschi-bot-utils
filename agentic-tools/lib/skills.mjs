@@ -4,6 +4,11 @@ import { dirname, join, resolve, sep } from 'node:path';
 
 export const SKILLS_DIR = 'skills';
 export const MAX_DESCRIPTION = 1024;
+// Advisory budgets: descriptions are listed in every session, and the skill
+// body is loaded on every matching task. Warnings (not errors) so existing
+// skills keep passing while regrowth is visible.
+export const WARN_DESCRIPTION = 400;
+export const WARN_SKILL_LINES = 250;
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export const INSTALL_TARGETS = {
@@ -139,6 +144,15 @@ export function validateSkill(skill) {
   if (!parsed.data.description) errors.push('frontmatter: missing "description"');
   else if (parsed.data.description.length > MAX_DESCRIPTION) {
     errors.push(`description is ${parsed.data.description.length} chars (max ${MAX_DESCRIPTION})`);
+  } else if (parsed.data.description.length > WARN_DESCRIPTION) {
+    warnings.push(
+      `description is ${parsed.data.description.length} chars (warn at ${WARN_DESCRIPTION}); shorten it`,
+    );
+  }
+
+  const lineCount = text.split('\n').length;
+  if (lineCount > WARN_SKILL_LINES) {
+    warnings.push(`SKILL.md is ${lineCount} lines (warn at ${WARN_SKILL_LINES}); move detail to references/`);
   }
 
   const skillDir = resolve(skill.dir);

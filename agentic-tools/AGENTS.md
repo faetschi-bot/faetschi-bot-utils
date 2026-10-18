@@ -186,7 +186,10 @@ provenance note here. `simple-english` is vendored this way from
 
 2. The `name` must be lowercase kebab-case and equal the directory name.
 3. Keep relative links inside the skill directory so they resolve after copy.
-4. Run `npx agentic-tools doctor` and require `ok`.
+4. Keep the pack cheap: target a description of 240 characters or less and a
+   `SKILL.md` of about 100 lines; move detail into `references/`. `doctor` warns
+   above 400 characters or 250 lines.
+5. Run `npx agentic-tools doctor` and require `ok`.
 
 ## Adding a command (maintainers)
 

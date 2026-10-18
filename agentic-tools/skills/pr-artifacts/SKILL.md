@@ -1,124 +1,94 @@
 ---
 name: pr-artifacts
-description: "Use when opening or updating any pull request, or when setting up a project's artifact gate. Requires evidence in every PR — UI, backend, API, schema, perf, infra, refactor, or docs — with a real before/after captured from the base commit, rendered with visual-shot or plain Markdown, and checked before review."
+description: "Use before opening or updating a PR, or when setting up a project's artifact gate: before/after evidence for UI, backend, API, schema, perf, infra, and docs."
 ---
 
 # PR Artifacts
 
-Every pull request carries evidence of its delta. Not a status line ("tested
-locally"), not a link back to the diff — an artifact a reviewer can look at and
-understand **what changed, why, and how you know it works**.
+Every PR carries evidence of its delta: not "tested locally", but an artifact a
+reviewer can understand without reading the diff.
 
-The obligation is not UI-only. A backend change needs evidence as much as a
-button redesign; only the medium differs (terminal capture, before/after
-payload, schema diff, benchmark table, sequence diagram), not the requirement.
+## Contract
 
-This skill defines the contract, the before/after capture, the artifact menu by
-change type, and the checker that makes the contract real.
+- A non-empty `## Artifact` section before review, showing **before -> after**,
+  not only the final state.
+- Reproducible: include the command, or commit the source that produced it.
+- Baseline captured before the change (see Workflow).
+- If no artifact is possible, leave the PR a draft and say what is missing.
 
-## The contract
-
-The project's `AGENTS.md` carries this contract (copy-paste block in
-[project setup](./references/setup.md)):
-
-- Every PR contains a non-empty `## Artifact` section before it is marked ready
-  for review.
-- The artifact shows the delta, not only the final state: **before → after**.
-- The artifact is reproducible: include the command, or commit the source that
-  produced it.
-- The baseline is captured from the base commit **before** the change, in a
-  separate worktree, not reconstructed from memory afterward.
-- If no artifact is possible, the PR stays a draft and says what is missing.
-
-"Should" decays. The contract is enforced by a checker the agent runs before
-opening the PR, and by CI as a backstop.
+The checker runs before the PR is opened; CI is the backstop. Copy-paste setup:
+[project setup](./references/setup.md).
 
 ## Workflow
 
-1. **Capture the baseline first.** The moment you know the change is PR-sized:
+1. **Capture the baseline before you edit.** Run the app, test, or benchmark in
+   the working tree first and keep the output. This avoids a second dependency
+   install and a second dev server. Only when the before state is already gone:
 
    ```bash
    git worktree add /tmp/pr-before origin/main
    ```
 
-   Run the app, test, benchmark, or command there and keep the raw output. This
-   is the step agents skip, and skipping it is what makes artifacts fake.
+2. **Implement and test on the branch.** Reuse the baseline command and inputs,
+   so both sides are comparable.
 
-2. **Implement and test on the branch.** Keep the exact commands and inputs the
-   baseline used, so the two sides are comparable.
+3. **Pick one headline** from the menu. One is enough; it is what the reviewer
+   must understand in ten seconds.
 
-3. **Pick one headline artifact** from the menu below. One, not five: it is what
-   the reviewer must understand in ten seconds. Everything else is detail.
+4. **Render cheaply.** Default: a bounded mechanical recap of the change, no
+   browser, no `visual-recap` load:
 
-4. **Render.** For anything larger than a one-liner, author a `recap.json` (see
-   the `visual-recap` skill) and render it:
+   ```bash
+   npx visual-shot recap --diff origin/main...HEAD --only file-tree \
+     --format gfm --out recap.md --json
+   ```
+
+   Write the headline in plain GFM (table, Mermaid, fenced terminal) or attach a
+   PNG. Author `recap.json` (see `visual-recap`) only when the delta needs
+   `image-pair`, `data-model`, or `api-endpoint` blocks:
 
    ```bash
    npx visual-shot recap --from recap.json --format gfm --out recap.md --json
+   npx visual-shot recap --from recap.json --visuals-only --png --json
    ```
 
-   With a browser provisioned, also render the visual surfaces that add signal:
+   Newer visual-shot collapses those two into one run (`--gfm-out`,
+   `--png-filter`).
+
+5. **Post it.** Headline at the top of `## Artifact`, full recap in a
+   `<details>` block. Commit images under `.artifacts/<slug>/` and link the raw
+   URL, or let `--report-url` / `--image-url` write the links for you.
+
+6. **Verify before creating the PR.** Check the exact body file, then create:
 
    ```bash
-   npx visual-shot recap --from recap.json --visuals-only --png --png-out recap-visuals.png --json
+   node scripts/check-pr-artifact.mjs .artifacts/body.md
+   gh pr create --body-file .artifacts/body.md
    ```
 
-5. **Post it.** Put the headline at the top of `## Artifact`, the full recap in
-   a `<details>` block, and commit images under `.artifacts/<slug>/` (or the
-   project's artifact directory). Reference committed files by raw URL:
-   `https://github.com/<owner>/<repo>/blob/<branch>/.artifacts/<slug>/<file>.png?raw=true`.
-
-6. **Verify.** Run the checker on the exact body you are about to submit:
-
-   ```bash
-   gh pr view --json body -q .body | node scripts/check-pr-artifact.mjs -
-   ```
-
-   Require exit `0`. Every `visual-shot` render must report `ok: true`; inspect
-   its `warnings` array, which is `[]` when clean.
+   Require exit `0`; every render must report `ok: true` and `warnings: []`.
 
 ## Artifact menu
 
-| Change | Headline artifact | Capture |
+| Change | Headline | Capture |
 |---|---|---|
-| UI behavior | Before/after screenshot, or a short clip when motion is the point | `visual-shot` captures + `visual-shot diff` |
-| Bug fix | Failing test on the base commit → passing on the branch | `visual-shot term` in both worktrees |
-| API contract | Before/after request + response (status and body) | recap `api-endpoint` + `json` blocks |
-| DB/schema | ERD or migration diff with `added`/`removed`/`modified` marks | recap `data-model` |
-| Performance | Before/after table (p50/p95, n, variance) and a chart only if a trend matters | recap `table`; rendered Mermaid chart |
-| Concurrency/flow | Sequence diagram of the new path and its failure branches | recap `mermaid` |
-| Refactor | File map plus call/dependency graph and LOC delta | recap `file-tree` + `diagram` |
-| Infra/config | Rendered plan or diff (`terraform plan`, `kubectl diff`) | `visual-shot term` |
-| Dependencies/security | Before/after audit or scan table | `term` or recap `table` |
-| Docs | Rendered page before/after, or a section-level diff | capture + `diff` |
+| UI / docs | before/after screenshot | `visual-shot diff <before-url> <after-url>`, or capture twice + `diff` for element/wait control |
+| Bug fix | failing -> passing test | `visual-shot term` in both worktrees |
+| API / schema | payload or data-model delta | recap `api-endpoint`, `json`, `data-model` |
+| Perf / flow / refactor | table, chart, or diagram | recap `table`, `mermaid`, `file-tree` |
 
-Per-type recipes, including the exact base-worktree commands, are in
-[change types](./references/change-types.md).
+Per-type recipes: [change types](./references/change-types.md).
 
 ## Quality bar
 
-- The before state is real and from the base commit. Both sides use the same
-  command, inputs, and machine, or the difference is stated in the PR.
-- Numbers include `n`, machine, and variance. Never chart a single run.
-- Redact secrets, tokens, customer data, and `.env` values from every capture;
-  terminal output and JSON payloads leak them easily.
-- Prefer PNG/SVG over GIF/video. Record motion only when motion is the point;
-  keep clips short (under ~10s) and small (under ~5 MB).
-- A reviewer understands the headline in ten seconds without opening the diff.
+- The before state is real; both sides use the same command, inputs, and
+  machine. Numbers need `n`, machine, and variance; never chart one run.
+- Redact secrets, tokens, customer data, and `.env` values.
+- Prefer PNG/SVG over video; motion only when motion is the point.
+- Avoid artifact theater: green tests with no failing baseline, unannotated
+  screenshots, unitless charts.
+- No visual-shot? A table, Mermaid fence, fenced log, or committed screenshot
+  still satisfies the contract.
 
-Artifact theater to avoid: a green test screenshot with no failing baseline; an
-unannotated full-page screenshot; a chart without units or axes; a restated
-diff dressed up as a diagram; an image nobody can reproduce.
-
-## Without visual-shot
-
-The contract is tool-agnostic. Any of these satisfies it: a Markdown table, a
-Mermaid fence in the PR body, a fenced terminal log, a screenshot committed by
-any tool, or a link to a CI job result. `visual-shot` makes the render
-reproducible and diffable; it is not the requirement.
-
-## Projects that need the gate
-
-[Project setup](./references/setup.md) has the `AGENTS.md` contract block, the
-PR template, the CI workflow, the checker script, and the per-agent install
-commands (OpenCode, Claude Code, Codex).
+The gate: [project setup](./references/setup.md) has the `AGENTS.md` block, PR
+template, CI workflow, and checker.

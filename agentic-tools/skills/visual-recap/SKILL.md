@@ -1,6 +1,6 @@
 ---
 name: visual-recap
-description: "Invoke to turn a PR, branch, commit, or git diff into a visual recap — a self-contained HTML/PNG report with a file map, annotated diffs, diagrams, schema/API summaries, and real before/after screenshots. Use for large, multi-file, UI-heavy, schema, API, or architecture changes; skip tiny obvious diffs."
+description: "Turn a large PR, branch, commit, or diff into a self-contained HTML/PNG recap: file map, annotated diffs, diagrams, schema/API summaries, and real before/after screenshots. Authors the recap.json that visual-shot renders."
 ---
 
 # Visual Recap

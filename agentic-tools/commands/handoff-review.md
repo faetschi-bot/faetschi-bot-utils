@@ -4,7 +4,7 @@ description: "Produce a review handoff for another agent to review this work"
 
 Prepare a handoff for another agent to review this work.
 
-Produce a review handoff for another agent. Your output is an assistant message that OpenChamber will send to a separate reviewer agent, who checks whether the work actually came out right.
+Produce a review handoff for a separate reviewer agent, who checks whether the work came out right.
 
 Include:
 - The user's original intent and any later clarifications that changed the intent
@@ -18,5 +18,4 @@ Include:
 Formatting:
 - Concise markdown with clear sections
 - No preamble like "Here is a handoff"
-- Do not mention OpenChamber metadata, linked sessions, session IDs, or routing
 - Respond in the same language the user used most in the conversation

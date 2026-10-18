@@ -12,34 +12,18 @@ and T3 Code read. For Claude Code, add a one-line `CLAUDE.md` containing
 ````md
 ## PR contract: artifact required
 
-Every PR must contain a non-empty `## Artifact` section before it is marked
-ready for review. This applies to backend, data, infra, refactors, and docs —
-not only UI.
+Every PR needs a non-empty `## Artifact` section showing the before -> after
+delta — UI, backend, data, infra, docs, refactors. Capture the baseline from the
+base commit before changing code; keep the artifact reproducible (include the
+command) and redact secrets. If no artifact is possible, leave the PR a draft
+and say why.
 
-An artifact is the smallest evidence that lets a reviewer understand the change
-without reading the diff. It must:
-- show the delta (before -> after), not only the final state;
-- be reproducible (include the command, or commit the source file);
-- answer: what changed, why, and how do we know it works?
-
-Capture the baseline BEFORE changing code, from the base commit in a separate
-worktree (`git worktree add /tmp/pr-before origin/main`). Do not reconstruct it
-from memory later.
-
-Before opening the PR:
-1. Run `npx visual-shot recap --diff origin/main...HEAD --format gfm --out .artifacts/recap.md`
-   (or author `recap.json` for a larger change).
-2. Add one headline artifact by change type: UI -> before/after image; bug ->
-   failing->passing test; API -> before/after request+response; schema ->
-   data-model; perf -> before/after table or chart; flow -> sequence diagram.
-3. Put the headline at the top of `## Artifact`, the full recap in a
-   `<details>` block, and commit images under `.artifacts/<slug>/`.
-4. Redact secrets, tokens, customer data, and `.env` values.
-5. Verify that `node scripts/check-pr-artifact.mjs <body-file>` exits 0.
-
-If no artifact is possible, do not open the PR. Leave it a draft and state what
-is missing. The `pr-artifacts` skill holds the full menu and recipes.
+Default quick pass: `npx visual-shot recap --diff origin/main...HEAD --only file-tree --format gfm`.
+Full menu: the `pr-artifacts` skill. Gate: `node scripts/check-pr-artifact.mjs <body-file>`.
 ````
+
+Keep this block short: it is injected into every session. The recipes stay in
+the skill, and the raw patches stay out of the PR body.
 
 ## 2. `.github/pull_request_template.md`
 
@@ -150,7 +134,7 @@ instead of `gh pr create`:
 # Render the baseline recap, require the artifact section, then open the PR.
 set -euo pipefail
 base="${BASE:-origin/main}"
-npx visual-shot recap --diff "$base...HEAD" --format gfm --out .artifacts/recap.md --json
+npx visual-shot recap --diff "$base...HEAD" --only file-tree --format gfm --out .artifacts/recap.md --json
 test -s .artifacts/recap.md
 grep -q '^## Artifact' .artifacts/body.md || {
   echo "pr-artifacts: .artifacts/body.md needs a '## Artifact' section" >&2

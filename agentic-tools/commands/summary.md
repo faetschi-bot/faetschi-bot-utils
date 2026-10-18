@@ -5,7 +5,7 @@ argument-hint: "[topic]"
 
 Summarize this session.
 
-Produce a non-destructive summary of this conversation. Do NOT compact or mutate session history — your output is an additional assistant message the user will read and may use to hand off to a new session.
+Produce a summary as an additional assistant message; do not mutate session history.
 
 Cover the information useful for continuing this work:
 - What was done (completed work, in order)
@@ -15,7 +15,7 @@ Cover the information useful for continuing this work:
 - User requests, constraints, or preferences to carry forward
 - Important technical decisions and why they were made
 
-If the user passed a topic together with this command, they asked you to focus this summary on that topic. Prioritize it; mention unrelated threads only in passing.
+If a topic was passed, focus the summary on it.
 
 Formatting:
 - Concise markdown with short sections and bullet lists
