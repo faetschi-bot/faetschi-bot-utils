@@ -6,10 +6,18 @@ import {
   DEFAULT_NAV_TIMEOUT,
   DEFAULT_OUT_DIR,
   DEFAULT_VIEWPORT,
+  MAX_ERRORS,
 } from '../config.mjs';
 import { CliError } from '../errors.mjs';
 import { MIME_BY_EXT } from '../recap/html.mjs';
-import { ensureDir, launchBrowser, positive } from '../shared.mjs';
+import {
+  ensureDir,
+  launchBrowser,
+  matchesAny,
+  nonNegative,
+  parseHeaders,
+  positive,
+} from '../shared.mjs';
 
 export const name = 'diff';
 export const aliases = ['image-diff'];
@@ -28,13 +36,22 @@ Options:
   --threshold <n>      per-pixel color distance threshold, 0..1 (default: ${DEFAULT_DIFF_THRESHOLD})
   --viewport <WxH>     viewport for URL inputs (default: ${DEFAULT_VIEWPORT})
   --scale <n>          device scale factor for URL inputs (default: ${DEFAULT_DIFF_SCALE})
+  --wait <ms>          settle time after each URL loads (default: 0)
+  --wait-for <sel>     wait for this selector on each URL
+  --element <sel>      capture only this element on each URL
+  --full-page          capture the full page for URL inputs
+  --header <name:value>  extra HTTP header for URL inputs (repeatable)
+  --storage-state <path>  Playwright storage state JSON for URL inputs
+  --allow-console-error <pattern>  ignore matching console errors (repeatable)
+  --ignore-console     ignore all console errors (page errors still fail)
+  --save-inputs <dir>  save URL captures as before.png / after.png in <dir>
   --fail-on-diff       exit 1 when any differing pixels are found
   --json               print a machine-readable result object
   --help               show this help`;
 }
 
 export function parse(argv) {
-  const o = {};
+  const o = { header: [], allowConsoleError: [] };
   const positionals = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -47,6 +64,15 @@ export function parse(argv) {
     else if (a === '--threshold') o.threshold = val();
     else if (a === '--viewport') o.viewport = val();
     else if (a === '--scale') o.scale = val();
+    else if (a === '--wait') o.wait = val();
+    else if (a === '--wait-for') o.waitFor = val();
+    else if (a === '--element') o.element = val();
+    else if (a === '--full-page') o.fullPage = true;
+    else if (a === '--header') o.header.push(val());
+    else if (a === '--storage-state') o.storageState = val();
+    else if (a === '--allow-console-error') o.allowConsoleError.push(val());
+    else if (a === '--ignore-console') o.ignoreConsole = true;
+    else if (a === '--save-inputs') o.saveInputs = val();
     else if (a === '--fail-on-diff') o.failOnDiff = true;
     else if (a === '--json') o.json = true;
     else if (a === '--help' || a === '-h') o.help = true;
@@ -76,6 +102,9 @@ export function validate(opts) {
   }
 
   const scale = positive(opts.scale, DEFAULT_DIFF_SCALE, 'scale');
+  const wait = nonNegative(opts.wait, 0, 'wait');
+  const headers = parseHeaders(opts.header);
+  const saveInputs = opts.saveInputs ? resolve(opts.saveInputs) : null;
 
   if (!opts.before || !opts.after) {
     throw new CliError('missing inputs: expected <before> and <after>');
@@ -103,6 +132,15 @@ export function validate(opts) {
     width,
     height,
     scale,
+    wait,
+    waitFor: opts.waitFor || null,
+    element: opts.element || null,
+    fullPage: Boolean(opts.fullPage),
+    storageState: opts.storageState || null,
+    ignoreConsole: Boolean(opts.ignoreConsole),
+    allowConsoleError: opts.allowConsoleError,
+    headers,
+    saveInputs,
     failOnDiff: Boolean(opts.failOnDiff),
     json: Boolean(opts.json),
   };
@@ -223,7 +261,11 @@ function compareInPage({ before, after, threshold }) {
   })();
 }
 
-async function loadInput(input, plan, browser) {
+// Local inputs are read as data URLs. URL inputs run the capture pipeline here —
+// same process, same browser — applying the same wait/selector/element/error-gate
+// options as `capture`, so a before/after pair is comparable by construction and
+// the review workflow needs one invocation instead of capture + capture + diff.
+async function loadInput(input, plan, browser, slot) {
   if (!isUrl(input)) {
     let buf;
     try {
@@ -232,21 +274,61 @@ async function loadInput(input, plan, browser) {
       throw new CliError(`cannot read input ${input}: ${e.message}`, 1);
     }
     const mime = MIME_BY_EXT[extname(input).toLowerCase()] || 'image/png';
-    return `data:${mime};base64,${buf.toString('base64')}`;
+    return { dataUrl: `data:${mime};base64,${buf.toString('base64')}`, saved: null, consoleErrors: [], pageErrors: [] };
   }
 
-  const context = await browser.newContext({
+  const contextOptions = {
     viewport: { width: plan.width, height: plan.height },
     deviceScaleFactor: plan.scale,
-  });
+  };
+  if (Object.keys(plan.headers).length > 0) contextOptions.extraHTTPHeaders = plan.headers;
+  if (plan.storageState) contextOptions.storageState = plan.storageState;
+
+  const context = await browser.newContext(contextOptions);
   try {
     const page = await context.newPage();
+    const consoleErrors = [];
+    const pageErrors = [];
+    let consoleErrorCount = 0;
+    let pageErrorCount = 0;
+    page.on('console', (m) => {
+      if (m.type() !== 'error') return;
+      consoleErrorCount++;
+      if (consoleErrors.length < MAX_ERRORS) consoleErrors.push(m.text());
+    });
+    page.on('pageerror', (e) => {
+      pageErrorCount++;
+      if (pageErrors.length < MAX_ERRORS) pageErrors.push(String(e));
+    });
+
     const res = await page.goto(input, { waitUntil: 'load', timeout: DEFAULT_NAV_TIMEOUT });
     if (!res || res.status() >= 400) {
       throw new CliError(`failed to load ${input}: HTTP ${res ? res.status() : 'no response'}`, 1);
     }
-    const buf = await page.screenshot();
-    return `data:image/png;base64,${buf.toString('base64')}`;
+    if (plan.waitFor) await page.waitForSelector(plan.waitFor, { timeout: DEFAULT_NAV_TIMEOUT });
+    if (plan.wait > 0) await page.waitForTimeout(plan.wait);
+
+    let saved = null;
+    if (plan.saveInputs) {
+      saved = join(plan.saveInputs, `${slot}.png`);
+      ensureDir(saved);
+    }
+    const buf = plan.element
+      ? await page.locator(plan.element).screenshot(saved ? { path: saved } : {})
+      : await page.screenshot({ fullPage: plan.fullPage, ...(saved ? { path: saved } : {}) });
+
+    const fatalConsole = plan.ignoreConsole
+      ? []
+      : consoleErrors.filter((e) => !matchesAny(e, plan.allowConsoleError));
+    const truncated = consoleErrorCount > consoleErrors.length || pageErrorCount > pageErrors.length;
+
+    return {
+      dataUrl: `data:image/png;base64,${buf.toString('base64')}`,
+      saved,
+      consoleErrors: fatalConsole,
+      pageErrors,
+      truncated,
+    };
   } catch (e) {
     if (e instanceof CliError) throw e;
     throw new CliError(`failed to load ${input}: ${e.message}`, 1);
@@ -258,12 +340,40 @@ async function loadInput(input, plan, browser) {
 export async function run(plan, ctx) {
   const browser = await launchBrowser(ctx.chromium);
   let result;
+  let savedInputs = { before: null, after: null };
   try {
-    const before = await loadInput(plan.before, plan, browser);
-    const after = await loadInput(plan.after, plan, browser);
+    const before = await loadInput(plan.before, plan, browser, 'before');
+    const after = await loadInput(plan.after, plan, browser, 'after');
+    savedInputs = { before: before.saved, after: after.saved };
+
+    const consoleErrors = [...before.consoleErrors, ...after.consoleErrors];
+    const pageErrors = [...before.pageErrors, ...after.pageErrors];
+    if (consoleErrors.length > 0 || pageErrors.length > 0) {
+      if (plan.json) {
+        console.log(JSON.stringify({
+          ok: false,
+          error: 'page errors during URL capture',
+          before: plan.before,
+          after: plan.after,
+          savedInputs,
+          consoleErrors,
+          pageErrors,
+          truncated: before.truncated || after.truncated,
+        }, null, 2));
+      } else {
+        console.error('[visual-shot] page errors during URL capture:');
+        for (const e of [...consoleErrors, ...pageErrors]) console.error(`  ${e}`);
+      }
+      return 1;
+    }
+
     const page = await browser.newPage();
     try {
-      result = await page.evaluate(compareInPage, { before, after, threshold: plan.threshold });
+      result = await page.evaluate(compareInPage, {
+        before: before.dataUrl,
+        after: after.dataUrl,
+        threshold: plan.threshold,
+      });
     } catch (e) {
       throw new CliError(`comparison failed for ${plan.before} vs ${plan.after}: ${e.message}`, 1);
     } finally {
@@ -298,6 +408,7 @@ export async function run(plan, ctx) {
           out: plan.out,
           before: plan.before,
           after: plan.after,
+          ...(savedInputs.before || savedInputs.after ? { savedInputs } : {}),
           sizeMatch: result.sizeMatch,
           changedPixels: result.changedPixels,
           totalPixels: result.totalPixels,

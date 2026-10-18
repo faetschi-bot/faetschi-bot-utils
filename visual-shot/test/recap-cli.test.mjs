@@ -134,6 +134,106 @@ test('recap --diff renders a file map and inline patches from git', () => {
   }
 });
 
+// --- multi-output -----------------------------------------------------------
+
+test('recap --png-filter without --png exits 2', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-multi-'));
+  try {
+    const file = writeJson(dir, { version: 1, title: 'T', blocks: [{ type: 'notes', markdown: 'x' }] });
+    const r = run(['recap', '--from', file, '--png-filter', 'visuals']);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /--png-filter requires --png/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('recap rejects an invalid --png-filter type before provisioning', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-multi-'));
+  const cache = emptyCache();
+  try {
+    const file = writeJson(dir, { version: 1, title: 'T', blocks: [{ type: 'notes', markdown: 'x' }] });
+    const r = run(['recap', '--from', file, '--png', '--png-filter', 'nope', '--json'], { cache });
+    assert.equal(r.status, 2);
+    const parsed = JSON.parse(r.stdout);
+    assert.match(parsed.error, /invalid --png-filter type "nope"/);
+    assert.equal(existsSync(join(cache, '.provisioned')), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(cache, { recursive: true, force: true });
+  }
+});
+
+test('recap --format html --gfm-out writes both without provisioning', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-multi-'));
+  const cache = emptyCache();
+  try {
+    const file = writeJson(dir, {
+      version: 1,
+      title: 'Both surfaces',
+      blocks: [{ type: 'file-tree', entries: [{ path: 'a.ts', change: 'modified' }] }],
+    });
+    const html = join(dir, 'out.html');
+    const md = join(dir, 'out.md');
+    const r = run(['recap', '--from', file, '--format', 'html', '--out', html, '--gfm-out', md, '--no-highlight', '--json'], { cache });
+    assert.equal(r.status, 0, r.stderr);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.html, html);
+    assert.equal(parsed.gfmOut, md);
+    assert.equal(existsSync(html), true);
+    assert.equal(existsSync(md), true);
+    assert.match(readFileSync(md, 'utf8'), /Both surfaces/);
+    assert.equal(existsSync(join(cache, '.provisioned')), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(cache, { recursive: true, force: true });
+  }
+});
+
+test('recap --format gfm --html-out writes both without provisioning', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-multi-'));
+  const cache = emptyCache();
+  try {
+    const file = writeJson(dir, {
+      version: 1,
+      title: 'Text first',
+      blocks: [{ type: 'notes', markdown: 'Hello.' }],
+    });
+    const md = join(dir, 'out.md');
+    const html = join(dir, 'out.html');
+    const r = run(['recap', '--from', file, '--format', 'gfm', '--out', md, '--html-out', html, '--no-highlight', '--json'], { cache });
+    assert.equal(r.status, 0, r.stderr);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.markdown, md);
+    assert.equal(parsed.htmlOut, html);
+    assert.equal(existsSync(md), true);
+    assert.equal(existsSync(html), true);
+    assert.equal(existsSync(join(cache, '.provisioned')), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(cache, { recursive: true, force: true });
+  }
+});
+
+test('recap --png-filter with no matching blocks writes no PNG and no browser', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-shot-recap-multi-'));
+  const cache = emptyCache();
+  try {
+    const file = writeJson(dir, { version: 1, title: 'Text only', blocks: [{ type: 'notes', markdown: 'No visuals.' }] });
+    const md = join(dir, 'out.md');
+    const r = run(['recap', '--from', file, '--format', 'gfm', '--out', md, '--png', '--png-filter', 'visuals', '--json'], { cache });
+    assert.equal(r.status, 0, r.stderr);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.png, null);
+    assert.ok(parsed.warnings.some((w) => /no blocks matched --png-filter/.test(w)));
+    assert.equal(existsSync(md), true);
+    assert.equal(existsSync(join(cache, '.provisioned')), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(cache, { recursive: true, force: true });
+  }
+});
+
 // --- CLI limits -------------------------------------------------------------
 
 test('recap rejects out-of-range width/scale and an oversized --from file', () => {

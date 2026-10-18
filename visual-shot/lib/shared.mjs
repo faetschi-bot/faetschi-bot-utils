@@ -170,12 +170,37 @@ export function verifyFileSha256(path, expected) {
 }
 
 // A cached asset must clear a size floor and match its pinned digest, or the
-// caller re-downloads. Hashing the whole file on every command is wasteful once
-// it has passed, so a verified (size, mtimeMs) pair is memoized and only
-// re-hashed when either changes. A null pin (custom version) skips the digest.
+// caller re-downloads. Hashing the whole file (Mermaid is ~2.5 MB) in every
+// command is wasteful once it has passed, so a verified (size, mtimeMs) pair is
+// memoized in-process and persisted in a `.verified` sidecar for the next run.
+// The cache lives in the user's own data dir, so the shell that can replace the
+// sidecar can already replace the asset; the pin protects against corrupted or
+// tampered downloads, not against local cache writers. A null pin (custom
+// version) skips the digest.
 export const MIN_CACHED_ASSET_BYTES = 1000;
 
 const verifiedAssets = new Map();
+
+function verifiedSidecarPath(file) {
+  return `${file}.verified`;
+}
+
+function sidecarMatches(file, stat) {
+  try {
+    const data = JSON.parse(readFileSync(verifiedSidecarPath(file), 'utf8'));
+    return Boolean(data) && data.size === stat.size && data.mtimeMs === stat.mtimeMs;
+  } catch {
+    return false;
+  }
+}
+
+function writeSidecar(file, stat) {
+  try {
+    writeFileSync(verifiedSidecarPath(file), JSON.stringify({ size: stat.size, mtimeMs: stat.mtimeMs }));
+  } catch {
+    /* best effort: an unwritable sidecar only costs a re-hash next run */
+  }
+}
 
 export function usableCachedAsset(file, expectedSha256, minBytes = MIN_CACHED_ASSET_BYTES) {
   let stat;
@@ -189,8 +214,20 @@ export function usableCachedAsset(file, expectedSha256, minBytes = MIN_CACHED_AS
 
   const seen = verifiedAssets.get(file);
   if (seen && seen.size === stat.size && seen.mtimeMs === stat.mtimeMs) return true;
-  if (!verifyFileSha256(file, expectedSha256)) return false;
+  if (sidecarMatches(file, stat)) {
+    verifiedAssets.set(file, { size: stat.size, mtimeMs: stat.mtimeMs });
+    return true;
+  }
+  if (!verifyFileSha256(file, expectedSha256)) {
+    try {
+      rmSync(verifiedSidecarPath(file), { force: true });
+    } catch {
+      /* best effort: a stale sidecar still fails the digest next time */
+    }
+    return false;
+  }
   verifiedAssets.set(file, { size: stat.size, mtimeMs: stat.mtimeMs });
+  writeSidecar(file, stat);
   return true;
 }
 

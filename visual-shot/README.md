@@ -80,9 +80,10 @@ required check fails, so an agent can verify setup before capturing.
 
 | Flag | Meaning |
 |------|---------|
-| `--name <slug>` | output name, no extension (default `screenshot`) |
-| `--out <path>` | explicit output path (overrides `--name` and `$VISUAL_OUT_DIR`) |
-| `--url <url>` | page to open (default `$VISUAL_URL` or `http://127.0.0.1:5173/`) |
+| `--name <slug>` | output name, no extension (default `screenshot`; not with repeated `--url`) |
+| `--name-prefix <slug>` | output prefix per repeated `--url`, numbered `-1.png`, `-2.png`, … (default `screenshot`) |
+| `--out <path>` | explicit output path (overrides `--name` and `$VISUAL_OUT_DIR`; not with repeated `--url`) |
+| `--url <url>` | page to open (repeatable; default `$VISUAL_URL` or `http://127.0.0.1:5173/`) |
 | `--viewport <WxH>` | viewport size (default `1280x720`) |
 | `--scale <n>` | device scale factor (default `2`, i.e. retina) |
 | `--device <name>` | Playwright device preset, e.g. `"iPhone 13"` |
@@ -116,6 +117,18 @@ On a validation error (`ok: false` with `error`) or a capture failure, the same
 capture failure) instead of human-readable stderr. `truncated` is `true` when a
 page produced more than 50 errors and the lists were capped.
 
+Repeat `--url` to capture several pages in one process and one browser launch —
+handy for before/after pairs:
+
+```bash
+npx visual-shot --url http://127.0.0.1:3000/ --url http://127.0.0.1:3001/ \
+  --name-prefix pair --json
+```
+
+That writes `tmp/images/PRs/pair-1.png` and `pair-2.png` and returns
+`{ ok, captures: [{ ok, out, url, ignoredConsoleErrors, consoleErrors, pageErrors, truncated }] }`.
+One failing page sets `ok: false` and exit `1` while the others are still written.
+
 ### Compare images (diff)
 
 `diff` compares two images and writes a single side-by-side PNG
@@ -128,6 +141,11 @@ at `--viewport`, not downloaded as images**.
 ```bash
 npx visual-shot diff before.png after.png --out tmp/images/PRs/change.png
 npx visual-shot diff http://localhost:3000/ after.png --fail-on-diff
+
+# Both sides captured in one process, and the raw inputs kept:
+npx visual-shot diff http://127.0.0.1:3000/ http://127.0.0.1:3001/ \
+  --save-inputs tmp/images/PRs/before-after --wait-for .loaded \
+  --out tmp/images/PRs/change.png --json
 ```
 
 | Flag | Meaning |
@@ -135,8 +153,17 @@ npx visual-shot diff http://localhost:3000/ after.png --fail-on-diff
 | `--out <path>` | output PNG (default `$VISUAL_OUT_DIR/diff.png`) |
 | `--threshold <n>` | per-pixel color distance threshold, `0`–`1` (default `0.1`) |
 | `--viewport <WxH>` / `--scale <n>` | capture settings for URL inputs (default `1280x720`, scale `1`) |
+| `--wait <ms>` / `--wait-for <sel>` | settle each URL before capturing (default `0`) |
+| `--element <sel>` / `--full-page` | capture part of the page, or the whole scrollable page |
+| `--header <name:value>` / `--storage-state <path>` | authentication for URL inputs |
+| `--allow-console-error <pattern>` / `--ignore-console` | page-error gate exceptions for URL inputs |
+| `--save-inputs <dir>` | keep the captured URL screenshots as `<dir>/before.png` / `<dir>/after.png` |
 | `--fail-on-diff` | exit `1` when any differing pixels are found |
-| `--json` | print `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch, … }` |
+| `--json` | print `{ ok, out, changedPixels, totalPixels, diffPercentage, sizeMatch, savedInputs?, … }` |
+
+URL inputs run the same capture pipeline (and the same error gate) as
+`capture`; a page that logs an error fails the diff before the composite is
+written unless whitelisted. Local file inputs are unaffected.
 
 By default `diff` exits `0` and just reports; add `--fail-on-diff` to use it as a
 visual-regression gate, in which case `--json` reports `ok: false` when pixels
@@ -225,6 +252,14 @@ npx visual-shot recap --from recap.json --diff main...HEAD --png
 
 # A GitHub comment instead of an HTML report (no browser, no provisioning)
 npx visual-shot recap --from recap.json --format gfm --out recap.md
+
+# One run for a PR: full GFM text + a visuals-only PNG
+npx visual-shot recap --from recap.json --format gfm --out recap.md \
+  --png --png-filter visuals --png-out recap-visuals.png --json
+
+# HTML report + GFM comment + visuals-only PNG, still one run
+npx visual-shot recap --from recap.json --format html --out recap.html \
+  --gfm-out recap.md --png --png-filter visuals --json
 ```
 
 | Flag | Meaning |
@@ -236,6 +271,9 @@ npx visual-shot recap --from recap.json --format gfm --out recap.md
 | `--format <html\|gfm>` | `html` (default) writes a self-contained report; `gfm` writes a GitHub Markdown comment |
 | `--out <path>` | output file (default `$VISUAL_OUT_DIR/recap.html` for html, `$VISUAL_OUT_DIR/recap.md` for gfm) |
 | `--png` / `--png-out <path>` | also write a PNG of the report (the PNG reveals every tab panel; the HTML keeps interactive tabs). In gfm mode a PNG is written only when `--png` is passed |
+| `--gfm-out <path>` | also write the GitHub Markdown comment, whatever `--format` is |
+| `--html-out <path>` | also write the HTML report, whatever `--format` is |
+| `--png-filter <list>` | filter only the PNG, by block type or `visuals`; requires `--png`. `--only`/`--visuals-only` keep shaping the HTML and GFM text |
 | `--report-url <url>` | gfm: link to the rendered HTML report |
 | `--image-url <url>` | gfm: embed an image of the report (defaults to the PNG's local path when `--png` wrote one — pass an explicit URL for a working PR-comment image) |
 | `--only <list>` | render only these comma-separated block types (validated against the schema; e.g. `wireframe,image`) |
@@ -244,7 +282,11 @@ npx visual-shot recap --from recap.json --format gfm --out recap.md
 | `--theme <light\|dark>` | report theme (default `dark`) |
 | `--width <px>` / `--scale <n>` | page width, `320`–`4000` / PNG scale, `1`–`4` (defaults `1100` / `1`) |
 | `--no-highlight` | skip highlight.js (code stays uncolored) |
-| `--json` | print `{ ok, format, html\|markdown, png, theme, blocks, mermaid, highlight, only, warnings }` |
+| `--json` | print `{ ok, format, html\|markdown, gfmOut?, htmlOut?, png, pngFilter?, pngBlocks?, theme, blocks, mermaid, highlight, only, warnings }` |
+
+Additional outputs share one browser launch with the primary render, and a
+`--png-filter` that matches nothing skips the screenshot (and the browser pass)
+with a warning while the HTML/GFM surfaces are still written.
 
 The HTML is the primary artifact and is **self-contained**: local images are
 inlined as data URIs, and Mermaid SVG + syntax highlighting are baked into the

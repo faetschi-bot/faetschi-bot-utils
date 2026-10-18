@@ -11,11 +11,11 @@ request. This folder is illustrative, not part of the tool.
 - `recap.png` — the rendered screenshot (dark theme).
 
 Generated with `visual-shot 0.10.0` (default 1100px width and scale 1).
-Regenerate with:
+Regenerate all three surfaces in one run (requires 0.11.0):
 
 ```bash
-npx visual-shot recap --from examples/pr-showcase/recap.json --png \
-  --out examples/pr-showcase/recap.html --png-out examples/pr-showcase/recap.png
-npx visual-shot recap --from examples/pr-showcase/recap.json --format gfm \
-  --out examples/pr-showcase/recap.md
+npx visual-shot recap --from examples/pr-showcase/recap.json \
+  --format html --out examples/pr-showcase/recap.html \
+  --gfm-out examples/pr-showcase/recap.md \
+  --png --png-out examples/pr-showcase/recap.png
 ```

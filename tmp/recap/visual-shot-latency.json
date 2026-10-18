@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "title": "visual-shot: cut agent workflow latency",
+  "brief": "Collapses the capture/diff/recap workflow from 5 processes and 4 Chromium launches to 2 and 2 for a UI PR, and from 3 launches to 1 for a text+visual recap. Adds the URL-capture options the recipes needed, plus a cross-process asset memo.",
+  "meta": "branch visual-shot/agent-latency · 13 source files, +1024 / -221 · 0.10.0 -> 0.11.0",
+  "blocks": [
+    {
+      "type": "callout",
+      "tone": "info",
+      "title": "How this was measured",
+      "body": "Warm cache, local pages, indicative wall time on this machine. Process and browser-launch counts are deterministic and come from the command modules; the SHA cost is the pinned 2.5 MB Mermaid asset. This artifact itself was rendered by the new one-run command: HTML + GFM + PNG in one invocation."
+    },
+    {
+      "type": "table",
+      "columns": ["Cost", "Where", "Measured", "Improved / saves"],
+      "rows": [
+        ["UI before/after path", "`diff` + `capture`", "3 processes, 3 launches, 3.66 s", "1 process, 1 launch, 0.71 s"],
+        ["Before/after pair capture", "`capture`", "2 processes, 2 launches", "1 process, 1 launch (`--url` ×2)"],
+        ["GFM text + visuals PNG", "`recap`", "2 processes, 2 launches, 0.56 s", "1 process, 1 launch, 0.52 s"],
+        ["HTML + GFM + PNG", "`recap`", "3 processes, 3 launches", "1 run, 1 launch"],
+        ["URL diffs", "`diff`", "viewport/scale only, no error gate", "wait/selector/element/full-page/header/state/console gate + saved inputs"],
+        ["Asset digest", "`shared`", "2.5 MB SHA per process", "sidecar memo, ~1.5 ms/run"],
+        ["No-match PNG filter", "`recap`", "browser pass still ran", "warning, no browser pass"]
+      ]
+    },
+    {
+      "type": "checklist",
+      "items": [
+        { "label": "152 tests pass, 0 fail (4 new files/areas covered)", "checked": true },
+        { "label": "`capture` batch + `diff` URL mode use one browser launch", "checked": true },
+        { "label": "`recap` emits HTML + GFM + filtered PNG in one run", "checked": true },
+        { "label": "Deferred: `term` pair mode (no clean flag shape) and pure-Node local diff (needs a PNG codec)", "checked": false }
+      ]
+    }
+  ]
+}
