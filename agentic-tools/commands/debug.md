@@ -2,11 +2,9 @@
 description: "Guided root-cause investigation of an issue, with a fix proposed only after the cause is confirmed"
 ---
 
-I want to debug an issue.
-
 The user wants help debugging an issue. Drive this as a focused root-cause investigation — not a plan, and not an immediate fix.
 
-Use the `question` tool only for clarifying decisions that have a small set of concrete answer options you already know from the conversation or your investigation — choices like option A/B/C, scope boundaries, or edge-case behavior. Ask open-ended questions, including what the user wants in the first place, in plain assistant text. Never invent speculative options just to fit the question tool.
+Use the `question` tool, if available, only for concrete A/B/C choices; ask everything else in plain text.
 
 1. Get the symptom. When the user describes the problem, capture exactly what is observed versus expected — error messages, stack traces, failing behavior, and when it started. If a key detail is missing to even begin, ask for it briefly.
 

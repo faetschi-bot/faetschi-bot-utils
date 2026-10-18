@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "title": "agentic-tools: cut artifact and command token cost",
+  "brief": "Trims what every session and every PR pays for: the AGENTS.md contract block, the pr-artifacts skill load, all five skill descriptions, and the 11-command pack. Also bounds the default recap instead of pasting raw patches.",
+  "meta": "branch agentic-tools/trim-artifact-cost · 24 files, +481 / -186 · 0.11.0 -> 0.12.0",
+  "blocks": [
+    {
+      "type": "callout",
+      "tone": "info",
+      "title": "What improved",
+      "body": "Token figures are bytes / 4. The contract and descriptions are paid **every session**; the skill body and recap are paid **every PR**. No behavior was removed: raw patch blocks moved out of the PR body, command research loops got bounded, and the checker is unchanged."
+    },
+    {
+      "type": "table",
+      "columns": ["Cost", "Where", "Measured", "Improved / saves"],
+      "rows": [
+        ["Contract block, every session", "target `AGENTS.md`", "1,507 B ≈ 375 tok", "559 B ≈ 140 tok (−63%)"],
+        ["pr-artifacts skill load", "`SKILL.md`", "5,915 B ≈ 1,479 tok", "3,715 B ≈ 929 tok (−37%)"],
+        ["Skill descriptions, every session", "5 frontmatters", "1,631 B ≈ 407 tok", "1,054 B ≈ 263 tok (−35%)"],
+        ["Commands pack per use", "11 command files", "7,407 tok", "5,534 tok (−25%)"],
+        ["PR-body recap, #63-sized diff", "contract default", "63,965 B ≈ 16k tok", "669 B ≈ 167 tok (−99%)"],
+        ["UI baseline capture", "workflow step 1", "worktree + second install/server", "in-place first; worktree fallback"],
+        ["Research loops", "3 commands", "unbounded reads/questions", "3–5 commits, next-question files, capped batches"]
+      ]
+    },
+    {
+      "type": "table",
+      "columns": ["Command", "Before (tok)", "After (tok)", "Saved"],
+      "rows": [
+        ["craft-goal", "1,164", "812", "−352"],
+        ["plan-feature", "678", "400", "−278"],
+        ["catch-up", "917", "653", "−264"],
+        ["clean-codebase-loop", "1,002", "747", "−255"],
+        ["schedule-task", "669", "446", "−223"],
+        ["weigh", "668", "447", "−221"],
+        ["workspace-review", "877", "777", "−100"],
+        ["debug", "466", "386", "−80"],
+        ["summary", "298", "237", "−61"],
+        ["handoff-review", "312", "269", "−43"],
+        ["explore", "358", "360", "+2 (bounded reads)"]
+      ]
+    },
+    {
+      "type": "checklist",
+      "items": [
+        { "label": "`agentic-tools doctor --json` is `ok: true`, zero warnings", "checked": true },
+        { "label": "42 tests pass, including 2 new budget-warning tests", "checked": true },
+        { "label": "Bounded recap verified: 63,965 B → 669 B on the #63 diff", "checked": true },
+        { "label": "Same behavior: no command steps removed without a replacement", "checked": true }
+      ]
+    }
+  ]
+}

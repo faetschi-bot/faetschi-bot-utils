@@ -3,7 +3,11 @@
 One headline artifact per PR. Pick the row that matches the change; the full
 recap carries the detail.
 
-## Base worktree (every type)
+## Baseline (every type)
+
+Capture the before state **before editing**, in the working tree you already
+have. That costs no second install or dev server. If the state is already gone,
+recreate it:
 
 ```bash
 git worktree add /tmp/pr-before origin/main   # or the PR's base branch
@@ -16,25 +20,32 @@ impressive-looking capture.
 
 ## UI behavior
 
+For a simple page, `diff` captures both URLs itself — one process, one browser:
+
 ```bash
-# base worktree on :3000, branch on :3001
+npx visual-shot diff http://127.0.0.1:3000/ http://127.0.0.1:3001/ \
+  --out tmp/images/PRs/after-vs-before.png --json
+```
+
+When you need `--wait-for`, `--element`, `--full-page`, or the console-error
+gate on each side, capture separately and pass the files to `diff`:
+
+```bash
 npx visual-shot --url http://127.0.0.1:3000/ --name before
 npx visual-shot --url http://127.0.0.1:3001/ --name after
 npx visual-shot diff tmp/images/PRs/before.png tmp/images/PRs/after.png \
   --out tmp/images/PRs/after-vs-before.png --json
 ```
 
-Capture the changed element or focused sub-surface with `--element`; a whole
-dashboard screenshot hides the delta. Inspect `consoleErrors`/`pageErrors` in
-the `--json` result — a non-zero exit means the page broke, even if the image
-looks fine. For menus, popovers, and short interactions, record only when the
-motion itself is the reviewed behavior; otherwise a still pair is better and
-diffable.
+Capture the changed element or focused sub-surface; a whole dashboard hides the
+delta. Inspect `consoleErrors`/`pageErrors` in the `--json` result — a non-zero
+exit means the page broke, even if the image looks fine. For menus and short
+interactions, record only when motion is the reviewed behavior.
 
 ## Bug fix
 
 ```bash
-# in /tmp/pr-before: the regression test fails (exit 1 is expected; the image
+# on the base state: the regression test fails (exit 1 is expected; the image
 # is still written)
 npx visual-shot term --title "before: repro fails" --fail-on-error -- npm test -- --filter <name>
 # on the branch: the same test passes
@@ -111,3 +122,13 @@ No visual-shot, no browser, or no running app: a Markdown table, a Mermaid
 fence, a fenced log, or a screenshot committed from any tool all satisfy the
 contract. Say which command produced it so a reviewer can reproduce it. The
 requirement is evidence, not tooling.
+
+## Cost knobs
+
+- `--wait-for <sel>` (or `--wait 0`) instead of the 1 s settle.
+- `--scale 1` when the PNG is only embedded or diffed; capture defaults to 2.
+- `--no-highlight` when syntax color adds nothing.
+- `--report-url` / `--image-url` emit links in the recap instead of hand-built
+  raw URLs.
+- Keep the PR-body recap bounded: `recap --diff … --only file-tree`. Raw patches
+  duplicate the Files tab and dominate the body size.

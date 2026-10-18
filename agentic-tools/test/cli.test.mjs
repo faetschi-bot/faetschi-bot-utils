@@ -365,3 +365,30 @@ test('installing a command as a skill suggests --commands', () => {
     rmSync(dest, { recursive: true, force: true });
   }
 });
+
+test('doctor warns when a description is long', () => {
+  const dir = tempRoot(`---\nname: sample\ndescription: "${'x'.repeat(401)}"\n---\n\n# Sample\n`);
+  try {
+    const r = run(['doctor', '--json', '--root', dir]);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, true);
+    assert.ok(parsed.skills[0].warnings.some((w) => /description is 401 chars/.test(w)));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('doctor warns when SKILL.md exceeds the line budget', () => {
+  const body = `---\nname: sample\ndescription: "sample"\n---\n\n# Sample\n${'- item\n'.repeat(260)}`;
+  const dir = tempRoot(body);
+  try {
+    const r = run(['doctor', '--json', '--root', dir]);
+    assert.equal(r.status, 0);
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.ok, true);
+    assert.ok(parsed.skills[0].warnings.some((w) => /SKILL\.md is \d+ lines/.test(w)));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

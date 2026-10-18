@@ -6,7 +6,7 @@ Give me a high-level tour of this codebase.
 
 The user wants to get oriented in this codebase — a high-level tour, as if you were onboarding a new contributor. Investigate first, then explain; do not guess from file or symbol names alone.
 
-Explore the actual repository: entry points, the top-level structure, how it is built and run, and the main modules and how they connect. Read enough real code to be accurate.
+Explore the actual repository: entry points, the top-level structure, how it is built and run, and the main modules and how they connect. Read only enough code to explain the main flow.
 
 Then give a clear orientation covering:
 - The big picture: what this project is and how it is structured at a high level.

@@ -2,15 +2,13 @@
 description: "Review the workspace changes for correctness, adequacy, and security, with severity-classified findings"
 ---
 
-Review the changes made in this workspace.
-
 Review the changes in this workspace and judge whether they are correct and adequate — not just whether they contain catastrophic bugs.
 
 The diff is the source of truth. Read the relevant code around the diff too, not only the diff itself, so you understand the change in context.
 
 First, understand the intent and whether it was achieved:
 - Work out what these changes are trying to do — the intent behind them — from the diff and the surrounding code.
-- Judge whether the implementation actually achieves that intent, and whether it is the smallest correct way to do it. Call out where the change is incomplete, only partially solves the goal, misses cases it clearly set out to handle, or solves it in a way that will not hold up.
+- Judge whether the implementation actually achieves that intent, and whether it is the smallest correct way to do it. Call out incomplete or fragile solutions.
 
 Then look for concrete problems. Report real failure modes, not abstract suspicions, and do not nitpick without impact.
 
@@ -41,11 +39,9 @@ Do not report:
 - pedantic nitpicks a senior engineer would not flag, or issues a linter would catch
 - subjective style preferences not required by CLAUDE.md or AGENTS.md
 - speculative concerns you cannot tie to a concrete failure
-- rules mentioned in CLAUDE.md or AGENTS.md but explicitly silenced in the code
 
 Validation pass:
-- Before reporting an issue, re-check it against the diff plus only the context you actually read.
-- For CLAUDE.md or AGENTS.md violations, verify the rule applies to the affected file path and cite the exact rule.
+- For rule violations, cite the exact rule and affected file.
 - If you cannot tie a finding to a concrete impact, drop it.
 
 Classify each finding:

@@ -1,6 +1,6 @@
 ---
 name: simple-english
-description: Writes and rewrites text in Simplified Technical English (ASD-STE100), a controlled language for clear technical documentation. Use when the user asks for STE, Simplified Technical English, controlled language, or plain technical writing, and when the user asks to write, rewrite, review, or check technical documentation, procedures, manuals, instructions, warnings, or reports.
+description: "Write, rewrite, review, or check technical documentation in ASD-STE100 Simplified Technical English (STE), with the approved word list, writing rules, and before/after examples."
 license: MIT for the text of this skill. The word list in references/word-list.md comes from the ASD-STE100 dictionary, which is the property of ASD. Refer to NOTICE.md.
 metadata:
   source-specification: ASD-STE100 Issue 7 (2017-01-25)
