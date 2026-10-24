@@ -56,8 +56,13 @@ The checker runs before the PR is opened; CI is the backstop. Copy-paste setup:
    `--png-filter`).
 
 5. **Post it.** Headline at the top of `## Artifact`, full recap in a
-   `<details>` block. Commit images under `.artifacts/<slug>/` and link the raw
-   URL, or let `--report-url` / `--image-url` write the links for you.
+   `<details>` block. Keep only durable images (docs, examples) under
+   `.artifacts/<slug>/`. For PR-only evidence: commit it alone under
+   `.github/pr-assets/<topic>/` (`chore: add PR screenshots (temporary)`), push,
+   delete it in the next commit (`chore: remove temporary PR screenshots`), and
+   link the first commit's full SHA — never a branch or `raw.githubusercontent.com`:
+   `![alt](https://github.com/<owner>/<repo>/raw/<full-sha>/.github/pr-assets/<topic>/<file>.png)`.
+   Open the PR page and confirm the image renders.
 
 6. **Verify before creating the PR.** Check the exact body file, then create:
 

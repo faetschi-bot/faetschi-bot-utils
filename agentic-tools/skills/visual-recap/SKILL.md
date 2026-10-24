@@ -160,9 +160,10 @@ npx visual-shot recap --from recap.json --visuals-only --png --png-out recap-vis
 ```
 
 Embed step 2's PNG **only when its `--json` reports a non-null `png`**, then
-commit it and point an image link at its raw URL. When the recap has no
-wireframes/screenshots/diagrams, that run reports `blocks: 0` and `png: null`
-and writes no file — post `recap.md` alone.
+post it as PR-only evidence: temporary commit, delete, full-SHA raw link (see
+the `pr-artifacts` skill). When the recap has no wireframes/screenshots/diagrams,
+that run reports `blocks: 0` and `png: null` and writes no file — post `recap.md`
+alone.
 
 Do **not** embed the full report PNG (`--png` without `--visuals-only`) next to
 the GFM comment; it duplicates the text. Reserve the whole-report PNG for when a
