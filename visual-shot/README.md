@@ -42,6 +42,10 @@ git submodule add https://github.com/faetschi-bot/faetschi-bot-utils tools/faets
 node tools/faetschi-bot-utils/visual-shot/bin/visual-shot.mjs setup
 ```
 
+Agent CLIs: the tool works as-is. To let Codex, Claude Code, or OpenCode
+discover the workflow, install the companion skills — see
+[AGENTS.md](./AGENTS.md#install-for-codex-and-other-agent-clis).
+
 Then start your app and capture:
 
 ```bash
@@ -420,23 +424,20 @@ that machine.
 
 ## Using it for PRs
 
-1. Capture: `npx visual-shot --name my-feature` (writes to `tmp/images/PRs/`).
-2. Commit the PNG.
-3. Reference its raw URL in the PR body:
+1. Capture into a topic folder:
+   `npx visual-shot --out .github/pr-assets/<topic>/my-feature.png --name my-feature`
+2. Commit only those images as `chore: add PR screenshots (temporary)` and push.
+3. Delete them in the next commit (`chore: remove temporary PR screenshots`) and
+   push.
+4. Link the **first commit's full SHA** in the PR body:
 
    ```markdown
-   ![my feature](https://github.com/<owner>/<repo>/blob/<branch>/tmp/images/PRs/my-feature.png?raw=true)
+   ![my feature](https://github.com/<owner>/<repo>/raw/<full-sha>/.github/pr-assets/<topic>/my-feature.png)
    ```
 
-Add `tmp/images/PRs/` to version control and keep other scratch files ignored,
-for example:
-
-```gitignore
-tmp/*
-!tmp/images/
-tmp/images/*
-!tmp/images/PRs/
-```
+Never link a branch or `raw.githubusercontent.com`. Keep scratch captures under
+`tmp/` and gitignore them; only durable examples belong in the tree. The full
+rule is in the `pr-artifacts` skill.
 
 ## Playwright MCP
 

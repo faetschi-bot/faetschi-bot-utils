@@ -46,6 +46,31 @@ node tools/visual-shot/bin/visual-shot.mjs setup       # vendored copy
 node tools/faetschi-bot-utils/visual-shot/bin/visual-shot.mjs setup   # submodule
 ```
 
+## Install for Codex (and other agent CLIs)
+
+The tool install above is enough to run `visual-shot`. For Codex to discover the
+workflow on its own, also install the recipes as skills:
+
+```bash
+npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/agentic-tools-latest/agentic-tools.tgz
+npx agentic-tools install pr-artifacts visual-recap --target agents
+# once per machine instead: add --global  ->  ~/.agents/skills
+```
+
+Codex reads `.agents/skills/` and `~/.codex/skills/`. `pr-artifacts` covers PR
+evidence and image links; `visual-recap` covers the `recap.json` format.
+
+Codex does not load this file from `node_modules/`. Add one line to the target
+project's `AGENTS.md`:
+
+```md
+Screenshots and visual diffs: use `visual-shot`; read
+`node_modules/visual-shot/AGENTS.md` or run `npx visual-shot --help`.
+```
+
+Claude Code and OpenCode use the same pack: `--target claude`, `--target
+opencode`, or `--dir <path>`.
+
 ## Verify before reporting success
 
 Always run the machine-readable check and require `"ok": true`:
@@ -246,9 +271,19 @@ regular expression if the pattern compiles as one.
 
 ## After capturing
 
-1. Commit the PNG (default dir `tmp/images/PRs/`).
-2. Reference its raw URL in the PR body:
-   `https://github.com/<owner>/<repo>/blob/<branch>/tmp/images/PRs/<name>.png?raw=true`
+Keep PR-only images out of `main`:
+
+1. Capture into `.github/pr-assets/<topic>/` and commit only those files
+   (`chore: add PR screenshots (temporary)`); push.
+2. Delete them in the next commit (`chore: remove temporary PR screenshots`);
+   push.
+3. Link each by the first commit's full SHA in the PR body — never a branch or
+   `raw.githubusercontent.com`:
+   `![alt](https://github.com/<owner>/<repo>/raw/<full-sha>/.github/pr-assets/<topic>/<file>.png)`
+4. Open the PR page and confirm the image renders.
+
+Durable project images (docs, examples) may stay in the tree; the
+`pr-artifacts` skill has the full rule.
 
 ## Troubleshooting
 
