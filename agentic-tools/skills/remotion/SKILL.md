@@ -7,9 +7,9 @@ description: "Install Remotion and its upstream agent skills, then build, previe
 
 ## Read first
 
-- Open [`install/remotion.md`](../../install/remotion.md) for installation,
-  destinations, license details, and troubleshooting. Do not install from
-  memory.
+- Open the [Remotion install guide](https://github.com/faetschi-bot/faetschi-bot-utils/blob/main/agentic-tools/install/remotion.md)
+  for installation, destinations, license details, and troubleshooting. Do not
+  install from memory.
 - Load the upstream `remotion-best-practices` skill before writing composition
   code, then the skill it routes to (`remotion-markup`, `remotion-render`,
   `remotion-maps`, and so on). Authoring rules live there, not here.
