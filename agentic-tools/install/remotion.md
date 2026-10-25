@@ -165,14 +165,8 @@ Delete the `video` directory after the check if it was only a probe.
 | `chrome-headless-shell: error while loading shared libraries: libnspr4.so` on Debian/Ubuntu | Install the Chrome shared libraries as root: `apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2`. Then run `npx remotion browser ensure`. |
 | Chrome download fails or times out | Retry `npx remotion browser ensure` on a working network; delete `node_modules/.remotion/chrome-headless-shell` and retry if the download is corrupt. |
 | Render runs out of memory | Lower concurrency: `npx remotion render src/index.ts <CompositionId> out/video.mp4 --concurrency=1`. Each worker holds a browser tab, so fewer workers use less memory. |
-| Slow first render | Expected: bundling plus the one-time Chrome download. Later renders reuse both. |
+| Slow first render | Expected: bundling plus the one-time Chrome download. Later renders reuse both; cache `node_modules/.remotion` in CI to skip the download. |
 | Windows path or permission errors | Install skills with `--copy`, keep the project path short, and run the render from PowerShell. |
 | `Could not find composition with ID ...` | Use an ID from `npx remotion compositions`; IDs are case-sensitive. |
 
-## Sources
-
-- Remotion: <https://www.remotion.dev/>
-- License: <https://www.remotion.dev/license>
-- Agent skills: <https://github.com/remotion-dev/skills>
-- Skills CLI: <https://www.npmjs.com/package/skills>
-- create-video: <https://www.remotion.dev/docs/cli/create-video>
+Sources: [remotion.dev](https://www.remotion.dev/) · [license](https://www.remotion.dev/license) · [remotion-dev/skills](https://github.com/remotion-dev/skills) · [skills CLI](https://www.npmjs.com/package/skills) · [create-video](https://www.remotion.dev/docs/cli/create-video)
