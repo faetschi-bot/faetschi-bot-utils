@@ -17,6 +17,7 @@ programs that run in your project.
 | Skill | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
 | Skill | [`pr-artifacts`](./skills/pr-artifacts/SKILL.md) | Opening or updating any pull request, or setting up a project's artifact gate. Requires before/after evidence in every PR — backend, UI, docs — and ships the checker plus CI gate. |
 | Skill | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+| Skill | [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos: product demos, launch and marketing videos, programmatic motion graphics. |
 | Command | [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
 | Command | [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
 | Command | [`craft-goal`](./commands/craft-goal.md) | Turning an idea or task into a clear, verifiable Goal through a guided dialogue. |
@@ -30,6 +31,7 @@ programs that run in your project.
 | Command | [`workspace-review`](./commands/workspace-review.md) | Reviewing workspace changes for correctness, adequacy, and security. |
 | Install guide (not a skill) | [`Plannotator`](./install/plannotator.md) | Installing Plannotator; its own installer adds supported agent integrations and skills. |
 | Install guide (not a skill) | [`unsnooze`](./install/unsnooze.md) | Installing, configuring, verifying, or removing unsnooze for Claude Code or Codex CLI. |
+| Install guide (not a skill) | [`Remotion`](./install/remotion.md) | Installing Remotion, its upstream agent skills, and proving a render on Claude Code, Codex, OpenCode, or Pi. |
 
 ## Requirements
 

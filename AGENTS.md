@@ -16,6 +16,10 @@ its own `AGENTS.md` next to it — start there.
 | [`pi-collection/`](./pi-collection) | [`pi-collection/AGENTS.md`](./pi-collection/AGENTS.md) |
 | [`opencode-collection/`](./opencode-collection) | [`opencode-collection/AGENTS.md`](./opencode-collection/AGENTS.md) |
 
+Third-party install guides (Plannotator, unsnooze, Remotion) live in
+[`agentic-tools/install/`](./agentic-tools/install); they are setup guides, not
+installable skills.
+
 ## Golden rules
 
 - **Read-only access to this repo is enough.** Never commit here unless asked.

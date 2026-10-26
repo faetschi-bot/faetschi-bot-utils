@@ -141,6 +141,7 @@ the OpenChamber port maps onto each CLI.
 | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a large, multi-file, UI/schema/API/architecture change into a visual recap. Authors the `recap.json` that `visual-shot recap` renders. |
 | [`pr-artifacts`](./skills/pr-artifacts/SKILL.md) | Opening or updating any PR, or setting up a project's PR artifact contract. Requires before/after evidence in every PR and ships the checker plus CI gate. |
 | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
+| [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos. Defers authoring rules to the upstream `remotion-best-practices` skill. |
 
 ## Commands
 
@@ -164,6 +165,7 @@ the OpenChamber port maps onto each CLI.
 |-------|-------------|
 | [`install/plannotator.md`](./install/plannotator.md) | The user wants to install Plannotator. This is a setup guide, not an agent skill; Plannotator's own installer configures supported agent integrations. |
 | [`install/unsnooze.md`](./install/unsnooze.md) | The user wants to install, configure, verify, or remove the unsnooze CLI for Claude Code or Codex CLI. This is a setup guide, not an agent skill. |
+| [`install/remotion.md`](./install/remotion.md) | The user wants to install Remotion, install its upstream agent skills, or prove a render. This is a setup guide, not an agent skill; the `remotion` skill wraps it. |
 
 ## Vendored skills
 
