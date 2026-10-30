@@ -3,6 +3,13 @@
 Four files make the artifact contract real, once per repository. The skill
 supplies the recipes; these files supply the enforcement.
 
+For Azure Repos, follow [Azure DevOps publishing](./azure-devops.md) first.
+The contract and local body checker below apply to both providers. Store an
+Azure Repos PR template at `.azuredevops/pull_request_template.md` on the
+default branch. The GitHub Actions workflow and `gh` wrapper below apply only
+to GitHub. The Azure publisher creates evidence but does not enforce a branch
+policy. See [Microsoft's PR template guide](https://learn.microsoft.com/en-us/azure/devops/repos/git/pull-request-templates?view=azure-devops).
+
 ## 1. `AGENTS.md`: the contract
 
 Paste this section into the project's `AGENTS.md` — the file Codex, OpenCode,
@@ -120,6 +127,23 @@ Or install once per machine for every project:
 npx agentic-tools install pr-artifacts --global --target claude
 npx agentic-tools install pr-artifacts --global --target agents
 ```
+
+For an Azure DevOps project, also install `visual-shot` and add a short pointer
+to the project `AGENTS.md`:
+
+````md
+## PR artifacts
+
+Follow `.agents/skills/pr-artifacts/SKILL.md`. For Azure DevOps publishing, use
+`node_modules/visual-shot/docs/azure-devops.md`; its trusted pipeline example is
+`node_modules/visual-shot/azure-pipelines.yml`. Discover MCP tool schemas before
+using them. Do not use GitHub `gh` or temporary-commit instructions for Azure
+Repos.
+````
+
+Copy `node_modules/visual-shot/azure-pipelines.yml` into the project and follow
+its Azure DevOps setup steps only when a protected manual publisher pipeline is
+needed. The MCP-only option does not create a native PR attachment.
 
 OpenCode also auto-loads `.claude/skills/` and `.agents/skills/`, so one
 project copy covers more than one agent.

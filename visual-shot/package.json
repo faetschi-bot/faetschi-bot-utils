@@ -1,6 +1,6 @@
 {
   "name": "visual-shot",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "description": "Reproducible headless-Chromium visual artifacts for PR review: screenshots, image diffs, terminal captures, diagrams, and visual recaps.",
   "keywords": [
     "screenshot",
@@ -31,8 +31,10 @@
     "lib",
     "scripts",
     "action.yml",
+    "azure-pipelines.yml",
     "AGENTS.md",
     "README.md",
+    "docs",
     "LICENSE"
   ],
   "engines": {
