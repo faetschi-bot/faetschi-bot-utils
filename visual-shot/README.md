@@ -71,6 +71,8 @@ visual-shot diff <before> <after>    compare two images and write a diff PNG
 visual-shot term -- <command...>     render a command's output as a PNG
 visual-shot diagram <input>          render Mermaid diagrams to PNG or SVG
 visual-shot recap --from <json>      render a visual recap to HTML/Markdown (and PNG)
+visual-shot ado prepare <png>        write upload arguments for Azure DevOps MCP
+visual-shot ado publish <png>        publish a native Azure Repos PR attachment
 visual-shot setup                    provision Chromium + libraries, then exit
 visual-shot doctor [--json]          check the environment, then exit
 ```
@@ -422,7 +424,7 @@ $VISUAL_SHOT_CACHE/
 Because the cache is machine-global, provisioning once covers every project on
 that machine.
 
-## Using it for PRs
+## Using it for GitHub PRs
 
 1. Capture into a topic folder:
    `npx visual-shot --out .github/pr-assets/<topic>/my-feature.png --name my-feature`
@@ -438,6 +440,18 @@ that machine.
 Never link a branch or `raw.githubusercontent.com`. Keep scratch captures under
 `tmp/` and gitignore them; only durable examples belong in the tree. The full
 rule is in the `pr-artifacts` skill.
+
+## Publish to Azure DevOps PRs
+
+Azure Repos has separate publishing paths. For MCP-only sessions, prepare a PNG
+payload and upload it with the discovered Work Item Tracking attachment tool;
+that attachment is not a native PR attachment. When MCP can queue a pipeline,
+use the checked-in [`azure-pipelines.yml`](./azure-pipelines.yml) to capture a
+reachable preview URL and publish a native PR attachment. When an OAuth bearer
+token is already available in the environment, run `visual-shot ado publish`
+directly. Setup, permissions, examples, and the important differences from the
+GitHub temporary-commit workflow are in
+[`docs/azure-devops.md`](./docs/azure-devops.md).
 
 ## Playwright MCP
 
@@ -464,6 +478,9 @@ Consumers then install it by URL:
 npm i -D https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-latest/visual-shot.tgz
 npx visual-shot setup
 ```
+
+The tarball includes `docs/` and `azure-pipelines.yml` so the Azure DevOps guide
+and publisher example are available in installed copies.
 
 ## Agents and CI
 
