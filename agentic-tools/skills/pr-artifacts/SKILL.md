@@ -55,8 +55,11 @@ The checker runs before the PR is opened; CI is the backstop. Copy-paste setup:
    Newer visual-shot collapses those two into one run (`--gfm-out`,
    `--png-filter`).
 
-5. **Post it.** Headline at the top of `## Artifact`, full recap in a
-   `<details>` block. Keep only durable images (docs, examples) under
+5. **Post it using the hosting service's instructions.** For Azure DevOps,
+   follow [Azure DevOps publishing](./references/azure-devops.md); do not use
+   the GitHub temporary-commit or `gh` steps below. For GitHub, put the headline
+   at the top of `## Artifact` and the full recap in a `<details>` block. Keep
+   only durable images (docs, examples) under
    `.artifacts/<slug>/`. For PR-only evidence: commit it alone under
    `.github/pr-assets/<topic>/` (`chore: add PR screenshots (temporary)`), push,
    delete it in the next commit (`chore: remove temporary PR screenshots`), and
@@ -64,12 +67,20 @@ The checker runs before the PR is opened; CI is the backstop. Copy-paste setup:
    `![alt](https://github.com/<owner>/<repo>/raw/<full-sha>/.github/pr-assets/<topic>/<file>.png)`.
    Open the PR page and confirm the image renders.
 
-6. **Verify before creating the PR.** Check the exact body file, then create:
+6. **Verify before creating the PR.** Check the exact body file. For GitHub,
+   create it with:
 
    ```bash
    node scripts/check-pr-artifact.mjs .artifacts/body.md
    gh pr create --body-file .artifacts/body.md
    ```
+
+   For Azure DevOps, create a draft PR first if no PR exists, then publish its
+   evidence using the Azure reference. Preserve a non-empty `## Artifact`
+   section in the description with the image or a link to the evidence comment.
+   Validate the final body with the same checker, then mark the draft ready
+   through the discovered PR write tool. Keep the description below 4,000
+   characters and use a managed comment for larger evidence.
 
    Require exit `0`; every render must report `ok: true` and `warnings: []`.
 
