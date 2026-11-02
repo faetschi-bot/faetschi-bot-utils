@@ -73,6 +73,17 @@ session, so each line spends context.
 - Use the language default formatter (`cargo fmt`, `gofmt`, `prettier`,
   `black`, `rubocop -A`). Don't discuss style beyond that.
 
+## Reporting
+
+- Lead with **Needs your decision** whenever anything is blocked: the options, and
+  the default you will take if nobody answers. Never bury it under summaries.
+- Sections only when the reply spans more than one topic or runs past about 10
+  lines of prose: one per topic, headline, one sentence, then bullets.
+- Otherwise answer in prose. No preamble, no closing pleasantries, no padding a
+  sentence into a paragraph.
+- Order sections by what the user must act on, not chronologically. Re-open an
+  earlier topic as a short `Update:` line instead of restating it.
+
 ## Logging
 
 - Structured JSON when logging for debugging / observability; no secrets or
