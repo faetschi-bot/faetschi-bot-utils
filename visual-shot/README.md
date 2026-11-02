@@ -395,9 +395,15 @@ in the repository.
 | `VISUAL_URL` | default page URL |
 | `VISUAL_OUT_DIR` | default output directory (default `tmp/images/PRs`) |
 | `VISUAL_SHOT_CACHE` | persistent cache dir (default `$XDG_DATA_HOME/visual-shot`, i.e. `~/.local/share/visual-shot`) |
-| `VISUAL_SHOT_PLAYWRIGHT_VERSION` | pinned Playwright version (default `1.49.1`) |
+| `VISUAL_SHOT_PLAYWRIGHT_VERSION` | pinned Playwright version (default `1.64.1`) |
+| `VISUAL_SHOT_NO_SANDBOX` | set to `1` to launch Chromium without its sandbox (only for hosts that cannot provide one) |
 | `VISUAL_SHOT_MERMAID_VERSION` | pinned Mermaid version for `diagram`/`recap` (default `11.4.1`) |
 | `VISUAL_SHOT_HIGHLIGHT_VERSION` | pinned highlight.js version for `recap` (default `11.10.0`) |
+
+Chromium's sandbox is on by default. Disable it only on hosts where it cannot start
+(for example, a no-root container without user namespaces). The bundled Chromium is
+pinned for reproducible localhost captures; for untrusted pages, use a current
+system Chrome instead.
 
 ## How it works
 
