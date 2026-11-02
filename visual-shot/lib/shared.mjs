@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { playwrightVersion } from './config.mjs';
 import { CliError } from './errors.mjs';
 
 const require = createRequire(import.meta.url);
@@ -13,7 +14,6 @@ export const scriptsDir = join(libDir, '..', 'scripts');
 export const commandsDir = join(libDir, 'commands');
 
 export const CHROMIUM_ARGS = [
-  '--no-sandbox',
   '--disable-dev-shm-usage',
   '--use-gl=angle',
   '--use-angle=swiftshader',
@@ -123,13 +123,21 @@ export function runProvision(cache, { quietStdout = false } = {}) {
 }
 
 export function ensureProvisioned(cache, { json = false } = {}) {
-  if (existsSync(join(cache, '.provisioned'))) return;
-  console.error('[visual-shot] first run: provisioning Chromium + libraries (this can take a few minutes)...');
+  const marker = join(cache, '.provisioned');
+  const provisionedVersion = existsSync(marker) ? readFileSync(marker, 'utf8').trim() : '';
+  if (provisionedVersion === playwrightVersion()) return;
+  console.error('[visual-shot] provisioning Chromium + libraries (this can take a few minutes)...');
   runProvision(cache, { quietStdout: json });
 }
 
 export async function launchBrowser(chromium) {
-  return chromium.launch({ headless: true, args: CHROMIUM_ARGS });
+  // The sandbox stays on unless the host explicitly opts out, e.g. no-root CI
+  // without user namespaces.
+  return chromium.launch({
+    headless: true,
+    chromiumSandbox: process.env.VISUAL_SHOT_NO_SANDBOX !== '1',
+    args: CHROMIUM_ARGS,
+  });
 }
 
 export async function waitForServer(url, timeoutMs) {
