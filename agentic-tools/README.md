@@ -29,7 +29,6 @@ programs that run in your project.
 | Command | [`summary`](./commands/summary.md) | Summarizing the current session, optionally focused on a topic. |
 | Command | [`weigh`](./commands/weigh.md) | Comparing distinct approaches with trade-offs and a recommendation. |
 | Command | [`workspace-review`](./commands/workspace-review.md) | Reviewing workspace changes for correctness, adequacy, and security. |
-| Install guide (not a skill) | [`Plannotator`](./install/plannotator.md) | Installing Plannotator; its own installer adds supported agent integrations and skills. |
 | Install guide (not a skill) | [`unsnooze`](./install/unsnooze.md) | Installing, configuring, verifying, or removing unsnooze for Claude Code or Codex CLI. |
 | Install guide (not a skill) | [`Remotion`](./install/remotion.md) | Installing Remotion, its upstream agent skills, and proving a render on Claude Code, Codex, OpenCode, or Pi. |
 
