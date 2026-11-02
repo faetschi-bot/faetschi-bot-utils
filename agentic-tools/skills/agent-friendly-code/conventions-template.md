@@ -78,8 +78,9 @@ session, so each line spends context.
 - Lead with **Needs your decision** whenever anything is blocked: the options, and
   the default you will take if nobody answers. Never bury it under summaries.
 - Sections only when the reply spans more than one topic or runs past about 10
-  lines of prose: one per topic, headline, one sentence, then bullets. Otherwise
-  one line, with no preamble and no closing pleasantries.
+  lines of prose: one per topic, headline, one sentence, then bullets.
+- Otherwise answer in prose. No preamble, no closing pleasantries, no padding a
+  sentence into a paragraph.
 - Order sections by what the user must act on, not chronologically. Re-open an
   earlier topic as a short `Update:` line instead of restating it.
 
