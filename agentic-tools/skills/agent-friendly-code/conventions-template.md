@@ -77,11 +77,11 @@ session, so each line spends context.
 
 - Lead with **Needs your decision** whenever anything is blocked: the options, and
   the default you will take if nobody answers. Never bury it under summaries.
-- One section per topic, only when the reply spans more than one topic or runs
-  past about 10 lines: headline, one sentence, then bullets.
-- A one-line answer stays one line. No preamble, no closing pleasantries.
-- Order sections by what the user must act on, not chronologically. Mark a
-  re-opened section as an update instead of restating it.
+- Sections only when the reply spans more than one topic or runs past about 10
+  lines of prose: one per topic, headline, one sentence, then bullets. Otherwise
+  one line, with no preamble and no closing pleasantries.
+- Order sections by what the user must act on, not chronologically. Re-open an
+  earlier topic as a short `Update:` line instead of restating it.
 
 ## Logging
 
