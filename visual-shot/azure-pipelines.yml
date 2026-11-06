@@ -1,0 +1,90 @@
+# Manual publisher. Configure the pipeline definition to use protected main.
+trigger: none
+pr: none
+
+parameters:
+  - name: pullRequestId
+    displayName: Pull request ID
+    type: string
+    default: ''
+  - name: screenshotUrl
+    displayName: Preview URL to capture
+    type: string
+    default: ''
+
+variables:
+  - group: visual-shot-ado-publisher
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+  - job: publish_screenshot
+    uses:
+      repositories:
+        - self
+    steps:
+      - checkout: none
+
+      - task: NodeTool@0
+        displayName: Use Node.js 20
+        inputs:
+          versionSpec: 20.x
+
+      - bash: npm install --prefix "$AGENT_TEMPDIRECTORY/visual-shot-publisher" --no-audit --no-fund https://github.com/faetschi-bot/faetschi-bot-utils/releases/download/visual-shot-v0.12.0/visual-shot-0.12.0.tgz
+        displayName: Install pinned visual-shot 0.12.0
+
+      - bash: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const pullRequestId = process.env.PULL_REQUEST_ID ?? '';
+          if (!/^[1-9][0-9]*$/.test(pullRequestId)) {
+            throw new Error('pullRequestId must be a positive integer');
+          }
+
+          const screenshot = new URL(process.env.SCREENSHOT_URL ?? '');
+          const expectedOrigin = new URL(process.env.VISUAL_PREVIEW_ORIGIN ?? '');
+          const isHttp = (protocol) => protocol === 'http:' || protocol === 'https:';
+
+          if (!isHttp(screenshot.protocol) || screenshot.username || screenshot.password) {
+            throw new Error('screenshotUrl must be an HTTP(S) URL without credentials');
+          }
+          if (
+            !isHttp(expectedOrigin.protocol) || expectedOrigin.username || expectedOrigin.password ||
+            expectedOrigin.pathname !== '/' || expectedOrigin.search || expectedOrigin.hash
+          ) {
+            throw new Error('VISUAL_PREVIEW_ORIGIN must be an HTTP(S) origin without a path');
+          }
+          if (screenshot.origin !== expectedOrigin.origin) {
+            throw new Error('screenshotUrl origin does not match VISUAL_PREVIEW_ORIGIN');
+          }
+          NODE
+          node "$AGENT_TEMPDIRECTORY/visual-shot-publisher/node_modules/visual-shot/bin/visual-shot.mjs" \
+            --url "$SCREENSHOT_URL" --out "$SCREENSHOT_OUT" --wait-for-server --json
+        displayName: Validate preview URL and capture PNG
+        env:
+          # Escape dollars at compile time so caller input cannot expand Azure macros.
+          PULL_REQUEST_ID: ${{ replace(parameters.pullRequestId, '$', '%24') }}
+          SCREENSHOT_URL: ${{ replace(parameters.screenshotUrl, '$', '%24') }}
+          SCREENSHOT_OUT: $(Agent.TempDirectory)/pr-preview.png
+          VISUAL_PREVIEW_ORIGIN: $(VISUAL_PREVIEW_ORIGIN)
+
+      - bash: |
+          set -euo pipefail
+          node "$AGENT_TEMPDIRECTORY/visual-shot-publisher/node_modules/visual-shot/bin/visual-shot.mjs" \
+            ado publish "$SCREENSHOT_OUT" \
+            --organization "$AZURE_ORGANIZATION" \
+            --project "$AZURE_PROJECT" \
+            --repository "$AZURE_REPOSITORY_ID" \
+            --pr "$PULL_REQUEST_ID" \
+            --alt "Pull request preview" \
+            --token-env SYSTEM_ACCESSTOKEN \
+            --comment --json
+        displayName: Publish native PR attachment and managed comment
+        env:
+          SCREENSHOT_OUT: $(Agent.TempDirectory)/pr-preview.png
+          PULL_REQUEST_ID: ${{ replace(parameters.pullRequestId, '$', '%24') }}
+          AZURE_ORGANIZATION: $(System.TeamFoundationCollectionUri)
+          AZURE_PROJECT: $(System.TeamProject)
+          AZURE_REPOSITORY_ID: $(Build.Repository.ID)
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)

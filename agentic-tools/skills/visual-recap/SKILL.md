@@ -63,9 +63,10 @@ Skip it for small, single-file, or obvious diffs — a recap is review overhead.
 5. **Author `recap.json`** (see the contract below). Ground every structured
    field in the actual diff.
 
-6. **Render and verify.** Post the GFM text and embed the visuals-only PNG only
-   when the second run reports a non-null `png` — see
-   [Posting to a PR](#posting-to-a-pr) for the two commands and
+6. **Render and verify.** Choose the provider's workflow in
+   [Publishing a recap](#publishing-a-recap). For GitHub, post the GFM text and
+   embed the visuals-only PNG only when the render reports a non-null `png`. For
+   Azure DevOps, upload the PNG and use basic Markdown. See
    [Verify before reporting success](#verify-before-reporting-success) for what
    to check.
 
@@ -138,7 +139,17 @@ or theme-aware.
 }
 ```
 
-## Posting to a PR
+## Publishing a recap
+
+Choose provider-specific publishing instructions before posting. The GitHub
+steps below use GitHub Flavored Markdown and GitHub's temporary-image workflow.
+For Azure DevOps, use basic Markdown with a PNG or native attachment and follow
+the [Azure DevOps guide](https://github.com/faetschi-bot/faetschi-bot-utils/blob/main/visual-shot/docs/azure-devops.md),
+also shipped at `node_modules/visual-shot/docs/azure-devops.md`.
+Do not assume GitHub `<details>`, Mermaid, or GFM recap output renders the same
+way in Azure DevOps; do not use the GitHub `gh` or temporary-commit steps there.
+
+### GitHub PRs
 
 A recap has two PR surfaces, and they must not duplicate each other:
 
@@ -222,8 +233,8 @@ The recap JSON is **untrusted input**; the renderer enforces these limits:
 
 ## Verify before reporting success
 
-Verify the two surfaces you will actually post, using the commands in
-[Posting to a PR](#posting-to-a-pr): require `"ok": true` and inspect the
+Verify each artifact you actually post, using the provider's workflow in
+[Publishing a recap](#publishing-a-recap). Require `"ok": true` and inspect the
 `warnings` array (`[]` when clean). A missing image or failed Mermaid render
 appears as a warning; fix the JSON and re-render rather than reporting a partial
 recap. Do not claim success from a non-zero exit or from hand-reviewed HTML

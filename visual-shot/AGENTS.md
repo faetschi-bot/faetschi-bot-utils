@@ -269,7 +269,15 @@ Pass `--json` for a stable object on success instead of scraping `saved <path>`:
 `--allow-console-error` matches a literal substring first, and falls back to a
 regular expression if the pattern compiles as one.
 
-## After capturing
+## Publish to a pull request
+
+Publishing depends on the hosting service. For Azure DevOps, follow
+[`docs/azure-devops.md`](./docs/azure-devops.md); do not use the GitHub
+temporary-commit recipe there. It covers MCP upload, the trusted manual pipeline,
+and direct OAuth publishing. The MCP Work Item Tracking attachment is not a
+native PR attachment, so it does not satisfy a native-attachment-only policy.
+
+### GitHub PRs
 
 Keep PR-only images out of `main`:
 
