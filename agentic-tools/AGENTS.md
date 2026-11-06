@@ -142,6 +142,7 @@ the OpenChamber port maps onto each CLI.
 | [`pr-artifacts`](./skills/pr-artifacts/SKILL.md) | Opening or updating any PR, or setting up a project's PR artifact contract. Requires before/after evidence in every PR and ships the checker plus CI gate. |
 | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 | [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos. Defers authoring rules to the upstream `remotion-best-practices` skill. |
+| [`show-me`](./skills/show-me/SKILL.md) | Understanding the current topic visually: pseudocode, call trees, component trees, shallow file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
 
 ## Commands
 
@@ -171,8 +172,10 @@ the OpenChamber port maps onto each CLI.
 A skill can be copied from upstream instead of written here. Keep the source
 files verbatim, ship its `LICENSE`/`NOTICE.md` inside the skill directory so the
 attribution travels with `install`, and point at the upstream repo in the
-provenance note here. `simple-english` is vendored this way from
-[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english).
+provenance note here. Two skills are vendored this way: `simple-english` from
+[0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english),
+and `show-me` from
+[humanlayer/skills](https://github.com/humanlayer/skills).
 
 ## Adding a skill (maintainers)
 
