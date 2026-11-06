@@ -18,6 +18,7 @@ programs that run in your project.
 | Skill | [`pr-artifacts`](./skills/pr-artifacts/SKILL.md) | Opening or updating any pull request, or setting up a project's artifact gate. Requires before/after evidence in every PR — backend, UI, docs — and ships the checker plus CI gate. |
 | Skill | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 | Skill | [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos: product demos, launch and marketing videos, programmatic motion graphics. |
+| Skill | [`show-me`](./skills/show-me/SKILL.md) | Explaining the current topic visually: pseudocode, call or component trees, file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
 | Command | [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
 | Command | [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
 | Command | [`craft-goal`](./commands/craft-goal.md) | Turning an idea or task into a clear, verifiable Goal through a guided dialogue. |
@@ -193,6 +194,23 @@ substitutions, before/after examples, and an optional `scripts/ste_check.py`
 checker. Because the whole skill directory is copied, `install simple-english`
 brings its references, examples, and script along; it is text plus one optional
 Python 3 checker.
+
+### show-me
+
+Vendored verbatim from
+[humanlayer/skills](https://github.com/humanlayer/skills) (MIT, plugin `show-me`
+1.0.1 — see the skill's `NOTICE.md` and `LICENSE`). It turns an explanation into
+the smallest visual that makes the point: pseudocode for logic, a call tree for
+control flow, a component tree for UI, a shallow file tree for layout, Mermaid
+for interaction and data flow, a `diff` when only the delta matters, and one
+focused HTML diagram or slide deck when Mermaid is not enough.
+
+The skill is prose only — no references, scripts, or dependencies — and it tells
+the agent to put each visual next to the sentence it supports instead of
+replacing the answer with a wall of diagrams. Upstream sets
+`disable-model-invocation: true`, so on harnesses that honor it (Claude Code)
+the skill is invoked explicitly rather than auto-selected; other harnesses
+ignore the key and load it on the description like any other skill.
 
 ## Use a skill
 
