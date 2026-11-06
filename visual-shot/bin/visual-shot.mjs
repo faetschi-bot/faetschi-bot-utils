@@ -55,6 +55,7 @@ Run "visual-shot <command> --help" for command options.
 Env:
   VISUAL_SHOT_CACHE                 persistent cache dir for Chromium + libs
   VISUAL_SHOT_PLAYWRIGHT_VERSION    pinned Playwright version
+  VISUAL_SHOT_NO_SANDBOX            set to 1 to disable Chromium's sandbox
   VISUAL_SHOT_MERMAID_VERSION       pinned Mermaid version (diagram)`;
 }
 

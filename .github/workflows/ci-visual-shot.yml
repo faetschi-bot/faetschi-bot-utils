@@ -40,6 +40,10 @@ jobs:
   # Cache key must match visual-shot/action.yml so CI and the action share it.
   browser:
     runs-on: ubuntu-latest
+    # GitHub's runner blocks Chromium's user-namespace sandbox; these tests use
+    # trusted local fixtures. The unit test still covers the secure default.
+    env:
+      VISUAL_SHOT_NO_SANDBOX: '1'
     defaults:
       run:
         working-directory: visual-shot
@@ -61,7 +65,7 @@ jobs:
             ~/.local/share/visual-shot/env.sh
             ~/.local/share/visual-shot/fonts.conf
             ~/.local/share/visual-shot/.provisioned
-          key: visual-shot-${{ runner.os }}-${{ runner.arch }}-pw1.49.1-v2
+          key: visual-shot-${{ runner.os }}-${{ runner.arch }}-pw1.64.1-v2
       - name: Provision
         run: npm run setup
       # The gated `recap --png` test skips unless BOTH the mermaid and highlight
@@ -73,6 +77,7 @@ jobs:
           cat > /tmp/visual-shot-prefetch.json <<'JSON'
           {"version":1,"title":"prefetch","blocks":[{"type":"mermaid","source":"graph TD; A-->B"},{"type":"code","language":"js","code":"const x = 1;\n"}]}
           JSON
-          node bin/visual-shot.mjs recap --from /tmp/visual-shot-prefetch.json --out /tmp/visual-shot-prefetch.html --json > /dev/null
+          # Keep stdout so a failure shows the JSON error in CI.
+          node bin/visual-shot.mjs recap --from /tmp/visual-shot-prefetch.json --out /tmp/visual-shot-prefetch.html --json
       - name: Browser tests
         run: npm test

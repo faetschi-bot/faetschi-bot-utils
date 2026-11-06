@@ -47,7 +47,8 @@ export async function run(opts, ctx) {
   const provisioned = existsSync(join(cache, '.provisioned'));
   add('provisioned', provisioned, provisioned ? 'yes' : 'no', 'Run: visual-shot setup');
 
-  const shell = findFile(join(cache, 'browsers'), 'headless_shell');
+  const shell = findFile(join(cache, 'browsers'), 'headless_shell')
+    || findFile(join(cache, 'browsers'), 'chrome-headless-shell');
   add('chromium', Boolean(shell), shell || 'not found', 'Run: visual-shot setup');
 
   const pw = loadPlaywright(cache);

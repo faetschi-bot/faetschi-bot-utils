@@ -8,7 +8,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CACHE="${VISUAL_SHOT_CACHE:-${XDG_DATA_HOME:-$HOME/.local/share}/visual-shot}"
 BROWSERS="$CACHE/browsers"
 SYSROOT="$CACHE/sysroot"
-PW_VERSION="${VISUAL_SHOT_PLAYWRIGHT_VERSION:-1.49.1}"
+PW_VERSION="${VISUAL_SHOT_PLAYWRIGHT_VERSION:-1.64.1}"
 
 mkdir -p "$BROWSERS" "$SYSROOT" "$CACHE/pw"
 export PLAYWRIGHT_BROWSERS_PATH="$BROWSERS"
@@ -17,14 +17,20 @@ echo "[visual-shot] cache: $CACHE"
 
 PW_PKG="$CACHE/pw/node_modules/playwright"
 PW_CLI="$PW_PKG/cli.js"
-if [ ! -f "$PW_CLI" ]; then
+installed_version=""
+if [ -f "$PW_PKG/package.json" ]; then
+  installed_version="$(node -p "require(process.argv[1]).version" "$PW_PKG/package.json" 2>/dev/null || true)"
+fi
+reinstalled=""
+if [ "$installed_version" != "$PW_VERSION" ]; then
   echo "[visual-shot] installing playwright@$PW_VERSION into the cache..."
   npm install --prefix "$CACHE/pw" --no-save --no-package-lock --no-audit --no-fund \
     "playwright@$PW_VERSION" >/dev/null
+  reinstalled=1
 fi
 
-shell_bin="$(find "$BROWSERS" -type f -name headless_shell 2>/dev/null | head -1 || true)"
-if [ -z "$shell_bin" ]; then
+shell_bin="$(find "$BROWSERS" -type f \( -name headless_shell -o -name chrome-headless-shell \) 2>/dev/null | head -1 || true)"
+if [ -n "$reinstalled" ] || [ -z "$shell_bin" ]; then
   echo "[visual-shot] downloading Chromium headless shell..."
   # headless:true launches chromium-headless-shell, never the full Chromium, so
   # request only the shell (~309 MB vs ~858 MB). Older Playwright without the
@@ -33,10 +39,10 @@ if [ -z "$shell_bin" ]; then
     echo "[visual-shot] --only-shell unsupported; installing full Chromium" >&2
     node "$PW_CLI" install chromium
   fi
-  shell_bin="$(find "$BROWSERS" -type f -name headless_shell 2>/dev/null | head -1 || true)"
+  shell_bin="$(find "$BROWSERS" -type f \( -name headless_shell -o -name chrome-headless-shell \) 2>/dev/null | head -1 || true)"
 fi
 if [ -z "$shell_bin" ]; then
-  echo "[visual-shot] could not find headless_shell after install" >&2
+  echo "[visual-shot] could not find the headless shell after install" >&2
   exit 1
 fi
 # Drop the dead binaries: the glob "chromium-*" matches chromium-1148 but NOT
@@ -73,5 +79,5 @@ if [ -n "$libs" ]; then
   fi
 fi
 
-touch "$CACHE/.provisioned"
+printf '%s\n' "$PW_VERSION" > "$CACHE/.provisioned"
 echo "[visual-shot] ready. env written to $CACHE/env.sh"

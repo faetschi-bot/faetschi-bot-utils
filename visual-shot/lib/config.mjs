@@ -6,6 +6,7 @@ export const DEFAULT_OUT_DIR = 'tmp/images/PRs';
 export const DEFAULT_VIEWPORT = '1280x720';
 export const DEFAULT_SCALE = 2;
 export const DEFAULT_WAIT = 1000;
+export const DEFAULT_PLAYWRIGHT_VERSION = '1.64.1';
 export const DEFAULT_NAV_TIMEOUT = 30000;
 export const DEFAULT_SERVER_TIMEOUT = 30000;
 export const MAX_ERRORS = 50;
@@ -71,6 +72,10 @@ export function assetSha256(url) {
 export function cacheDir(env = process.env) {
   return env.VISUAL_SHOT_CACHE
     || join(env.XDG_DATA_HOME || join(os.homedir(), '.local/share'), 'visual-shot');
+}
+
+export function playwrightVersion(env = process.env) {
+  return env.VISUAL_SHOT_PLAYWRIGHT_VERSION || DEFAULT_PLAYWRIGHT_VERSION;
 }
 
 export function mermaidVersion(env = process.env) {
