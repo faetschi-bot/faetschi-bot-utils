@@ -20,6 +20,7 @@ programs that run in your project.
 | Skill | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 | Skill | [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos: product demos, launch and marketing videos, programmatic motion graphics. |
 | Skill | [`show-me`](./skills/show-me/SKILL.md) | Explaining the current topic visually: pseudocode, call or component trees, file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
+| Skill | [`deepen-simplify`](./skills/deepen-simplify/SKILL.md) | Deepening modules and simplifying interfaces in existing code. Behavior-preserving: ranked complexity audit, then one surgical change. |
 | Command | [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
 | Command | [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
 | Command | [`craft-goal`](./commands/craft-goal.md) | Turning an idea or task into a clear, verifiable Goal through a guided dialogue. |
@@ -227,6 +228,18 @@ replacing the answer with a wall of diagrams. Upstream sets
 `disable-model-invocation: true`, so on harnesses that honor it (Claude Code)
 the skill is invoked explicitly rather than auto-selected; other harnesses
 ignore the key and load it on the description like any other skill.
+
+### deepen-simplify
+
+Deepens modules and simplifies interfaces without changing behavior.
+
+- **Audit first**: find one rule implemented twice, wrappers that only forward,
+  and callers that must know internal state or call order; rank the top 3 by
+  complexity removed, tie-broken by smallest diff.
+- **Land only #1**: delete more than you add, add no dependencies, keep the
+  public API, and stop if the change spreads past ~5 files.
+- **Proof**: each candidate names the test that shows behavior is unchanged;
+  untested code gets a characterization test first or stays alone.
 
 ## Use a skill
 
