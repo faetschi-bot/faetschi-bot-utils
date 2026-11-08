@@ -144,6 +144,7 @@ the OpenChamber port maps onto each CLI.
 | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
 | [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos. Defers authoring rules to the upstream `remotion-best-practices` skill. |
 | [`show-me`](./skills/show-me/SKILL.md) | Understanding the current topic visually: pseudocode, call trees, component trees, shallow file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
+| [`deepen-simplify`](./skills/deepen-simplify/SKILL.md) | Deepening modules and simplifying interfaces in existing code. Behavior-preserving: ranked complexity audit, then one surgical change. |
 
 ## Commands
 
