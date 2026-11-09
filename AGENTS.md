@@ -16,8 +16,8 @@ its own `AGENTS.md` next to it — start there.
 | [`pi-collection/`](./pi-collection) | [`pi-collection/AGENTS.md`](./pi-collection/AGENTS.md) |
 | [`opencode-collection/`](./opencode-collection) | [`opencode-collection/AGENTS.md`](./opencode-collection/AGENTS.md) |
 
-Third-party install guides (unsnooze, Remotion) live in
-[`agentic-tools/install/`](./agentic-tools/install); they are setup guides, not
+The third-party Remotion install guide lives in
+[`agentic-tools/install/`](./agentic-tools/install); it is a setup guide, not
 installable skills.
 
 ## Golden rules

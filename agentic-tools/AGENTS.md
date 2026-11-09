@@ -166,7 +166,6 @@ the OpenChamber port maps onto each CLI.
 
 | Guide | Use it when |
 |-------|-------------|
-| [`install/unsnooze.md`](./install/unsnooze.md) | The user wants to install, configure, verify, or remove the unsnooze CLI for Claude Code or Codex CLI. This is a setup guide, not an agent skill. |
 | [`install/remotion.md`](./install/remotion.md) | The user wants to install Remotion, install its upstream agent skills, or prove a render. This is a setup guide, not an agent skill; the `remotion` skill wraps it. |
 
 ## Vendored skills
