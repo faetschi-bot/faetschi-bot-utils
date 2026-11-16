@@ -1,6 +1,6 @@
 ---
 name: state-audit
-description: "Find the implicit state machines in an app and the bugs they cause: map how a flow moves, show which steps break, and explain or fix the findings on a later branch."
+description: "Find implicit state machines and the bugs they cause, then assess how each flow affects user experience (UX), developer experience (DX), and agent experience (AX). Preserve existing behavior unless a safe improvement is requested."
 ---
 
 # State Audit
@@ -38,6 +38,33 @@ For each machine, write down:
 - its rules, such as "one order is charged once", and where the state is
   written;
 - the one place that should own the state.
+
+## Improve the experience
+
+For each machine, assess the same real flow from three perspectives:
+
+- **UX:** Can a person understand what is happening, what they can do next,
+  and how to recover? Check feedback, waiting, errors, empty states, progress,
+  undo or retry, and accessible operation with keyboard and assistive
+  technology.
+- **DX:** Can a maintainer understand the states, transitions, invariants, and
+  owner? Check whether invalid combinations are possible, transitions are
+  discoverable, failures are diagnosable, and behavior is practical to change
+  and verify.
+- **AX:** Can a coding agent find the authoritative state and follow the flow
+  without guessing? Check clear names and types, explicit transition points,
+  local and current documentation, useful diagnostics, and focused checks that
+  reveal regressions.
+
+Do not recommend a change just to score higher on a dimension. Identify the
+user-visible or maintenance cost it removes, and prefer the smallest change
+that improves UX, DX, and AX together. When the dimensions conflict, explain
+the trade-off and choose the option that best serves the app's users while
+keeping the other two workable. Preserve current behavior and public
+contracts: trace callers and data first, keep migrations and rollouts
+compatible, and do not claim a change is non-breaking without evidence. If no
+safe improvement is clear, report the gap and the evidence needed instead of
+guessing.
 
 Default scope is the whole repo, split by packages or app areas. Prefer five
 machines traced fully over fifty listed.
@@ -91,6 +118,11 @@ For each bug:
 - `reproduced`, `traced in code`, or `unproven`.
 
 For each machine: states, events, owner, where it is written.
+
+For each machine, add a concise UX/DX/AX assessment: the strongest friction in
+each dimension, the smallest compatible improvement, and any trade-off. Mark a
+dimension as clear when the audit found no material friction; do not invent a
+problem to fill the row.
 
 Coverage: what you read, what you skipped, what you assumed. Do not say "all
 state machines"; say what you covered.
