@@ -1,6 +1,6 @@
 ---
 name: state-audit
-description: "Find the implicit state machines in an app and the bugs they cause: map how a flow moves, show which steps break, and explain or fix the findings on a later branch."
+description: "Find implicit state machines in an app and make evidence-backed decisions that improve user experience (UX), developer experience (DX), and agent experience (AX) without breaking existing behavior."
 ---
 
 # State Audit
@@ -38,6 +38,13 @@ For each machine, write down:
 - its rules, such as "one order is charged once", and where the state is
   written;
 - the one place that should own the state.
+
+For each machine, make the best evidence-backed decision to improve all three:
+**UX** (clear feedback and recovery), **DX** (understandable, changeable
+transitions), and **AX** (easy for agents to trace and verify). Prefer one
+small improvement across all three. Preserve existing behavior and contracts;
+check callers and data before recommending changes. If goals conflict or a
+change may break behavior, state the trade-off instead of claiming it is safe.
 
 Default scope is the whole repo, split by packages or app areas. Prefer five
 machines traced fully over fifty listed.
@@ -91,6 +98,9 @@ For each bug:
 - `reproduced`, `traced in code`, or `unproven`.
 
 For each machine: states, events, owner, where it is written.
+
+For each machine, add one concise UX/DX/AX assessment and any trade-off. Do not
+invent a problem when no material friction was found.
 
 Coverage: what you read, what you skipped, what you assumed. Do not say "all
 state machines"; say what you covered.

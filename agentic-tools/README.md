@@ -14,7 +14,7 @@ programs that run in your project.
 |------|------------|-------------|
 | Skill | [`agent-friendly-code`](./skills/agent-friendly-code/SKILL.md) | Writing or changing code, auditing a codebase for agent-hostile structure, or setting up a project's agent instruction file. Applies the read-time cost bar. |
 | Skill | [`test-audit`](./skills/test-audit/SKILL.md) | Writing, changing, reviewing, or sweeping tests. Gates new tests at authoring time and audits existing tests for low-value, implementation-coupled, or duplicative coverage. |
-| Skill | [`state-audit`](./skills/state-audit/SKILL.md) | Finding the implicit state machines in an app and the bugs they cause. Maps flows, shows broken steps, and explains or fixes findings on a later branch. |
+| Skill | [`state-audit`](./skills/state-audit/SKILL.md) | Finding implicit state machines and bugs, then assessing each flow for user, developer, and agent experience (UX/DX/AX) while preserving behavior. |
 | Skill | [`visual-recap`](./skills/visual-recap/SKILL.md) | Turning a PR, branch, commit, or diff into a visual recap. Pairs with `visual-shot recap` — the skill authors `recap.json`, the CLI renders it. |
 | Skill | [`pr-artifacts`](./skills/pr-artifacts/SKILL.md) | Opening or updating any pull request, or setting up a project's artifact gate. Requires before/after evidence in every PR — backend, UI, docs — and ships the checker plus CI gate. |
 | Skill | [`simple-english`](./skills/simple-english/SKILL.md) | Writing, rewriting, reviewing, or checking technical documentation in ASD-STE100 Simplified Technical English. |
