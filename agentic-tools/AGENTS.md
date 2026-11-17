@@ -145,6 +145,7 @@ the OpenChamber port maps onto each CLI.
 | [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos. Defers authoring rules to the upstream `remotion-best-practices` skill. |
 | [`show-me`](./skills/show-me/SKILL.md) | Understanding the current topic visually: pseudocode, call trees, component trees, shallow file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
 | [`deepen-simplify`](./skills/deepen-simplify/SKILL.md) | Deepening modules and simplifying interfaces in existing code. Behavior-preserving: ranked complexity audit, then one surgical change. |
+| [`prune-tests`](./skills/prune-tests/SKILL.md) | Pruning tests that guard no behavior. Vendored from `caldoai/skills`. |
 
 ## Commands
 
@@ -177,6 +178,8 @@ provenance note here. Two skills are vendored this way: `simple-english` from
 [0xpili/simplified-technical-english](https://github.com/0xpili/simplified-technical-english),
 and `show-me` from
 [humanlayer/skills](https://github.com/humanlayer/skills).
+`prune-tests` is vendored verbatim from
+[caldoai/skills](https://github.com/caldoai/skills/tree/main/skills/prune-tests).
 
 ## Adding a skill (maintainers)
 

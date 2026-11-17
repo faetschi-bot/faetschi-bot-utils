@@ -21,6 +21,7 @@ programs that run in your project.
 | Skill | [`remotion`](./skills/remotion/SKILL.md) | Installing Remotion or building, previewing, rendering, and verifying code-rendered videos: product demos, launch and marketing videos, programmatic motion graphics. |
 | Skill | [`show-me`](./skills/show-me/SKILL.md) | Explaining the current topic visually: pseudocode, call or component trees, file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
 | Skill | [`deepen-simplify`](./skills/deepen-simplify/SKILL.md) | Deepening modules and simplifying interfaces in existing code. Behavior-preserving: ranked complexity audit, then one surgical change. |
+| Skill | [`prune-tests`](./skills/prune-tests/SKILL.md) | Pruning tests that guard no behavior. Vendored from `caldoai/skills`. |
 | Command | [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
 | Command | [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
 | Command | [`craft-goal`](./commands/craft-goal.md) | Turning an idea or task into a clear, verifiable Goal through a guided dialogue. |
@@ -239,6 +240,15 @@ Deepens modules and simplifies interfaces without changing behavior.
   public API, and stop if the change spreads past ~5 files.
 - **Proof**: each candidate names the test that shows behavior is unchanged;
   untested code gets a characterization test first or stays alone.
+
+### prune-tests
+
+Vendored verbatim from
+[caldoai/skills](https://github.com/caldoai/skills/tree/main/skills/prune-tests)
+(MIT; see the skill's `LICENSE`). It removes tests that do not guard intended
+behavior: tests of removed code, platform behavior, mocked units, type-system
+guarantees, and implementation details. It also directs the agent to remove
+production code that existed only for the deleted tests.
 
 ## Use a skill
 
