@@ -22,6 +22,7 @@ programs that run in your project.
 | Skill | [`show-me`](./skills/show-me/SKILL.md) | Explaining the current topic visually: pseudocode, call or component trees, file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
 | Skill | [`deepen-simplify`](./skills/deepen-simplify/SKILL.md) | Deepening modules and simplifying interfaces in existing code. Behavior-preserving: ranked complexity audit, then one surgical change. |
 | Skill | [`prune-tests`](./skills/prune-tests/SKILL.md) | Pruning tests that guard no behavior. Vendored from `caldoai/skills`. |
+| Skill | [`prune-comments`](./skills/prune-comments/SKILL.md) | Deleting or sweeping comments, lowering a comment baseline, or continuing a comment ban. Sorts every comment into tautology, stale, excuse, or decision record. |
 | Command | [`catch-up`](./commands/catch-up.md) | Returning to a project and needing the branch state, in-progress work, and next step. |
 | Command | [`clean-codebase-loop`](./commands/clean-codebase-loop.md) | Running an autonomous whole-codebase simplification loop that ends in a PR or set of PRs. |
 | Command | [`craft-goal`](./commands/craft-goal.md) | Turning an idea or task into a clear, verifiable Goal through a guided dialogue. |
@@ -33,6 +34,7 @@ programs that run in your project.
 | Command | [`summary`](./commands/summary.md) | Summarizing the current session, optionally focused on a topic. |
 | Command | [`weigh`](./commands/weigh.md) | Comparing distinct approaches with trade-offs and a recommendation. |
 | Command | [`workspace-review`](./commands/workspace-review.md) | Reviewing workspace changes for correctness, adequacy, and security. |
+| Command | [`prune-comments`](./commands/prune-comments.md) | Running one focused tranche of the comment sweep: deleting what the code shows, recording excuses as issues, keeping decision records. |
 | Install guide (not a skill) | [`Remotion`](./install/remotion.md) | Installing Remotion, its upstream agent skills, and proving a render on Claude Code, Codex, OpenCode, or Pi. |
 
 ## Requirements
@@ -249,6 +251,21 @@ Vendored verbatim from
 behavior: tests of removed code, platform behavior, mocked units, type-system
 guarantees, and implementation details. It also directs the agent to remove
 production code that existed only for the deleted tests.
+
+### prune-comments
+
+Deletes comments the code already shows and keeps the ones it cannot. Every
+candidate is sorted into four categories — tautology (delete), stale (delete
+the dead clause), excuse (file an issue first, then delete), decision record
+(keep in place, or move cross-cutting ones to the project's decision-record
+home). The sweep is tranche-based, hunts with every line-comment prefix the
+project's languages use, never deletes on a grep match alone, and never
+touches pragmas, tool directives, license headers, or generated and vendored
+paths. It runs the project's comment baseline gate when one exists and never
+lets the baseline grow. Derived from the `delete-comment` sweep in the
+`faetschi/trust-boundary` repository, generalized so the tracker, the
+decision-record home, the languages, and the baseline gate all come from the
+target project instead of being hard-coded.
 
 ## Use a skill
 

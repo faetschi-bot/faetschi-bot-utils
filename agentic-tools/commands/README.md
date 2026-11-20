@@ -8,8 +8,8 @@ Ten commands are a **1:1 port of OpenChamber's built-in magic prompts**
 ([openchamber/openchamber](https://github.com/openchamber/openchamber), MIT).
 Source of truth: `packages/ui/src/lib/magicPrompts.ts` (the templates) and
 `packages/ui/src/components/chat/composer/submit/slashCommands.ts` (the command
-list). Every prompt part is copied verbatim; `clean-codebase-loop` is the only
-command written for this pack.
+list). Every prompt part is copied verbatim; `clean-codebase-loop` and
+`prune-comments` are the only commands written for this pack.
 
 ## How the port maps onto each CLI
 

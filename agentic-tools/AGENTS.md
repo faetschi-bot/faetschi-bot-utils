@@ -146,6 +146,7 @@ the OpenChamber port maps onto each CLI.
 | [`show-me`](./skills/show-me/SKILL.md) | Understanding the current topic visually: pseudocode, call trees, component trees, shallow file trees, Mermaid, diffs, or one focused HTML artifact. Vendored from `humanlayer/skills`. |
 | [`deepen-simplify`](./skills/deepen-simplify/SKILL.md) | Deepening modules and simplifying interfaces in existing code. Behavior-preserving: ranked complexity audit, then one surgical change. |
 | [`prune-tests`](./skills/prune-tests/SKILL.md) | Pruning tests that guard no behavior. Vendored from `caldoai/skills`. |
+| [`prune-comments`](./skills/prune-comments/SKILL.md) | Deleting or sweeping comments, lowering a comment baseline, or continuing a comment ban. Sorts every comment into tautology, stale, excuse, or decision record; tranche-based, never grep-only. |
 
 ## Commands
 
@@ -162,6 +163,7 @@ the OpenChamber port maps onto each CLI.
 | [`summary`](./commands/summary.md) | Summarizing the current session, optionally focused on a topic. |
 | [`weigh`](./commands/weigh.md) | Comparing distinct approaches with trade-offs and a recommendation. |
 | [`workspace-review`](./commands/workspace-review.md) | Reviewing workspace changes for correctness, adequacy, and security. |
+| [`prune-comments`](./commands/prune-comments.md) | Running one focused tranche of the comment sweep: deleting what the code shows, recording excuses as issues, keeping decision records. |
 
 ## Installer guides
 
