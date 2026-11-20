@@ -31,7 +31,9 @@ This skill defines the bar, not the commands.
 
 Doc comments that state an API contract (godoc, docstrings, JSDoc a tool
 consumes) are usually decision records; judge them by the same categories
-instead of blanket-deleting.
+instead of blanket-deleting. One exception: a doc comment that is the only
+documentation of a public API is never deleted for being tautological —
+rewrite it in place to state the contract.
 
 ## Safety rules
 
@@ -49,6 +51,9 @@ instead of blanket-deleting.
   Scope each prefix's file globs to the languages that use it.
 - Skip generated and vendored paths — whatever the project's ignore files
   exclude (for example `dist/`, `vendor/`, `node_modules/`).
+- When a hit's category is ambiguous, keep the comment. The next tranche
+  can delete it once the doubt is resolved; a wrong deletion has to be dug
+  out of history.
 
 ## Workflow
 
@@ -63,7 +68,9 @@ instead of blanket-deleting.
      present.
 3. Categorize each hit by reading it in context. Delete tautologies and stale
    text. Before deleting an excuse, file the issue: derive the tracker from
-   `git remote` or the project's `AGENTS.md`. For a cross-cutting decision,
+   `git remote` or the project's `AGENTS.md`. If the tranche turns up more
+   than a handful of distinct hacks, confirm the issue batch with the user
+   before filing; do not flood the tracker. For a cross-cutting decision,
    mirror the project's existing decision-record format.
 4. Verify the tranche:
    - inspect the diff: every removed line must be comment text (plus any

@@ -18,5 +18,6 @@ Operating rules:
 - Read every hit in context; never delete on a grep match alone.
 - Never touch pragmas, tool directives, shebangs, license headers, or generated and vendored paths. Match each prefix only in files where it is the comment token (`#` in Markdown is a heading, in C the preprocessor).
 - The diff must remove comment lines only; any code change means stop and re-judge.
+- When a category call is ambiguous, keep the comment. Confirm the issue batch with the user before filing more than a handful. Never delete the only documentation of a public API; rewrite it to state the contract.
 - Verify: run the project's formatter on touched files; run the project's comment baseline gate if it has one and never let the baseline grow; run the changed-file gate (lint, typecheck, tests).
 - Commit deletions together with the lowered baseline when one exists.
