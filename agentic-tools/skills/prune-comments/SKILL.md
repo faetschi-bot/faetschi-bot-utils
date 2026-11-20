@@ -40,8 +40,13 @@ instead of blanket-deleting.
   terms.
 - Never touch pragmas and tool directives: shebangs, `//go:`, `#![...]`,
   `@ts-`, `@vitest`, `eslint-disable`, `@formatter`, region markers, and
-  anything else a compiler, linter, or doc tool parses.
+  anything else a compiler, linter, or doc tool parses — including
+  `# type:` and `# noqa` in Python, and `#` lines in C, which are
+  preprocessor, not comments.
 - Never touch license headers.
+- Match a prefix only in files where it is the comment token: `#` in
+  Markdown is a heading, and `--` in a shell script may be an operator.
+  Scope each prefix's file globs to the languages that use it.
 - Skip generated and vendored paths — whatever the project's ignore files
   exclude (for example `dist/`, `vendor/`, `node_modules/`).
 
@@ -61,6 +66,9 @@ instead of blanket-deleting.
    `git remote` or the project's `AGENTS.md`. For a cross-cutting decision,
    mirror the project's existing decision-record format.
 4. Verify the tranche:
+   - inspect the diff: every removed line must be comment text (plus any
+     new decision record or lowered-baseline file); a code change means
+     stop and re-categorize;
    - run the project's formatter on every touched file (empty diff passes);
    - if the project has a comment-count baseline gate, run it with its update
      flag after deletions only — it must refuse growth and lower the

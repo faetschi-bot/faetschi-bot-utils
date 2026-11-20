@@ -16,6 +16,7 @@ Operating rules:
 - One tranche per run (a package, a directory, or one marker sweep), never the whole tree in one pass.
 - Hunt with every line-comment prefix the project's languages use; a slash-only sweep misses shell and Python.
 - Read every hit in context; never delete on a grep match alone.
-- Never touch pragmas, tool directives, shebangs, license headers, or generated and vendored paths.
+- Never touch pragmas, tool directives, shebangs, license headers, or generated and vendored paths. Match each prefix only in files where it is the comment token (`#` in Markdown is a heading, in C the preprocessor).
+- The diff must remove comment lines only; any code change means stop and re-judge.
 - Verify: run the project's formatter on touched files; run the project's comment baseline gate if it has one and never let the baseline grow; run the changed-file gate (lint, typecheck, tests).
 - Commit deletions together with the lowered baseline when one exists.
