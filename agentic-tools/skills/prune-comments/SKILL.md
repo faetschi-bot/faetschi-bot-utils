@@ -27,7 +27,12 @@ This skill defines the bar, not the commands.
   project has a decision-record home (`docs/decisions/`, an ADR directory, an
   RFC file), mirror the format of the existing records and delete the comment.
   If no home exists, do not invent one unasked; keep the comment and report
-  it as a follow-up.
+  it as a follow-up. A decision record that claims a constraint someone
+  could violate (`do not remove`, `do not change this wording`, `talk to X
+  before changing`) is an unenforced claim: offer the cheapest encoding —
+  a type, a runtime check, a test, or a lint — wait for approval, encode it,
+  and delete the comment. If declined, keep the comment and report the
+  constraint open.
 
 Doc comments that state an API contract (godoc, docstrings, JSDoc a tool
 consumes) are usually decision records; judge them by the same categories
@@ -57,8 +62,10 @@ rewrite it in place to state the contract.
 
 ## Workflow
 
-1. Pick one tranche: a package, a directory, or a single marker sweep across
-   the tree. Never attempt the whole tree in one pass.
+1. Pick one tranche: a package, a directory, a single marker sweep across
+   the tree, or the current branch's diff against its base when the request
+   is about the change, not the tree. Never attempt the whole tree in one
+   pass.
 2. Hunt with every line-comment prefix the project's languages use; a
    slash-only sweep misses shell, Python, Ruby, SQL, and ini files:
    - `git grep -I -n -i -E '^\s*(//|#|--|;|%).*(TODO|FIXME|HACK|shortcut:|workaround|for now)'`
@@ -86,3 +93,9 @@ rewrite it in place to state the contract.
    must not grow. If the project has no baseline gate, the formatter plus
    changed-file gate is the whole check. New files arrive with zero comment
    lines where a gate enforces this; review does not.
+
+## Report
+
+End every tranche with: deletions per category, issues filed with links,
+decision records written or kept, encoding offers made and their outcome,
+comments kept as ambiguous, and any open out-of-tranche work.
